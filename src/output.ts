@@ -42,10 +42,11 @@ function resolveColumns(rows: Record<string, unknown>[], opts: RenderOptions): s
 /** Format output without writing to process-global streams. */
 export function formatOutput(data: unknown, opts: RenderOptions = {}): string {
   let fmt = opts.fmt ?? 'table';
-  if (!opts.fmtExplicit && fmt === 'table' && !opts.isTTY) fmt = 'yaml';
+  if (!opts.fmtExplicit && fmt === 'table' && !opts.isTTY) fmt = 'toon';
   if (data === null || data === undefined) return `${String(data)}\n`;
 
   switch (fmt) {
+    case 'toon': return formatToon(data, opts);
     case 'json': return `${JSON.stringify(data, null, 2)}\n`;
     case 'plain': return formatPlain(data);
     case 'md':
@@ -76,7 +77,7 @@ export async function render(data: unknown, opts: StreamRenderOptions = {}): Pro
 
 /** Serialize the local error envelope without writing to process-global stderr. */
 export function formatErrorEnvelope(envelope: ErrorEnvelope, opts: ErrorRenderOptions = {}): string {
-  let output = yaml.dump(envelope, { sortKeys: false, lineWidth: 120, noRefs: true });
+  let output = `error:\n  code: ${envelope.error.code}\n  message: ${envelope.error.message}\n`;
   const code = envelope.error.code;
   if (
     opts.cmdName
@@ -85,10 +86,38 @@ export function formatErrorEnvelope(envelope: ErrorEnvelope, opts: ErrorRenderOp
     && (code === 'SELECTOR' || code === 'EMPTY_RESULT' || code === 'ADAPTER_LOAD' || code === 'UNKNOWN')
   ) {
     const runnable = opts.cmdName.replace('/', ' ');
-    output += '# AutoFix: re-run with --trace=retain-on-failure for trace artifact\n';
-    output += `# webcmd ${runnable} --trace retain-on-failure\n`;
+    output += `help: re-run with --trace=retain-on-failure for trace artifact\n`;
+    output += `suggestion: webcmd ${runnable} --trace retain-on-failure\n`;
   }
   return output;
+}
+
+function formatToon(data: unknown, opts: RenderOptions): string {
+  const rows = normalizeRows(data);
+  if (!rows.length) return 'items: 0\n';
+
+  const columns = resolveColumns(rows, opts);
+  let out = '';
+  if (rows.length === 1 && !Array.isArray(data)) {
+    out += 'item:\n';
+    for (const col of columns) {
+      let val = String(rows[0]![col] ?? '');
+      if (val.length > 1500) val = val.substring(0, 1500) + '... (truncated)';
+      out += `  ${col}: ${val}\n`;
+    }
+  } else {
+    out += `items[${rows.length}]{${columns.join(',')}}:\n`;
+    for (const row of rows) {
+      out += '  ' + columns.map(c => {
+        let val = String(row[c] ?? '');
+        if (val.length > 1500) val = val.substring(0, 1500) + '... (truncated)';
+        return val.includes(',') || val.includes('\n') || val.includes('"') 
+          ? `"${val.replace(/"/g, '""')}"` 
+          : val;
+      }).join(',') + '\n';
+    }
+  }
+  return out + '\n';
 }
 
 function formatTable(data: unknown, opts: RenderOptions): string {
