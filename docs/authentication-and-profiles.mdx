@@ -19,28 +19,34 @@ Profiles separate browser identities and their login state. Use a named profile 
 
 ## Hosted Profiles
 
-In Webcmd Cloud, no profile selector (or `--profile default`) lazily creates only the hosted default profile. Create every custom hosted profile explicitly. An unknown custom selector fails; it never creates a hosted profile.
+Webcmd Cloud scopes every hosted profile to a workspace. A workspace is an ambient container the CLI resolves once per invocation: the `--workspace <id>` flag if present, otherwise the `WEBCMD_WORKSPACE` environment variable, otherwise an implicit default workspace. Within that workspace, `--profile <name>` selects a persona; an unset or default profile lazily creates that workspace's own `default` profile the first time it is used.
+
+### B2C
+
+A single end user runs hosted commands with no setup. The implicit default workspace and its `default` profile are created lazily on first use:
 
 ```bash
-# B2C: after choosing hosted mode and saving an account API key
 webcmd github whoami
-
-# Optional named identity
-webcmd profile create Work
-webcmd --profile Work github whoami
 ```
 
-Builders can attach a public external user reference when creating a profile:
+Named personas inside that same workspace are also lazy:
 
 ```bash
-webcmd profile create customer_name --user-id customer_id -f json
-# Retain the returned immutable ID, for example profile_abc123.
-webcmd --profile profile_abc123 github whoami
+webcmd --profile work github whoami
 ```
 
-`userId` is your public external-user reference, not Webcmd's internal account ownership. A profile selector is one scalar value: an immutable ID, exact name, or exact `userId`. If one downstream user has several named profiles, their `userId` is ambiguous. Run `webcmd profile list` and use the returned immutable profile ID.
+### B2B2C
 
-Hosted `profile list` returns profile rows; `create` and `get` each return one public profile with `id`, `name`, `userId`, `default`, `status`, `createdAt`, `updatedAt`, and `lastUsedAt`; `delete` returns `{ "ok": true, "deleted": true }`. `status` is `pending` while the hosted profile is being provisioned and `available` once it is ready. Kernel identifiers and names are never Webcmd API fields.
+An enterprise backend puts each downstream user in their own workspace by setting `WEBCMD_WORKSPACE` per invocation. Each workspace gets its own lazily created profiles, including its own `default`, isolated from every other workspace:
+
+```bash
+WEBCMD_WORKSPACE=user_64256 webcmd github whoami
+WEBCMD_WORKSPACE=user_64256 webcmd --profile work github whoami
+```
+
+`--profile <name>` still selects a persona within the ambient workspace; it never crosses workspace boundaries.
+
+Hosted `profile list` returns profile rows; `delete` returns `{ "ok": true, "deleted": true }`. Public profile fields are `id`, `name`, `workspace`, `default`, `status`, `createdAt`, `updatedAt`, and `lastUsedAt`. `status` is `pending` while the hosted profile is being provisioned and `available` once it is ready. Kernel identifiers are never exposed as Webcmd API fields.
 
 Delete hosted profiles only by immutable ID:
 
