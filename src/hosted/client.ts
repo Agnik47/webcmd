@@ -23,7 +23,18 @@ import type {
 export interface HostedClientOptions {
   apiBaseUrl: string;
   apiKey: string;
+  workspace?: string;
   fetchImpl?: typeof fetch;
+}
+
+/**
+ * Resolves the active workspace from CLI flags/env, precedence: --workspace flag > WEBCMD_WORKSPACE env > undefined.
+ */
+export function resolveWorkspace(argv: readonly string[], env: NodeJS.ProcessEnv): string | undefined {
+  const idx = argv.indexOf('--workspace');
+  if (idx >= 0 && argv[idx + 1]) return argv[idx + 1];
+  const fromEnv = env.WEBCMD_WORKSPACE?.trim();
+  return fromEnv ? fromEnv : undefined;
 }
 
 export class HostedClientError extends CliError {
@@ -47,11 +58,13 @@ export class HostedClientError extends CliError {
 export class HostedClient {
   private readonly apiBaseUrl: string;
   private readonly apiKey: string;
+  private readonly workspace: string | undefined;
   private readonly fetchImpl: typeof fetch;
 
   constructor(options: HostedClientOptions) {
     this.apiBaseUrl = options.apiBaseUrl.replace(/\/+$/, '');
     this.apiKey = options.apiKey;
+    this.workspace = options.workspace;
     this.fetchImpl = options.fetchImpl ?? fetch;
   }
 
@@ -192,6 +205,7 @@ export class HostedClient {
         headers: {
           accept: 'application/octet-stream',
           authorization: `Bearer ${this.apiKey}`,
+          ...(this.workspace ? { 'x-webcmd-workspace': this.workspace } : {}),
         },
       },
     );
@@ -281,6 +295,7 @@ export class HostedClient {
         accept: 'application/json',
         ...(init.body ? { 'content-type': 'application/json' } : {}),
         authorization: `Bearer ${this.apiKey}`,
+        ...(this.workspace ? { 'x-webcmd-workspace': this.workspace } : {}),
         ...(init.headers ?? {}),
       },
     });
@@ -414,12 +429,12 @@ function isHostedProfileResponse(value: unknown): value is HostedProfileResponse
 
 function isHostedPublicProfile(value: unknown): boolean {
   return hasExactKeys(value, [
-    'id', 'name', 'userId', 'default', 'status',
+    'id', 'name', 'workspace', 'default', 'status',
     'createdAt', 'updatedAt', 'lastUsedAt',
   ])
     && typeof value.id === 'string'
     && (value.name === null || typeof value.name === 'string')
-    && (value.userId === null || typeof value.userId === 'string')
+    && (value.workspace === null || typeof value.workspace === 'string')
     && typeof value.default === 'boolean'
     && (value.status === 'pending' || value.status === 'available')
     && typeof value.createdAt === 'string'

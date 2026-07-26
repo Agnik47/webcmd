@@ -47,7 +47,7 @@ export interface HostedManifest {
 export interface HostedPublicProfile {
   id: string;
   name: string | null;
-  userId: string | null;
+  workspace: string | null;
   default: boolean;
   status: 'pending' | 'available';
   createdAt: string;
