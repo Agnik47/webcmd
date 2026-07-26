@@ -13,7 +13,6 @@ import type {
   HostedExecution,
   HostedExecuteResponse,
   HostedPrepareExecutionResponse,
-  HostedProfileResponse,
   HostedProfilesResponse,
   HostedUploadArtifactResponse,
   HostedManifest,
@@ -33,6 +32,11 @@ export interface HostedClientOptions {
 export function resolveWorkspace(argv: readonly string[], env: NodeJS.ProcessEnv): string | undefined {
   const idx = argv.indexOf('--workspace');
   if (idx >= 0 && argv[idx + 1]) return argv[idx + 1];
+  const equalsForm = argv.find(arg => arg.startsWith('--workspace='));
+  if (equalsForm !== undefined) {
+    const value = equalsForm.slice('--workspace='.length).trim();
+    if (value) return value;
+  }
   const fromEnv = env.WEBCMD_WORKSPACE?.trim();
   return fromEnv ? fromEnv : undefined;
 }
@@ -80,33 +84,10 @@ export class HostedClient {
     return body.manifest;
   }
 
-  async listProfiles(filters: { name?: string; userId?: string } = {}): Promise<HostedProfilesResponse> {
-    const params = new URLSearchParams();
-    if (filters.name !== undefined) params.set('name', filters.name);
-    if (filters.userId !== undefined) params.set('userId', filters.userId);
-    const query = params.toString();
-    const body = await this.request(`/v1/profiles${query ? `?${query}` : ''}`);
+  async listProfiles(): Promise<HostedProfilesResponse> {
+    const body = await this.request('/v1/profiles');
     if (!isHostedProfilesResponse(body)) {
       throw protocolError('Webcmd Cloud returned an invalid profiles response.');
-    }
-    return body;
-  }
-
-  async createProfile(input: { name: string; userId?: string }): Promise<HostedProfileResponse> {
-    const body = await this.request('/v1/profiles', {
-      method: 'POST',
-      body: JSON.stringify(input),
-    });
-    if (!isHostedProfileResponse(body)) {
-      throw protocolError('Webcmd Cloud returned an invalid profile response.');
-    }
-    return body;
-  }
-
-  async getProfile(profileId: string): Promise<HostedProfileResponse> {
-    const body = await this.request(`/v1/profiles/${encodeURIComponent(profileId)}`);
-    if (!isHostedProfileResponse(body)) {
-      throw protocolError('Webcmd Cloud returned an invalid profile response.');
     }
     return body;
   }
@@ -419,12 +400,6 @@ function isHostedProfilesResponse(value: unknown): value is HostedProfilesRespon
     && value.ok === true
     && Array.isArray(value.profiles)
     && value.profiles.every(isHostedPublicProfile);
-}
-
-function isHostedProfileResponse(value: unknown): value is HostedProfileResponse {
-  return hasExactKeys(value, ['ok', 'profile'])
-    && value.ok === true
-    && isHostedPublicProfile(value.profile);
 }
 
 function isHostedPublicProfile(value: unknown): boolean {
