@@ -18,6 +18,8 @@ export interface RenderOptions {
   elapsed?: number;
   source?: string;
   footerExtra?: string;
+  noun?: string;
+  help?: string[];
 }
 
 export interface ErrorRenderOptions {
@@ -77,7 +79,7 @@ export async function render(data: unknown, opts: StreamRenderOptions = {}): Pro
 
 /** Serialize the local error envelope without writing to process-global stderr. */
 export function formatErrorEnvelope(envelope: ErrorEnvelope, opts: ErrorRenderOptions = {}): string {
-  let output = `error:\n  code: ${envelope.error.code}\n  message: ${envelope.error.message}\n`;
+  const envOut: any = { ...envelope };
   const code = envelope.error.code;
   if (
     opts.cmdName
@@ -86,38 +88,61 @@ export function formatErrorEnvelope(envelope: ErrorEnvelope, opts: ErrorRenderOp
     && (code === 'SELECTOR' || code === 'EMPTY_RESULT' || code === 'ADAPTER_LOAD' || code === 'UNKNOWN')
   ) {
     const runnable = opts.cmdName.replace('/', ' ');
-    output += `help: re-run with --trace=retain-on-failure for trace artifact\n`;
-    output += `suggestion: webcmd ${runnable} --trace retain-on-failure\n`;
+    envOut.help = 're-run with --trace=retain-on-failure for trace artifact';
+    envOut.suggestion = `webcmd ${runnable} --trace retain-on-failure`;
   }
-  return output;
+  return yaml.dump(envOut, { sortKeys: false, lineWidth: 120, noRefs: true });
 }
 
 function formatToon(data: unknown, opts: RenderOptions): string {
   const rows = normalizeRows(data);
-  if (!rows.length) return 'items: 0\n';
+  const noun = opts.noun ?? 'items';
+  
+  if (!rows.length) return `${noun}: 0 found\n`;
 
   const columns = resolveColumns(rows, opts);
   let out = '';
+  
+  const isFull = process.argv.includes('--full');
+  let truncated = false;
+
+  const formatValue = (raw: unknown): string => {
+    // ponytail: JSON-stringify nested objects, proper TOON nesting if schema gets complex.
+    let val = typeof raw === 'object' && raw !== null ? JSON.stringify(raw) : String(raw ?? '');
+    if (!isFull && val.length > 1500) {
+      val = val.substring(0, 1500) + `... (truncated, ${val.length} chars total)`;
+      truncated = true;
+    }
+    return val;
+  };
+
   if (rows.length === 1 && !Array.isArray(data)) {
-    out += 'item:\n';
     for (const col of columns) {
-      let val = String(rows[0]![col] ?? '');
-      if (val.length > 1500) val = val.substring(0, 1500) + '... (truncated)';
-      out += `  ${col}: ${val}\n`;
+      out += `${col}: ${formatValue(rows[0]![col]).replace(/\n/g, '\\n')}\n`;
     }
   } else {
-    out += `items[${rows.length}]{${columns.join(',')}}:\n`;
+    out += `${noun}[${rows.length}]{${columns.join(',')}}:\n`;
     for (const row of rows) {
       out += '  ' + columns.map(c => {
-        let val = String(row[c] ?? '');
-        if (val.length > 1500) val = val.substring(0, 1500) + '... (truncated)';
-        return val.includes(',') || val.includes('\n') || val.includes('"') 
+        let val = formatValue(row[c]);
+        val = val.includes(',') || val.includes('\n') || val.includes('"') 
           ? `"${val.replace(/"/g, '""')}"` 
           : val;
+        return val.replace(/\n/g, '\\n');
       }).join(',') + '\n';
     }
   }
-  return out + '\n';
+  
+  const help = opts.help ? [...opts.help] : [];
+  if (truncated) {
+    help.push('Run with --full to see complete content');
+  }
+  
+  if (help.length > 0) {
+    out += `help[${help.length}]:\n` + help.map(h => `  - ${h}`).join('\n') + '\n';
+  }
+  
+  return out;
 }
 
 function formatTable(data: unknown, opts: RenderOptions): string {

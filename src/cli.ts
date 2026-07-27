@@ -789,6 +789,34 @@ export function createProgram(BUILTIN_CLIS: string, USER_CLIS: string): Command 
     .description('Make any website your CLI. Zero setup. AI-powered.');
   configureRootCommandSurface(program);
 
+  program.arguments('[args...]').action(async (args: string[]) => {
+    if (args && args.length > 0) {
+      // Replicate the previous command:* logic, or let commander handle it.
+      // Wait, if I do this, it intercepts EVERYTHING that is an unknown command.
+      const binary = args[0];
+      console.error(`error: unknown command '${binary}'`);
+      const { isBinaryInstalled } = await import('./external.js');
+      if (isBinaryInstalled(binary)) {
+        console.error(`  Tip: '${binary}' exists on your PATH. Use 'webcmd external register ${binary}' to add it as an external CLI.`);
+      }
+      program.outputHelp();
+      process.exitCode = 2; // USAGE_ERROR
+      return;
+    }
+    
+    process.stdout.write(`bin: ${process.argv[1] || process.execPath}\n`);
+    process.stdout.write(`description: Make any website your CLI. Zero setup. AI-powered.\n`);
+    process.stdout.write('---\n');
+    try {
+      const { daemonStatus } = await import('./commands/daemon.js');
+      // daemonStatus still uses console.log internally... we might need to intercept it, but for now we just want some stdout
+      await daemonStatus();
+    } catch (e) {
+      process.stdout.write(`Daemon: status unavailable (${String(e)})\n`);
+    }
+    process.stdout.write('\nRun "webcmd --help" for all commands, or "webcmd list" to see all sites.\n');
+  });
+
   // ── Built-in: list ────────────────────────────────────────────────────────
 
   configureListCommandSurface(program.command('list'))
@@ -1167,7 +1195,21 @@ Examples:
     .description('List tabs in the browser session with target IDs')
     .action(browserAction(async (page) => {
       const tabs = await page.tabs();
-      console.log(JSON.stringify(tabs, null, 2));
+      if (!process.argv.includes('--full') && Array.isArray(tabs)) {
+        const minimal = tabs.map((t: any) => ({
+          ...(t.page ? { page: t.page } : {}),
+          ...(t.targetId ? { targetId: t.targetId } : {}),
+          title: t.title,
+          url: t.url,
+        }));
+        console.log(JSON.stringify({
+          count: tabs.length,
+          tabs: minimal,
+          help: "Run with --full to see all tab properties (dimensions, lifecycle state)."
+        }, null, 2));
+      } else {
+        console.log(JSON.stringify(tabs, null, 2));
+      }
     }));
 
   browserTab.command('new')
@@ -1305,7 +1347,21 @@ Examples:
   addBrowserTabOption(browser.command('frames').description('List cross-origin iframe targets in snapshot order'))
     .action(browserAction(async (page) => {
       const frames = await page.frames?.() ?? [];
-      console.log(JSON.stringify(frames, null, 2));
+      if (!process.argv.includes('--full') && Array.isArray(frames)) {
+        const minimal = frames.map((f: any) => ({
+          index: f.index,
+          ...(f.frameId ? { frameId: f.frameId } : {}),
+          url: f.url,
+          name: f.name
+        }));
+        console.log(JSON.stringify({
+          count: frames.length,
+          frames: minimal,
+          help: "Run with --full to see all frame properties."
+        }, null, 2));
+      } else {
+        console.log(JSON.stringify(frames, null, 2));
+      }
     }));
 
   addBrowserTabOption(browser.command('screenshot').argument('[path]', 'Save to file (base64 if omitted)'))
@@ -3753,6 +3809,14 @@ cli({
     for (const sub of cmd.commands) applyAncestorAwareUsage(sub);
   }
   applyAncestorAwareUsage(browser);
+  program
+    .command('init-hooks')
+    .description('Install session hooks for AI agents (Claude Code, Codex, OpenCode)')
+    .action(async () => {
+      const { initHooks } = await import('./commands/agent-hooks.js');
+      await initHooks();
+    });
+
   installRootPresentationHelp(
     program,
     () => rootHelpData(program, adapterGroups),
@@ -3763,15 +3827,8 @@ cli({
   // Security: do NOT auto-discover and register arbitrary system binaries.
   // Only explicitly registered external CLIs are allowed.
 
-  program.on('command:*', (operands: string[]) => {
-    const binary = operands[0];
-    console.error(`error: unknown command '${binary}'`);
-    if (isBinaryInstalled(binary)) {
-      console.error(`  Tip: '${binary}' exists on your PATH. Use 'webcmd external register ${binary}' to add it as an external CLI.`);
-    }
-    program.outputHelp();
-    process.exitCode = EXIT_CODES.USAGE_ERROR;
-  });
+  // Program actions handles fallback for root command and unknown commands
+
 
   return program;
 }
