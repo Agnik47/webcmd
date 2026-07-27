@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.5.0](https://github.com/agentrhq/webcmd/compare/webcmd-v0.4.2...webcmd-v0.5.0) (2026-07-27)
+
+
+### Features
+
+* add Instagram, ChatGPT, Google Images, and Trip updates ([16a31fb](https://github.com/agentrhq/webcmd/commit/16a31fb13f2d364995f2505c0031f5ae2370b4d7))
+* default browser windows to background ([eefceeb](https://github.com/agentrhq/webcmd/commit/eefceebb840488d5c573a259846834d4cf4a9d2d))
+* default browser windows to background ([82e7a17](https://github.com/agentrhq/webcmd/commit/82e7a1771ce949426936f92b404711b90a7d359a))
+
 ## [0.4.2](https://github.com/agentrhq/webcmd/compare/webcmd-v0.4.1...webcmd-v0.4.2) (2026-07-27)
 
 ### Improvements
