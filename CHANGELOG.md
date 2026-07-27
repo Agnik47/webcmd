@@ -2,12 +2,17 @@
 
 ## [0.4.3](https://github.com/agentrhq/webcmd/compare/webcmd-v0.4.2...webcmd-v0.4.3) (2026-07-27)
 
+### Improvements
+*   Browser-based commands now run in a background window by default. Use the `--window foreground` flag to show a visible browser for interactive workflows.
 
-### Features
+### Adapters
+*   **ChatGPT**: The `chatgpt model` command adds support for selecting the `GPT-5.6 Pro` model.
+*   **Google**: Adds the new `google images` command to perform public, browser-based image searches.
+*   **Instagram**: The `instagram user` command can now fetch a user's feed directly by username.
+*   **Trip.com**: Adds a new `trip` adapter with twelve commands for searching flights, hotels, attractions, trains, cars, packages, and deals.
 
-* add Instagram, ChatGPT, Google Images, and Trip updates ([16a31fb](https://github.com/agentrhq/webcmd/commit/16a31fb13f2d364995f2505c0031f5ae2370b4d7))
-* default browser windows to background ([eefceeb](https://github.com/agentrhq/webcmd/commit/eefceebb840488d5c573a259846834d4cf4a9d2d))
-* default browser windows to background ([82e7a17](https://github.com/agentrhq/webcmd/commit/82e7a1771ce949426936f92b404711b90a7d359a))
+### Contributors
+[@ankitranjan7](https://github.com/ankitranjan7)
 
 ## [0.4.2](https://github.com/agentrhq/webcmd/compare/webcmd-v0.4.1...webcmd-v0.4.2) (2026-07-27)
 
