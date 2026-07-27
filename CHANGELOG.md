@@ -2,22 +2,18 @@
 
 ## [0.4.2](https://github.com/agentrhq/webcmd/compare/webcmd-v0.4.1...webcmd-v0.4.2) (2026-07-27)
 
+### Improvements
+*   **Workspace-Scoped Profiles for Webcmd Cloud**: Hosted commands can now be scoped to a workspace using the new `--workspace <id>` flag or the `WEBCMD_WORKSPACE` environment variable. This allows for better isolation of user data, especially in multi-tenant applications. Within a workspace, profiles are created lazily on first use.
+*   **Simplified Hosted Profile Management**: The `webcmd profile` command for hosted mode has been simplified. It now only supports `list` and `delete` subcommands, as profile creation is now handled automatically within the ambient workspace.
 
-### Features
+### Adapters
+*   **Amazon India (`amazon-in`)**: Adds a new adapter for Amazon.in with support for product search, viewing product details, managing wishlists, and a guarded checkout process. New commands include `amazon-in search`, `product`, `wishlist`, `login`, `whoami`, `checkout`, and `checkout-status`.
+*   **BMWBLOG (`bmwblog`)**: Adds a new read-only adapter to search and read articles from BMWBLOG. New commands are `bmwblog latest`, `search`, and `article`.
+*   **TechCrunch (`techcrunch`)**: Adds a new read-only adapter for TechCrunch. New commands `techcrunch search` and `article` allow you to find and read the latest tech news.
+*   **Y Combinator (`ycombinator`)**: Adds a new read-only adapter for browsing the Y Combinator startup directory. New commands include `ycombinator companies` to search for startups and `ycombinator company` to view a specific company's profile.
 
-* add Amazon India adapter ([159bf8e](https://github.com/agentrhq/webcmd/commit/159bf8ec466c77e40cb201253365c38931c5a9df))
-* add Amazon India adapter ([eb3d5f5](https://github.com/agentrhq/webcmd/commit/eb3d5f5b51d29edf3a82f5d76240a6e14c4443b9))
-* add BMWBLOG read-only adapter ([#140](https://github.com/agentrhq/webcmd/issues/140)) ([d3b03f4](https://github.com/agentrhq/webcmd/commit/d3b03f42b79a001c434cf0fe18e6ca4693bbf930))
-* **hosted:** remove profile create/get and --user-id, keep list/delete ([4274549](https://github.com/agentrhq/webcmd/commit/427454939a97aa8da21b554cdac003e5160f2650))
-* **hosted:** workspace env/flag transport via X-Webcmd-Workspace ([022b6a2](https://github.com/agentrhq/webcmd/commit/022b6a265d45c222f8e5cff1610239145fbb2889))
-* **hosted:** workspace-scoped profiles CLI transport ([e7fd5f2](https://github.com/agentrhq/webcmd/commit/e7fd5f27b5b51ccfcb6d636f7f4a420b384d63f6))
-* **plugin:** add TechCrunch latest news ([#157](https://github.com/agentrhq/webcmd/issues/157)) ([258383d](https://github.com/agentrhq/webcmd/commit/258383d21d140c248bc5ec36c2ffe0c2a9daacbc))
-* **plugin:** add Y Combinator startup directory ([#155](https://github.com/agentrhq/webcmd/issues/155)) ([acbda09](https://github.com/agentrhq/webcmd/commit/acbda092bb2c4f1173fa98312c6c82b9e128e95d))
-
-
-### Bug Fixes
-
-* **hosted:** resolve --workspace= form and drop dead profile client code ([a4a2a60](https://github.com/agentrhq/webcmd/commit/a4a2a6053cf934da837cdc1cc523d15411443bfe))
+### Contributors
+[@ankitranjan7](https://github.com/ankitranjan7) | [@beubax](https://github.com/beubax)
 
 ## [0.4.1](https://github.com/agentrhq/webcmd/compare/webcmd-v0.4.0...webcmd-v0.4.1) (2026-07-24)
 
