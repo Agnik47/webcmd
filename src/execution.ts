@@ -218,7 +218,7 @@ export async function executeCommand(
       const siteSession = resolveSiteSession(cmd, opts.siteSession);
       const session = resolveAdapterBrowserSession(cmd, siteSession);
       const keepTab = resolveKeepTab(siteSession, opts.keepTab);
-      const windowMode = resolveBrowserWindowMode(cmd.defaultWindowMode ?? 'background', opts.windowMode);
+      const windowMode = resolveBrowserWindowMode(opts.windowMode);
       const surface = 'adapter' as const;
       const canonicalCommand = fullName(cmd);
       const leaseEligible = surface === 'adapter'
@@ -534,10 +534,10 @@ function normalizeWindowMode(name: string, raw: unknown): BrowserWindowMode | nu
   throw new ArgumentError(`${name} must be one of: foreground, background. Received: "${String(raw)}"`);
 }
 
-function resolveBrowserWindowMode(defaultMode: BrowserWindowMode = 'background', rawOption?: unknown): BrowserWindowMode {
+function resolveBrowserWindowMode(rawOption?: unknown): BrowserWindowMode {
   return normalizeWindowMode('--window', rawOption)
     ?? normalizeWindowMode('WEBCMD_WINDOW', process.env.WEBCMD_WINDOW)
-    ?? defaultMode;
+    ?? 'background';
 }
 
 /**

@@ -629,7 +629,7 @@ async function getBrowserPage(
     surface: 'browser',
     ...profileRouteParams(profileSelection),
     ...(idleTimeout && idleTimeout > 0 && { idleTimeout }),
-    windowMode: opts.windowMode ?? getBrowserWindowMode(undefined, 'foreground'),
+    windowMode: opts.windowMode ?? getBrowserWindowMode(),
   });
   const targetScope = getBrowserScope(session, profileSelection?.contextId);
   const resolvedTargetPage = targetPage
@@ -644,7 +644,7 @@ async function getBrowserPage(
   return page;
 }
 
-function getBrowserWindowMode(command: Command | undefined, defaultMode: BrowserWindowMode): BrowserWindowMode {
+function getBrowserWindowMode(command?: Command): BrowserWindowMode {
   const optionRaw = getCommandOption(command, 'window');
   if (optionRaw !== undefined && optionRaw !== '') {
     if (optionRaw === 'foreground' || optionRaw === 'background') return optionRaw;
@@ -655,7 +655,7 @@ function getBrowserWindowMode(command: Command | undefined, defaultMode: Browser
     if (envRaw === 'foreground' || envRaw === 'background') return envRaw;
     throw new Error(`WEBCMD_WINDOW must be one of: foreground, background. Received: "${envRaw}"`);
   }
-  return defaultMode;
+  return 'background';
 }
 
 function addBrowserTabOption(command: Command): Command {
@@ -1058,7 +1058,7 @@ Examples:
         const targetPage = getBrowserTargetId(command);
         const session = getBrowserSession(command);
         const profileSelection = getBrowserProfileSelection(command);
-        const windowMode = getBrowserWindowMode(command, 'foreground');
+        const windowMode = getBrowserWindowMode(command);
         page = await getBrowserPage(session, targetPage, profileSelection, { windowMode });
         await fn(page, ...args);
       } catch (err) {
@@ -1110,7 +1110,7 @@ Examples:
       const profileSelection = getBrowserProfileSelection(command);
       const contextId = profileSelection?.contextId;
       const routing = profileRouteParams(profileSelection);
-      const windowMode = getBrowserWindowMode(command, 'foreground');
+      const windowMode = getBrowserWindowMode(command);
       try {
         const { BrowserBridge } = await import('./browser/index.js');
         const bridge = new BrowserBridge();

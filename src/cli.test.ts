@@ -1255,17 +1255,17 @@ describe('browser tab targeting commands', () => {
 
     await program.parseAsync(['node', 'webcmd', 'browser', '--session', 'test', 'bind', '--page', 'tab-2']);
 
-    expect(mockBrowserConnect).toHaveBeenCalledWith({ timeout: 45, session: 'test', surface: 'browser', windowMode: 'foreground' });
-    expect(mockBindTab).toHaveBeenCalledWith('test', { page: 'tab-2', windowMode: 'foreground' });
+    expect(mockBrowserConnect).toHaveBeenCalledWith({ timeout: 45, session: 'test', surface: 'browser', windowMode: 'background' });
+    expect(mockBindTab).toHaveBeenCalledWith('test', { page: 'tab-2', windowMode: 'background' });
     const out = lastJsonLog();
     expect(out.session).toBe('test');
     expect(out.url).toBe('https://user.example/inbox');
   });
 
-  it('binds an existing Cloak tab by index into a browser session', async () => {
+  it('binds an existing Cloak tab in the foreground when explicitly requested', async () => {
     const program = createProgram('', '');
 
-    await program.parseAsync(['node', 'webcmd', 'browser', '--session', 'test', 'bind', '--index', '1']);
+    await program.parseAsync(['node', 'webcmd', 'browser', '--session', 'test', '--window', 'foreground', 'bind', '--index', '1']);
 
     expect(mockBrowserConnect).toHaveBeenCalledWith({ timeout: 45, session: 'test', surface: 'browser', windowMode: 'foreground' });
     expect(mockBindTab).toHaveBeenCalledWith('test', { index: 1, windowMode: 'foreground' });
@@ -1273,7 +1273,8 @@ describe('browser tab targeting commands', () => {
     expect(out.session).toBe('test');
   });
 
-  it('passes background window mode when binding a Cloak tab', async () => {
+  it('uses the direct-browser CLI window mode before WEBCMD_WINDOW', async () => {
+    process.env.WEBCMD_WINDOW = 'foreground';
     const program = createProgram('', '');
 
     await program.parseAsync(['node', 'webcmd', 'browser', '--session', 'test', '--window', 'background', 'bind', '--page', 'tab-2']);
@@ -1321,17 +1322,41 @@ describe('browser tab targeting commands', () => {
 
     await program.parseAsync(['node', 'webcmd', 'browser', '--session', 'test', 'state']);
 
+    expect(mockBrowserConnect).toHaveBeenCalledWith({ timeout: 45, session: 'test', surface: 'browser', windowMode: 'background' });
+    expect(browserState.page?.snapshot).toHaveBeenCalled();
+  });
+
+  it('uses WEBCMD_WINDOW as an explicit direct-browser override', async () => {
+    process.env.WEBCMD_WINDOW = 'foreground';
+    const program = createProgram('', '');
+
+    await program.parseAsync(['node', 'webcmd', 'browser', '--session', 'test', 'state']);
+
     expect(mockBrowserConnect).toHaveBeenCalledWith({ timeout: 45, session: 'test', surface: 'browser', windowMode: 'foreground' });
     expect(browserState.page?.snapshot).toHaveBeenCalled();
   });
 
-  it('passes browser --window through Commander options without relying on env pre-processing', async () => {
+  it('rejects an invalid direct-browser --window value', async () => {
     const program = createProgram('', '');
 
-    await program.parseAsync(['node', 'webcmd', 'browser', '--session', 'test', '--window', 'background', 'state']);
+    await program.parseAsync(['node', 'webcmd', 'browser', '--session', 'test', '--window', 'sideways', 'state']);
 
-    expect(mockBrowserConnect).toHaveBeenCalledWith({ timeout: 45, session: 'test', surface: 'browser', windowMode: 'background' });
-    expect(browserState.page?.snapshot).toHaveBeenCalled();
+    expect(stderrSpy.mock.calls.flat().join('')).toContain(
+      '--window must be one of: foreground, background. Received: "sideways"',
+    );
+    expect(process.exitCode).toBeDefined();
+  });
+
+  it('rejects an invalid direct-browser WEBCMD_WINDOW value', async () => {
+    process.env.WEBCMD_WINDOW = 'sideways';
+    const program = createProgram('', '');
+
+    await program.parseAsync(['node', 'webcmd', 'browser', '--session', 'test', 'state']);
+
+    expect(stderrSpy.mock.calls.flat().join('')).toContain(
+      'WEBCMD_WINDOW must be one of: foreground, background. Received: "sideways"',
+    );
+    expect(process.exitCode).toBeDefined();
   });
 
   it('passes the opt-in AX source to browser state', async () => {
@@ -1430,7 +1455,7 @@ describe('browser tab targeting commands', () => {
 
     await program.parseAsync(['node', 'webcmd', 'browser', '--session', 'test', 'unbind']);
 
-    expect(mockBrowserConnect).toHaveBeenCalledWith({ timeout: 45, session: 'test', surface: 'browser', windowMode: 'foreground' });
+    expect(mockBrowserConnect).toHaveBeenCalledWith({ timeout: 45, session: 'test', surface: 'browser', windowMode: 'background' });
     expect(mockSendCommand).toHaveBeenCalledWith('close-window', { session: 'test', surface: 'browser' });
     const out = lastJsonLog();
     expect(out).toEqual({ unbound: true, session: 'test' });

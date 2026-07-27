@@ -987,7 +987,8 @@ describe('executeCommand — non-browser timeout', () => {
     }
   });
 
-  it('lets browser common options override adapter window and keep-tab defaults', async () => {
+  it('uses explicit adapter options before WEBCMD_WINDOW', async () => {
+    vi.stubEnv('WEBCMD_WINDOW', 'background');
     const closeWindow = vi.fn().mockResolvedValue(undefined);
     const mockPage = { closeWindow } as any;
     const sessionOpts: Array<{ windowMode?: string }> = [];
@@ -1007,17 +1008,22 @@ describe('executeCommand — non-browser timeout', () => {
       func: async () => [{ ok: true }],
     });
 
-    await executeCommand(cmd, {}, false, {
-      windowMode: 'foreground',
-      keepTab: 'true',
-    });
+    try {
+      await executeCommand(cmd, {}, false, {
+        windowMode: 'foreground',
+        keepTab: 'true',
+      });
 
-    expect(sessionOpts[0]).toMatchObject({ windowMode: 'foreground' });
-    expect(closeWindow).not.toHaveBeenCalled();
-    vi.restoreAllMocks();
+      expect(sessionOpts[0]).toMatchObject({ windowMode: 'foreground' });
+      expect(closeWindow).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+      vi.restoreAllMocks();
+    }
   });
 
-  it('uses command defaultWindowMode when the user does not pass --window', async () => {
+  it('uses WEBCMD_WINDOW as an explicit adapter override', async () => {
+    vi.stubEnv('WEBCMD_WINDOW', 'foreground');
     const closeWindow = vi.fn().mockResolvedValue(undefined);
     const mockPage = { closeWindow } as any;
     const sessionOpts: Array<{ windowMode?: string }> = [];
@@ -1030,18 +1036,68 @@ describe('executeCommand — non-browser timeout', () => {
 
     const cmd = cli({
       site: 'test-execution',
-      name: 'browser-default-window-mode', access: 'write',
-      description: 'test command default window mode',
+      name: 'browser-env-window-mode', access: 'read',
+      description: 'test browser environment window mode',
       browser: true,
       strategy: Strategy.PUBLIC,
-      defaultWindowMode: 'foreground',
       func: async () => [{ ok: true }],
     });
 
-    await executeCommand(cmd, {});
+    try {
+      await executeCommand(cmd, {});
+      expect(sessionOpts[0]).toMatchObject({ windowMode: 'foreground' });
+    } finally {
+      vi.unstubAllEnvs();
+      vi.restoreAllMocks();
+    }
+  });
 
-    expect(sessionOpts[0]).toMatchObject({ windowMode: 'foreground' });
-    vi.restoreAllMocks();
+  it('rejects an invalid adapter --window value', async () => {
+    const mockPage = { closeWindow: vi.fn().mockResolvedValue(undefined) } as any;
+    vi.spyOn(capRouting, 'shouldUseBrowserSession').mockReturnValue(true);
+    vi.spyOn(runtime, 'browserSession').mockImplementation(async (_Factory, fn) => fn(mockPage));
+    const cmd = cli({
+      site: 'test-execution',
+      name: 'browser-invalid-window-mode', access: 'read',
+      description: 'test invalid browser window mode',
+      browser: true,
+      strategy: Strategy.PUBLIC,
+      func: async () => [{ ok: true }],
+    });
+
+    try {
+      await expect(executeCommand(cmd, {}, false, {
+        windowMode: 'sideways',
+      })).rejects.toThrow(
+        '--window must be one of: foreground, background. Received: "sideways"',
+      );
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  it('rejects an invalid adapter WEBCMD_WINDOW value', async () => {
+    vi.stubEnv('WEBCMD_WINDOW', 'sideways');
+    const mockPage = { closeWindow: vi.fn().mockResolvedValue(undefined) } as any;
+    vi.spyOn(capRouting, 'shouldUseBrowserSession').mockReturnValue(true);
+    vi.spyOn(runtime, 'browserSession').mockImplementation(async (_Factory, fn) => fn(mockPage));
+    const cmd = cli({
+      site: 'test-execution',
+      name: 'browser-invalid-env-window-mode', access: 'read',
+      description: 'test invalid browser environment window mode',
+      browser: true,
+      strategy: Strategy.PUBLIC,
+      func: async () => [{ ok: true }],
+    });
+
+    try {
+      await expect(executeCommand(cmd, {})).rejects.toThrow(
+        'WEBCMD_WINDOW must be one of: foreground, background. Received: "sideways"',
+      );
+    } finally {
+      vi.unstubAllEnvs();
+      vi.restoreAllMocks();
+    }
   });
 
   it('does not re-run custom validation when args are already prepared', async () => {
