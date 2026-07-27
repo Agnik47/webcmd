@@ -46,6 +46,11 @@ export function parseHostedRootCommandSurface(argv: readonly string[]): HostedRo
   let stderr = '';
   const boundary = findRootCommandBoundary(input);
   const root = configureRootCommandSurface(new Command('webcmd'))
+    // Hosted-only: registered here (not in the shared configureRootCommandSurface)
+    // so the local CLI surface is unaffected. Lets Commander's structural parse
+    // consume `--workspace <id>` before the site/command token instead of
+    // throwing an unknown-option error.
+    .option('--workspace <id>', 'Hosted workspace id/slug for the request')
     .exitOverride()
     .configureOutput({
       writeOut: value => { stdout += value; },
@@ -104,13 +109,16 @@ interface RootCommandBoundary {
 function findRootCommandBoundary(argv: readonly string[]): RootCommandBoundary {
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index]!;
-    if (token === '--profile') {
+    if (token === '--profile' || token === '--workspace') {
       // Commander requires and consumes the next token even when it is `--` or
       // starts with a dash. Structural failures have already been reported.
+      // `--workspace` is hosted-only (not a registered Commander option here)
+      // but must still be skipped as a value pair so it and its value are not
+      // mistaken for the site/command token and forwarded to the server.
       index += 1;
       continue;
     }
-    if (token.startsWith('--profile=')) continue;
+    if (token.startsWith('--profile=') || token.startsWith('--workspace=')) continue;
     if (token === '--') return { separatorIndex: index };
     if (!token.startsWith('-') || token === '-') return { commandIndex: index };
   }

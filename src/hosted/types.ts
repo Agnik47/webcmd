@@ -47,7 +47,7 @@ export interface HostedManifest {
 export interface HostedPublicProfile {
   id: string;
   name: string | null;
-  userId: string | null;
+  workspace: string | null;
   default: boolean;
   status: 'pending' | 'available';
   createdAt: string;
@@ -58,11 +58,6 @@ export interface HostedPublicProfile {
 export interface HostedProfilesResponse {
   ok: true;
   profiles: HostedPublicProfile[];
-}
-
-export interface HostedProfileResponse {
-  ok: true;
-  profile: HostedPublicProfile;
 }
 
 export interface HostedExecution {

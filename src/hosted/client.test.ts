@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { HostedClient, HostedClientError } from './client.js';
+import { HostedClient, HostedClientError, resolveWorkspace } from './client.js';
 
 const invalidTraceUrlCases = [
   {
@@ -179,7 +179,7 @@ describe('HostedClient', () => {
     const profile = {
       id: 'profile_work',
       name: 'Work',
-      userId: 'user_64256',
+      workspace: 'user_64256',
       default: false,
       status: 'available',
       createdAt: '2026-07-08T00:00:00.000Z',
@@ -196,36 +196,18 @@ describe('HostedClient', () => {
           ...(init?.body ? { body: String(init.body) } : {}),
         });
         const path = new URL(String(url)).pathname;
-        if (path === '/v1/profiles' && init?.method === 'POST') {
-          return new Response(JSON.stringify({ ok: true, profile }), { status: 201 });
-        }
         if (path.startsWith('/v1/profiles/') && init?.method === 'DELETE') {
           return new Response(JSON.stringify({ ok: true, deleted: true }));
-        }
-        if (path.startsWith('/v1/profiles/')) {
-          return new Response(JSON.stringify({ ok: true, profile }));
         }
         return new Response(JSON.stringify({ ok: true, profiles: [profile] }));
       },
     });
 
-    await expect(client.listProfiles({ name: 'Work', userId: 'user_64256' }))
-      .resolves.toEqual({ ok: true, profiles: [profile] });
-    await expect(client.createProfile({ name: 'Work', userId: 'user_64256' }))
-      .resolves.toMatchObject({ profile: { id: 'profile_work', status: 'available' } });
-    await expect(client.getProfile('profile_work')).resolves.toMatchObject({
-      profile: { id: 'profile_work' },
-    });
+    await expect(client.listProfiles()).resolves.toEqual({ ok: true, profiles: [profile] });
     await expect(client.deleteProfile('profile/work')).resolves.toEqual({ ok: true, deleted: true });
 
     expect(requests).toEqual([
-      { url: 'https://api.example.com/v1/profiles?name=Work&userId=user_64256', method: 'GET' },
-      {
-        url: 'https://api.example.com/v1/profiles',
-        method: 'POST',
-        body: JSON.stringify({ name: 'Work', userId: 'user_64256' }),
-      },
-      { url: 'https://api.example.com/v1/profiles/profile_work', method: 'GET' },
+      { url: 'https://api.example.com/v1/profiles', method: 'GET' },
       { url: 'https://api.example.com/v1/profiles/profile%2Fwork', method: 'DELETE' },
     ]);
   });
@@ -234,12 +216,12 @@ describe('HostedClient', () => {
     { name: 'private provider field', change: { kernelProfileId: 'private' } },
     { name: 'missing updatedAt', change: { updatedAt: undefined } },
     { name: 'non-nullable name shape', change: { name: 7 } },
-    { name: 'non-nullable user ID shape', change: { userId: false } },
+    { name: 'non-nullable workspace shape', change: { workspace: false } },
   ])('rejects a hosted profile with $name', async ({ change }) => {
     const profile: Record<string, unknown> = {
       id: 'profile_work',
       name: null,
-      userId: null,
+      workspace: null,
       default: false,
       status: 'pending',
       createdAt: '2026-07-08T00:00:00.000Z',
@@ -895,5 +877,93 @@ describe('HostedClient', () => {
         },
       },
     ]);
+  });
+
+  it('attaches the workspace header when a workspace is configured', async () => {
+    const requests: Array<{ workspace: string | null }> = [];
+    const client = new HostedClient({
+      apiBaseUrl: 'https://api.example.com',
+      apiKey: 'key',
+      workspace: resolveWorkspace([], { WEBCMD_WORKSPACE: 'user_64256' }),
+      fetchImpl: async (_url, init) => {
+        requests.push({ workspace: new Headers(init?.headers).get('x-webcmd-workspace') });
+        return new Response(JSON.stringify({
+          ok: true,
+          result: [],
+          execution: { id: 'exec_1', command: 'github/whoami', status: 'succeeded' },
+        }), { status: 200 });
+      },
+    });
+
+    await client.execute({ command: 'github/whoami', args: {} });
+
+    expect(requests).toEqual([{ workspace: 'user_64256' }]);
+  });
+
+  it('attaches the workspace header for the --workspace=<value> equals form', async () => {
+    const requests: Array<{ workspace: string | null }> = [];
+    const client = new HostedClient({
+      apiBaseUrl: 'https://api.example.com',
+      apiKey: 'key',
+      workspace: resolveWorkspace(['--workspace=user_64256'], {}),
+      fetchImpl: async (_url, init) => {
+        requests.push({ workspace: new Headers(init?.headers).get('x-webcmd-workspace') });
+        return new Response(JSON.stringify({
+          ok: true,
+          result: [],
+          execution: { id: 'exec_1', command: 'github/whoami', status: 'succeeded' },
+        }), { status: 200 });
+      },
+    });
+
+    await client.execute({ command: 'github/whoami', args: {} });
+
+    expect(requests).toEqual([{ workspace: 'user_64256' }]);
+  });
+
+  it('omits the workspace header when no workspace is configured', async () => {
+    const requests: Array<{ workspace: string | null }> = [];
+    const client = new HostedClient({
+      apiBaseUrl: 'https://api.example.com',
+      apiKey: 'key',
+      fetchImpl: async (_url, init) => {
+        requests.push({ workspace: new Headers(init?.headers).get('x-webcmd-workspace') });
+        return new Response(JSON.stringify({
+          ok: true,
+          result: [],
+          execution: { id: 'exec_1', command: 'github/whoami', status: 'succeeded' },
+        }), { status: 200 });
+      },
+    });
+
+    await client.execute({ command: 'github/whoami', args: {} });
+
+    expect(requests).toEqual([{ workspace: null }]);
+  });
+});
+
+describe('resolveWorkspace', () => {
+  it('returns the --workspace flag value when present', () => {
+    expect(resolveWorkspace(['--workspace', 'flagws'], {})).toBe('flagws');
+  });
+
+  it('returns the --workspace=<value> flag value when present', () => {
+    expect(resolveWorkspace(['--workspace=user_64256'], {})).toBe('user_64256');
+  });
+
+  it('--workspace overrides the env var', () => {
+    expect(resolveWorkspace(['--workspace', 'flagws'], { WEBCMD_WORKSPACE: 'envws' })).toBe('flagws');
+  });
+
+  it('falls back to WEBCMD_WORKSPACE when no flag is present', () => {
+    expect(resolveWorkspace([], { WEBCMD_WORKSPACE: 'envws' })).toBe('envws');
+  });
+
+  it('trims WEBCMD_WORKSPACE', () => {
+    expect(resolveWorkspace([], { WEBCMD_WORKSPACE: '  envws  ' })).toBe('envws');
+  });
+
+  it('returns undefined when neither --workspace nor WEBCMD_WORKSPACE is set', () => {
+    expect(resolveWorkspace([], {})).toBeUndefined();
   });
 });

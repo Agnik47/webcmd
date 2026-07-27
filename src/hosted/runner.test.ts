@@ -251,7 +251,7 @@ describe('runHostedCli', () => {
   const publicProfile = {
     id: 'profile_work',
     name: 'Work',
-    userId: 'user_64256',
+    workspace: 'ws_demo',
     default: false,
     status: 'available',
     createdAt: '2026-07-24T00:00:00.000Z',
@@ -259,7 +259,7 @@ describe('runHostedCli', () => {
     lastUsedAt: '2026-07-24T00:00:00.000Z',
   };
 
-  it('lists, creates, resolves, gets, and deletes hosted profiles without fetching the manifest', async () => {
+  it('lists and deletes hosted profiles without fetching the manifest', async () => {
     const requests: Array<{ url: string; method: string; body?: unknown }> = [];
     const fetchImpl = vi.fn<typeof fetch>(async (url, init) => {
       const request = {
@@ -268,9 +268,6 @@ describe('runHostedCli', () => {
         ...(init?.body ? { body: JSON.parse(String(init.body)) } : {}),
       };
       requests.push(request);
-      if (request.method === 'POST') {
-        return new Response(JSON.stringify({ ok: true, profile: publicProfile }), { status: 201 });
-      }
       if (request.method === 'DELETE') {
         return new Response(JSON.stringify({ ok: true, deleted: true }));
       }
@@ -279,10 +276,6 @@ describe('runHostedCli', () => {
 
     for (const argv of [
       ['profile', 'list', '-f', 'json'],
-      ['profile', 'create', 'Work', '--user-id', 'user_64256', '-f', 'json'],
-      ['profile', 'get', 'Work', '-f', 'json'],
-      ['profile', 'get', 'user_64256', '-f', 'json'],
-      ['profile', 'get', 'profile_work', '-f', 'json'],
       ['profile', 'delete', 'profile_work', '-f', 'json'],
     ]) {
       const stdout = sink();
@@ -300,66 +293,50 @@ describe('runHostedCli', () => {
 
     expect(requests).toEqual([
       { url: 'https://api.example.com/v1/profiles', method: 'GET' },
-      {
-        url: 'https://api.example.com/v1/profiles',
-        method: 'POST',
-        body: { name: 'Work', userId: 'user_64256' },
-      },
-      { url: 'https://api.example.com/v1/profiles', method: 'GET' },
-      { url: 'https://api.example.com/v1/profiles', method: 'GET' },
-      { url: 'https://api.example.com/v1/profiles', method: 'GET' },
       { url: 'https://api.example.com/v1/profiles/profile_work', method: 'DELETE' },
     ]);
     expect(requests.some(request => request.url.endsWith('/v1/manifest'))).toBe(false);
   });
 
-  it('deduplicates universal profile matches and rejects missing or ambiguous selectors', async () => {
-    const cases = [
-      {
-        selector: 'same',
-        profiles: [{ ...publicProfile, id: 'profile_same', name: 'same', userId: 'same' }],
-        exitCode: 0,
-        stdout: '"id": "profile_same"',
-        stderr: '',
-      },
-      {
-        selector: 'missing',
-        profiles: [publicProfile],
-        exitCode: 66,
-        stdout: '',
-        stderr: 'code: PROFILE_NOT_FOUND',
-      },
-      {
-        selector: 'shared',
-        profiles: [
-          { ...publicProfile, id: 'profile_one', name: 'shared' },
-          { ...publicProfile, id: 'profile_two', name: 'Other', userId: 'shared' },
-        ],
-        exitCode: 75,
-        stdout: '',
-        stderr: 'code: AMBIGUOUS_PROFILE',
-      },
+  it.each(['create', 'get'])('rejects the removed profile %s subcommand', async (command) => {
+    const stderr = sink();
+    const fetchImpl = vi.fn<typeof fetch>();
+    const result = await runHostedCli(['profile', command, 'Work'], {
+      config: makeHostedConfig({ apiBaseUrl: 'https://api.example.com', apiKey: 'key' }),
+      stderr: stderr.stream,
+      fetchImpl,
+    });
+
+    expect(result.handled).toBe(true);
+    expect(stderr.text()).toMatch(/unknown command|not supported/i);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('threads the ambient workspace onto hosted profile requests', async () => {
+    const cases: Array<{ name: string; argv: string[]; env: NodeJS.ProcessEnv; expected: string }> = [
+      { name: 'from WEBCMD_WORKSPACE env', argv: ['profile', 'list', '-f', 'json'], env: { WEBCMD_WORKSPACE: 'ws1' }, expected: 'ws1' },
+      { name: 'from --workspace flag', argv: ['--workspace', 'ws2', 'profile', 'list', '-f', 'json'], env: {}, expected: 'ws2' },
     ];
 
     for (const testCase of cases) {
+      let capturedHeader: string | null = null;
+      const fetchImpl = vi.fn<typeof fetch>(async (_url, init) => {
+        capturedHeader = new Headers(init?.headers).get('x-webcmd-workspace');
+        return new Response(JSON.stringify({ ok: true, profiles: [publicProfile] }));
+      });
       const stdout = sink();
       const stderr = sink();
-      const fetchImpl = vi.fn<typeof fetch>(async () =>
-        new Response(JSON.stringify({ ok: true, profiles: testCase.profiles })));
-      const result = await runHostedCli(['profile', 'get', testCase.selector, '-f', 'json'], {
+      const result = await runHostedCli(testCase.argv, {
         config: makeHostedConfig({ apiBaseUrl: 'https://api.example.com', apiKey: 'key' }),
         stdout: stdout.stream,
         stderr: stderr.stream,
         fetchImpl,
+        env: testCase.env,
       });
 
-      expect(result.exitCode).toBe(testCase.exitCode);
-      expect(stdout.text()).toContain(testCase.stdout);
-      expect(stderr.text()).toContain(testCase.stderr);
-      if (testCase.selector === 'shared') {
-        expect(stderr.text()).toContain('Use the immutable profile ID returned by webcmd profile list.');
-      }
-      expect(fetchImpl).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({ handled: true, exitCode: 0 });
+      expect(stderr.text()).toBe('');
+      expect(capturedHeader).toBe(testCase.expected);
     }
   });
 

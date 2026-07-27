@@ -19,7 +19,7 @@ import { StreamWriteError, writeToStream } from '../stream-write.js';
 import { PKG_VERSION } from '../version.js';
 import { getCompletionScriptFast } from '../completion-fast.js';
 import { browserCommandCatalog } from '../browser/command-catalog.js';
-import { HostedClient, HostedClientError } from './client.js';
+import { HostedClient, HostedClientError, resolveWorkspace } from './client.js';
 import { parseHostedInvocation } from './args.js';
 import { HostedBrowserHelp, parseHostedBrowserStructure } from './browser-args.js';
 import { materializeHostedOutputs, prepareHostedFiles, rewriteHostedOutputResultPaths } from './files.js';
@@ -40,7 +40,6 @@ import type {
   HostedBrowserActionName,
   HostedBrowserRunActionResponse,
   HostedManifest,
-  HostedPublicProfile,
 } from './types.js';
 import type { HostedBrowserCommandContract } from './contract.js';
 
@@ -92,6 +91,7 @@ export async function runHostedCli(argv: string[], opts: HostedRunnerOptions = {
     const client = new HostedClient({
       apiBaseUrl: config.hosted.apiBaseUrl,
       apiKey: credential.apiKey,
+      workspace: resolveWorkspace(argv, opts.env ?? process.env),
       fetchImpl: opts.fetchImpl,
     });
     await dispatchHosted(argv, client, stdout, stderr, opts.now ?? Date.now);
@@ -197,7 +197,7 @@ async function dispatchHosted(
     if (args[1] === 'rename' || args[1] === 'use') {
       throw new ConfigError(
         `webcmd profile ${args[1]} is not available in hosted mode.`,
-        'Hosted mode supports: webcmd profile list, create, get, and delete.',
+        'Hosted mode supports: webcmd profile list and delete.',
       );
     }
     const parsed = parseHostedProfileSurface(args.slice(1), normalized.literal);
@@ -712,7 +712,7 @@ function parseHostedListSurface(argv: readonly string[], literal: boolean): Pars
   return { kind: 'run', format: parsedFormat, formatExplicit };
 }
 
-type HostedProfileCommand = 'list' | 'create' | 'get' | 'delete';
+type HostedProfileCommand = 'list' | 'delete';
 
 type ParsedHostedProfileSurface =
   | { kind: 'help'; output: string }
@@ -722,7 +722,6 @@ type ParsedHostedProfileSurface =
       format: string;
       formatExplicit: boolean;
       value?: string;
-      userId?: string;
     };
 
 function parseHostedProfileSurface(
@@ -747,7 +746,6 @@ function parseHostedProfileSurface(
     command: HostedProfileCommand,
     surface: Command,
     value?: string,
-    userId?: string,
   ): void => {
     const options = surface.opts<{ format: string }>();
     parsed = {
@@ -756,17 +754,11 @@ function parseHostedProfileSurface(
       format: options.format,
       formatExplicit: surface.getOptionValueSource('format') === 'cli',
       ...(value !== undefined ? { value } : {}),
-      ...(userId !== undefined ? { userId } : {}),
     };
   };
 
   const list = configureFormat(profile.command('list'));
   list.exitOverride().configureOutput(output).action(() => setParsed('list', list));
-  const create = configureFormat(profile.command('create').argument('<name>').option('--user-id <id>'));
-  create.exitOverride().configureOutput(output).action((name: string, options: { userId?: string }) =>
-    setParsed('create', create, name, options.userId));
-  const get = configureFormat(profile.command('get').argument('<profile>'));
-  get.exitOverride().configureOutput(output).action((selector: string) => setParsed('get', get, selector));
   const remove = configureFormat(profile.command('delete').argument('<profile-id>'));
   remove.exitOverride().configureOutput(output).action((profileId: string) => setParsed('delete', remove, profileId));
 
@@ -788,42 +780,14 @@ async function dispatchHostedProfile(
   client: HostedClient,
   stdout: NodeJS.WritableStream,
 ): Promise<void> {
-  let result: unknown;
-  if (parsed.command === 'list') {
-    result = (await client.listProfiles()).profiles;
-  } else if (parsed.command === 'create') {
-    result = (await client.createProfile({
-      name: parsed.value!,
-      ...(parsed.userId !== undefined ? { userId: parsed.userId } : {}),
-    })).profile;
-  } else if (parsed.command === 'get') {
-    result = resolveHostedProfile((await client.listProfiles()).profiles, parsed.value!);
-  } else {
-    result = await client.deleteProfile(parsed.value!);
-  }
+  const result = parsed.command === 'list'
+    ? (await client.listProfiles()).profiles
+    : await client.deleteProfile(parsed.value!);
   await renderOutput(result, {
     fmt: parsed.format,
     fmtExplicit: parsed.formatExplicit,
     stdout,
   });
-}
-
-function resolveHostedProfile(profiles: HostedPublicProfile[], selector: string): HostedPublicProfile {
-  const matches = profiles.filter(profile =>
-    profile.id === selector || profile.name === selector || profile.userId === selector);
-  const distinct = [...new Map(matches.map(profile => [profile.id, profile])).values()];
-  if (distinct.length === 0) {
-    throw new CliError('PROFILE_NOT_FOUND', 'Profile was not found.', undefined, EXIT_CODES.EMPTY_RESULT);
-  }
-  if (distinct.length > 1) {
-    throw new CliError(
-      'AMBIGUOUS_PROFILE',
-      'The profile selector matched multiple profiles.',
-      'Use the immutable profile ID returned by webcmd profile list.',
-      EXIT_CODES.TEMPFAIL,
-    );
-  }
-  return distinct[0]!;
 }
 
 type ParsedHostedCompletionSurface =

@@ -13,7 +13,6 @@ import type {
   HostedExecution,
   HostedExecuteResponse,
   HostedPrepareExecutionResponse,
-  HostedProfileResponse,
   HostedProfilesResponse,
   HostedUploadArtifactResponse,
   HostedManifest,
@@ -23,7 +22,23 @@ import type {
 export interface HostedClientOptions {
   apiBaseUrl: string;
   apiKey: string;
+  workspace?: string;
   fetchImpl?: typeof fetch;
+}
+
+/**
+ * Resolves the active workspace from CLI flags/env, precedence: --workspace flag > WEBCMD_WORKSPACE env > undefined.
+ */
+export function resolveWorkspace(argv: readonly string[], env: NodeJS.ProcessEnv): string | undefined {
+  const idx = argv.indexOf('--workspace');
+  if (idx >= 0 && argv[idx + 1]) return argv[idx + 1];
+  const equalsForm = argv.find(arg => arg.startsWith('--workspace='));
+  if (equalsForm !== undefined) {
+    const value = equalsForm.slice('--workspace='.length).trim();
+    if (value) return value;
+  }
+  const fromEnv = env.WEBCMD_WORKSPACE?.trim();
+  return fromEnv ? fromEnv : undefined;
 }
 
 export class HostedClientError extends CliError {
@@ -47,11 +62,13 @@ export class HostedClientError extends CliError {
 export class HostedClient {
   private readonly apiBaseUrl: string;
   private readonly apiKey: string;
+  private readonly workspace: string | undefined;
   private readonly fetchImpl: typeof fetch;
 
   constructor(options: HostedClientOptions) {
     this.apiBaseUrl = options.apiBaseUrl.replace(/\/+$/, '');
     this.apiKey = options.apiKey;
+    this.workspace = options.workspace;
     this.fetchImpl = options.fetchImpl ?? fetch;
   }
 
@@ -67,33 +84,10 @@ export class HostedClient {
     return body.manifest;
   }
 
-  async listProfiles(filters: { name?: string; userId?: string } = {}): Promise<HostedProfilesResponse> {
-    const params = new URLSearchParams();
-    if (filters.name !== undefined) params.set('name', filters.name);
-    if (filters.userId !== undefined) params.set('userId', filters.userId);
-    const query = params.toString();
-    const body = await this.request(`/v1/profiles${query ? `?${query}` : ''}`);
+  async listProfiles(): Promise<HostedProfilesResponse> {
+    const body = await this.request('/v1/profiles');
     if (!isHostedProfilesResponse(body)) {
       throw protocolError('Webcmd Cloud returned an invalid profiles response.');
-    }
-    return body;
-  }
-
-  async createProfile(input: { name: string; userId?: string }): Promise<HostedProfileResponse> {
-    const body = await this.request('/v1/profiles', {
-      method: 'POST',
-      body: JSON.stringify(input),
-    });
-    if (!isHostedProfileResponse(body)) {
-      throw protocolError('Webcmd Cloud returned an invalid profile response.');
-    }
-    return body;
-  }
-
-  async getProfile(profileId: string): Promise<HostedProfileResponse> {
-    const body = await this.request(`/v1/profiles/${encodeURIComponent(profileId)}`);
-    if (!isHostedProfileResponse(body)) {
-      throw protocolError('Webcmd Cloud returned an invalid profile response.');
     }
     return body;
   }
@@ -192,6 +186,7 @@ export class HostedClient {
         headers: {
           accept: 'application/octet-stream',
           authorization: `Bearer ${this.apiKey}`,
+          ...(this.workspace ? { 'x-webcmd-workspace': this.workspace } : {}),
         },
       },
     );
@@ -281,6 +276,7 @@ export class HostedClient {
         accept: 'application/json',
         ...(init.body ? { 'content-type': 'application/json' } : {}),
         authorization: `Bearer ${this.apiKey}`,
+        ...(this.workspace ? { 'x-webcmd-workspace': this.workspace } : {}),
         ...(init.headers ?? {}),
       },
     });
@@ -406,20 +402,14 @@ function isHostedProfilesResponse(value: unknown): value is HostedProfilesRespon
     && value.profiles.every(isHostedPublicProfile);
 }
 
-function isHostedProfileResponse(value: unknown): value is HostedProfileResponse {
-  return hasExactKeys(value, ['ok', 'profile'])
-    && value.ok === true
-    && isHostedPublicProfile(value.profile);
-}
-
 function isHostedPublicProfile(value: unknown): boolean {
   return hasExactKeys(value, [
-    'id', 'name', 'userId', 'default', 'status',
+    'id', 'name', 'workspace', 'default', 'status',
     'createdAt', 'updatedAt', 'lastUsedAt',
   ])
     && typeof value.id === 'string'
     && (value.name === null || typeof value.name === 'string')
-    && (value.userId === null || typeof value.userId === 'string')
+    && (value.workspace === null || typeof value.workspace === 'string')
     && typeof value.default === 'boolean'
     && (value.status === 'pending' || value.status === 'available')
     && typeof value.createdAt === 'string'
