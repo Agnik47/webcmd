@@ -23,7 +23,6 @@ cli({
     strategy: Strategy.UI,
     browser: true,
     siteSession: 'persistent',
-    defaultWindowMode: 'foreground',
     navigateBefore: false,
     args: [
         {

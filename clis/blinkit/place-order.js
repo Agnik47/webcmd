@@ -35,7 +35,6 @@ cli({
   strategy: Strategy.COOKIE,
   browser: true,
   navigateBefore: false,
-  defaultWindowMode: 'foreground',
   args: [
     { name: 'confirm', type: 'bool', default: false, help: 'Required acknowledgement that this may place/pay for a real order' },
   ],

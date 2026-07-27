@@ -34,7 +34,7 @@ export function parseHostedBrowserStructure(argv: readonly string[]): ParsedHost
   const browser = root
     .command('browser')
     .addOption(new Option('--session <name>', 'Internal — set automatically from the <session> positional').hideHelp())
-    .option('--window <mode>', 'Browser window mode: foreground or background')
+    .option('--window <mode>', 'Browser window mode: foreground or background (default: background)')
     .description('Browser control — navigate, click, type, extract, wait (no LLM needed)')
     .usage('<session> <command> [options]')
     .addHelpText('after', `
@@ -42,7 +42,7 @@ export function parseHostedBrowserStructure(argv: readonly string[]): ParsedHost
 
 Examples:
   $ webcmd browser work open https://x.com
-  $ webcmd browser work open https://x.com --window background
+  $ webcmd browser work open https://x.com --window foreground
   $ webcmd browser work click 12
   $ webcmd browser work state
   $ webcmd browser work tab list

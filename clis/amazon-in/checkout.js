@@ -376,7 +376,6 @@ cli({
   navigateBefore: false,
   siteSession: 'persistent',
   freshPage: true,
-  defaultWindowMode: 'foreground',
   args: [
     { name: 'input', required: true, positional: true, help: 'Amazon.in product URL or ASIN' },
     { name: 'quantity', type: 'int', default: 1, help: 'Quantity (1-10)' },

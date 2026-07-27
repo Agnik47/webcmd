@@ -44,6 +44,4 @@ export interface ManifestEntry {
   siteSession?: 'ephemeral' | 'persistent';
   /** Fresh page behavior for persistent site sessions — see CliCommand.freshPage */
   freshPage?: boolean;
-  /** Default browser window visibility — see CliCommand.defaultWindowMode */
-  defaultWindowMode?: 'foreground' | 'background';
 }

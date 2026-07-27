@@ -81,8 +81,6 @@ interface BaseCliCommand {
    * combining them is a contradiction and fails at registration.
    */
   freshPage?: boolean;
-  /** Default browser window mode for commands whose UX requires visibility. */
-  defaultWindowMode?: 'foreground' | 'background';
   /** Override the default CLI output format when the user does not pass -f/--format. */
   defaultFormat?: 'table' | 'plain' | 'json' | 'yaml' | 'yml' | 'md' | 'markdown' | 'csv';
   /** Optional auth-status metadata attached by shared auth adapters. */
@@ -160,7 +158,6 @@ export function cli(opts: CliOptions): CliCommand {
     navigateBefore: opts.navigateBefore,
     siteSession: opts.siteSession,
     freshPage: opts.freshPage,
-    defaultWindowMode: opts.defaultWindowMode,
     defaultFormat: opts.defaultFormat,
     authStatus: opts.authStatus,
   };

@@ -68,7 +68,6 @@ describe('auth status collection', () => {
       name: 'whoami',
       navigateBefore: false,
       siteSession: 'ephemeral',
-      defaultWindowMode: 'background',
     });
   });
 
@@ -142,7 +141,6 @@ describe('auth refresh collection', () => {
       name: 'whoami',
       navigateBefore: false,
       siteSession: 'persistent',
-      defaultWindowMode: 'background',
     });
     expect(executeCommandMock.mock.calls[0]?.[3]).toMatchObject({
       siteSession: 'persistent',

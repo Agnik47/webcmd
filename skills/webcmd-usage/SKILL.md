@@ -105,7 +105,7 @@ Some commands override the default through `cmd.defaultFormat`; read `--help`.
 | `WEBCMD_BROWSER_COMMAND_TIMEOUT` | `60` | Per-command timeout. |
 | `WEBCMD_CDP_ENDPOINT` | unset | Manual CDP endpoint override. |
 | `WEBCMD_CACHE_DIR` | `~/.webcmd/cache` | Network capture and browser-state cache. |
-| `WEBCMD_WINDOW` | command-specific | `foreground` or `background` browser window mode. |
+| `WEBCMD_WINDOW` | `background` | Explicitly override browser window mode with `foreground` or `background`. |
 | `WEBCMD_VERBOSE` | `false` | Verbose logging, also triggered by `-v`. |
 
 ## Self-Repair

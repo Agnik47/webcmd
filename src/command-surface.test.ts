@@ -165,6 +165,10 @@ describe('configureCommandSurface', () => {
 
     const longFlags = command.options.map((option) => option.long);
     for (const flag of expected) expect(longFlags).toContain(flag);
+    if (browser) {
+      expect(command.options.find((option) => option.long === '--window')?.description)
+        .toBe('Browser window mode: foreground or background (default: background)');
+    }
     if (!browser) {
       expect(longFlags).not.toContain('--window');
       expect(longFlags).not.toContain('--site-session');

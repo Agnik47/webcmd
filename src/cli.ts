@@ -629,7 +629,7 @@ async function getBrowserPage(
     surface: 'browser',
     ...profileRouteParams(profileSelection),
     ...(idleTimeout && idleTimeout > 0 && { idleTimeout }),
-    windowMode: opts.windowMode ?? getBrowserWindowMode(undefined, 'foreground'),
+    windowMode: opts.windowMode ?? getBrowserWindowMode(),
   });
   const targetScope = getBrowserScope(session, profileSelection?.contextId);
   const resolvedTargetPage = targetPage
@@ -644,7 +644,7 @@ async function getBrowserPage(
   return page;
 }
 
-function getBrowserWindowMode(command: Command | undefined, defaultMode: BrowserWindowMode): BrowserWindowMode {
+function getBrowserWindowMode(command?: Command): BrowserWindowMode {
   const optionRaw = getCommandOption(command, 'window');
   if (optionRaw !== undefined && optionRaw !== '') {
     if (optionRaw === 'foreground' || optionRaw === 'background') return optionRaw;
@@ -655,7 +655,7 @@ function getBrowserWindowMode(command: Command | undefined, defaultMode: Browser
     if (envRaw === 'foreground' || envRaw === 'background') return envRaw;
     throw new Error(`WEBCMD_WINDOW must be one of: foreground, background. Received: "${envRaw}"`);
   }
-  return defaultMode;
+  return 'background';
 }
 
 function addBrowserTabOption(command: Command): Command {
@@ -948,7 +948,7 @@ export function createProgram(BUILTIN_CLIS: string, USER_CLIS: string): Command 
     // program.parseAsync callers (tests). User-facing surface is the <session>
     // positional; main.ts argv preprocessor rewrites positional -> --session.
     .addOption(new Option('--session <name>', 'Internal — set automatically from the <session> positional').hideHelp())
-    .option('--window <mode>', 'Browser window mode: foreground or background')
+    .option('--window <mode>', 'Browser window mode: foreground or background (default: background)')
     .description('Browser control — navigate, click, type, extract, wait (no LLM needed)')
     .usage('<session> <command> [options]')
     .addHelpText('after', `
@@ -956,7 +956,7 @@ export function createProgram(BUILTIN_CLIS: string, USER_CLIS: string): Command 
 
 Examples:
   $ webcmd browser work open https://x.com
-  $ webcmd browser work open https://x.com --window background
+  $ webcmd browser work open https://x.com --window foreground
   $ webcmd browser work click 12
   $ webcmd browser work state
   $ webcmd browser work tab list
@@ -1058,7 +1058,7 @@ Examples:
         const targetPage = getBrowserTargetId(command);
         const session = getBrowserSession(command);
         const profileSelection = getBrowserProfileSelection(command);
-        const windowMode = getBrowserWindowMode(command, 'foreground');
+        const windowMode = getBrowserWindowMode(command);
         page = await getBrowserPage(session, targetPage, profileSelection, { windowMode });
         await fn(page, ...args);
       } catch (err) {
@@ -1110,7 +1110,7 @@ Examples:
       const profileSelection = getBrowserProfileSelection(command);
       const contextId = profileSelection?.contextId;
       const routing = profileRouteParams(profileSelection);
-      const windowMode = getBrowserWindowMode(command, 'foreground');
+      const windowMode = getBrowserWindowMode(command);
       try {
         const { BrowserBridge } = await import('./browser/index.js');
         const bridge = new BrowserBridge();

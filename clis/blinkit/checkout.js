@@ -10,7 +10,6 @@ cli({
   strategy: Strategy.COOKIE,
   browser: true,
   navigateBefore: false,
-  defaultWindowMode: 'foreground',
   args: [],
   columns: ['status', 'itemCount', 'itemsTotal', 'deliveryCharge', 'handlingCharge', 'payable', 'cartState', 'checkoutBlocked', 'validations'],
   func: async (page) => {
