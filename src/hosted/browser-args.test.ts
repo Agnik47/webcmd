@@ -74,6 +74,18 @@ function parseHosted(argv: string[]): ParsedHostedBrowserStructure {
 }
 
 describe('hosted browser canonical Commander values', () => {
+  it('states the background default in hosted browser help', () => {
+    try {
+      parseHostedBrowserStructure(['browser', '--help']);
+      throw new Error('Expected hosted browser help');
+    } catch (error) {
+      expect(error).toBeInstanceOf(HostedBrowserHelp);
+      expect((error as HostedBrowserHelp).output).toContain(
+        'Browser window mode: foreground or background (default: background)',
+      );
+    }
+  });
+
   it('matches the actual local action boundary for every catalogued browser leaf', () => {
     for (const contract of browserCommandCatalog) {
       const argv = ['browser', 'work', ...contract.command.split('/'), ...allPositionals(contract.command)];

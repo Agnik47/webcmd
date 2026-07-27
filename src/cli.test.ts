@@ -601,6 +601,7 @@ name: 'search',
         expect.objectContaining({
           name: 'window',
           flags: '--window <mode>',
+          help: 'Browser window mode: foreground or background (default: background)',
           takes_value: 'required',
         }),
       ]));

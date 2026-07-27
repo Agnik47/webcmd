@@ -72,6 +72,12 @@ describe('shared command presentation', () => {
     expect(formatCommandHelp(hosted)).toBe(formatCommandHelp(local));
   });
 
+  it('states the background default in adapter browser help', () => {
+    expect(formatCommandHelp(toPresentableCommand(localCommand))).toContain(
+      'Browser window mode: foreground or background (default: background)',
+    );
+  });
+
   it('builds byte-identical structured and display list rows', () => {
     const local = toPresentableCommand(localCommand);
     const hosted = toPresentableCommand(hostedCommand);

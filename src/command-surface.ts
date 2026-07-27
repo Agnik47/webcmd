@@ -75,7 +75,7 @@ export function configureCommandSurface(command: Command, metadata: CommandSurfa
 
   if (metadata.browser) {
     command
-      .option('--window <mode>', `Browser window mode: ${BROWSER_WINDOW_MODES.join(' or ')}`)
+      .option('--window <mode>', `Browser window mode: ${BROWSER_WINDOW_MODES.join(' or ')} (default: background)`)
       .option('--site-session <mode>', `Adapter site session lifecycle: ${SITE_SESSION_MODES.join(' or ')}`)
       .option('--keep-tab <bool>', 'Keep the browser tab lease after the command finishes');
   }

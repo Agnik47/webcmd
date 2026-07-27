@@ -948,7 +948,7 @@ export function createProgram(BUILTIN_CLIS: string, USER_CLIS: string): Command 
     // program.parseAsync callers (tests). User-facing surface is the <session>
     // positional; main.ts argv preprocessor rewrites positional -> --session.
     .addOption(new Option('--session <name>', 'Internal — set automatically from the <session> positional').hideHelp())
-    .option('--window <mode>', 'Browser window mode: foreground or background')
+    .option('--window <mode>', 'Browser window mode: foreground or background (default: background)')
     .description('Browser control — navigate, click, type, extract, wait (no LLM needed)')
     .usage('<session> <command> [options]')
     .addHelpText('after', `
@@ -956,7 +956,7 @@ export function createProgram(BUILTIN_CLIS: string, USER_CLIS: string): Command 
 
 Examples:
   $ webcmd browser work open https://x.com
-  $ webcmd browser work open https://x.com --window background
+  $ webcmd browser work open https://x.com --window foreground
   $ webcmd browser work click 12
   $ webcmd browser work state
   $ webcmd browser work tab list

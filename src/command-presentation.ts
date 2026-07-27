@@ -112,7 +112,7 @@ const BROWSER_COMMON_OPTIONS = [
   {
     flags: '--window <mode>',
     name: 'window',
-    help: 'Browser window mode: foreground or background',
+    help: 'Browser window mode: foreground or background (default: background)',
     choices: ['foreground', 'background'],
   },
   {

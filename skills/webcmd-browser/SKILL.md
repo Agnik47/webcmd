@@ -41,7 +41,8 @@ Until `doctor` is green, browser commands will not work. Registry and plugin dis
 - Use a stable session name for any multi-command or human-paced browser workflow. Example: `webcmd browser fb-yaya-warmup open https://example.com`, then reuse `webcmd browser fb-yaya-warmup state`, `extract`, `click`, etc.
 - Owned browser sessions keep a tab lease alive between calls. Release it with `webcmd browser <session> close` or let the idle timeout expire.
 - `webcmd browser <session> bind --page <page-id>` binds an existing webcmd-managed Cloak tab to that session. Use this after the user manually logs in or navigates inside a visible Cloak window.
-- `--window foreground|background` (or `WEBCMD_WINDOW=foreground|background`) chooses whether Webcmd creates/focuses a foreground browser window or uses a background browser window for owned sessions.
+- Browser commands default to background mode.
+- Pass `--window foreground` (or set `WEBCMD_WINDOW=foreground`) when the user must see or interact with the browser.
 
 ### Bind Tab
 
