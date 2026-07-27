@@ -60,11 +60,6 @@ export interface HostedProfilesResponse {
   profiles: HostedPublicProfile[];
 }
 
-export interface HostedProfileResponse {
-  ok: true;
-  profile: HostedPublicProfile;
-}
-
 export interface HostedExecution {
   id: string;
   command: string;
