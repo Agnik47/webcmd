@@ -483,6 +483,16 @@ describe('manifest helper rules', () => {
     expect(parseBuildManifestArgs(['--something-else']).allowRemovals).toBe(0);
   });
 
+  it('does not publish per-command browser window defaults', () => {
+    const manifest = JSON.parse(
+      fs.readFileSync(path.join(process.cwd(), 'cli-manifest.json'), 'utf8'),
+    ) as ManifestEntry[];
+
+    expect(
+      manifest.filter((entry) => Object.hasOwn(entry, 'defaultWindowMode')),
+    ).toEqual([]);
+  });
+
   it('keeps every browser login on the local handoff contract', () => {
     const manifest = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'cli-manifest.json'), 'utf8')) as ManifestEntry[];
     const logins = manifest.filter((entry) => entry.browser === true && entry.name === 'login');

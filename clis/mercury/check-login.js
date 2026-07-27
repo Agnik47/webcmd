@@ -11,7 +11,6 @@ cli({
     strategy: Strategy.UI,
     browser: true,
     siteSession: 'persistent',
-    defaultWindowMode: 'foreground',
     navigateBefore: false,
     args: [],
     columns: ['status', 'loggedIn', 'url', 'hasSubmitExpense', 'hasReimbursements', 'title'],

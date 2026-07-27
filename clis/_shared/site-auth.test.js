@@ -35,7 +35,6 @@ describe('site auth command helper', () => {
       access: 'write',
       browser: true,
       navigateBefore: false,
-      defaultWindowMode: 'foreground',
       siteSession: 'persistent',
     });
     expect(login.args).toEqual([]);

@@ -160,7 +160,6 @@ function quickCheckCommand(cmd: CliCommand, timeoutSeconds: number): BrowserCliC
     func: cmd.authStatus.quickCheck,
     navigateBefore: false,
     siteSession: 'ephemeral',
-    defaultWindowMode: 'background',
   }, timeoutSeconds) as BrowserCliCommand;
 }
 
@@ -237,7 +236,6 @@ function refreshCommand(cmd: CliCommand, timeoutSeconds: number): BrowserCliComm
     func: refreshFunc,
     navigateBefore: false,
     siteSession: 'persistent',
-    defaultWindowMode: 'background',
   }, timeoutSeconds) as BrowserCliCommand;
 }
 

@@ -92,8 +92,7 @@
     "modulePath": "amazon/auth.js",
     "sourceFile": "amazon/auth.js",
     "navigateBefore": false,
-    "siteSession": "persistent",
-    "defaultWindowMode": "foreground"
+    "siteSession": "persistent"
   },
   {
     "site": "amazon",
@@ -367,8 +366,7 @@
     "sourceFile": "amazon-in/checkout.js",
     "navigateBefore": false,
     "siteSession": "persistent",
-    "freshPage": true,
-    "defaultWindowMode": "foreground"
+    "freshPage": true
   },
   {
     "site": "amazon-in",
@@ -413,8 +411,7 @@
     "modulePath": "amazon-in/auth.js",
     "sourceFile": "amazon-in/auth.js",
     "navigateBefore": false,
-    "siteSession": "persistent",
-    "defaultWindowMode": "foreground"
+    "siteSession": "persistent"
   },
   {
     "site": "amazon-in",
@@ -1882,8 +1879,7 @@
     "modulePath": "band/auth.js",
     "sourceFile": "band/auth.js",
     "navigateBefore": false,
-    "siteSession": "persistent",
-    "defaultWindowMode": "foreground"
+    "siteSession": "persistent"
   },
   {
     "site": "band",
@@ -2957,8 +2953,7 @@
     "type": "js",
     "modulePath": "blinkit/checkout.js",
     "sourceFile": "blinkit/checkout.js",
-    "navigateBefore": false,
-    "defaultWindowMode": "foreground"
+    "navigateBefore": false
   },
   {
     "site": "blinkit",
@@ -3005,8 +3000,7 @@
     "modulePath": "blinkit/auth.js",
     "sourceFile": "blinkit/auth.js",
     "navigateBefore": false,
-    "siteSession": "persistent",
-    "defaultWindowMode": "foreground"
+    "siteSession": "persistent"
   },
   {
     "site": "blinkit",
@@ -3037,8 +3031,7 @@
     "type": "js",
     "modulePath": "blinkit/place-order.js",
     "sourceFile": "blinkit/place-order.js",
-    "navigateBefore": false,
-    "defaultWindowMode": "foreground"
+    "navigateBefore": false
   },
   {
     "site": "blinkit",
@@ -4264,8 +4257,7 @@
     "modulePath": "chatgpt/auth.js",
     "sourceFile": "chatgpt/auth.js",
     "navigateBefore": false,
-    "siteSession": "persistent",
-    "defaultWindowMode": "foreground"
+    "siteSession": "persistent"
   },
   {
     "site": "chatgpt",
@@ -5226,8 +5218,7 @@
     "modulePath": "claude/auth.js",
     "sourceFile": "claude/auth.js",
     "navigateBefore": false,
-    "siteSession": "persistent",
-    "defaultWindowMode": "foreground"
+    "siteSession": "persistent"
   },
   {
     "site": "claude",
@@ -6432,8 +6423,7 @@
     "modulePath": "coupang/auth.js",
     "sourceFile": "coupang/auth.js",
     "navigateBefore": false,
-    "siteSession": "persistent",
-    "defaultWindowMode": "foreground"
+    "siteSession": "persistent"
   },
   {
     "site": "coupang",
@@ -7811,8 +7801,7 @@
     "sourceFile": "district/checkout.js",
     "navigateBefore": false,
     "siteSession": "persistent",
-    "freshPage": true,
-    "defaultWindowMode": "foreground"
+    "freshPage": true
   },
   {
     "site": "district",
@@ -7924,8 +7913,7 @@
     "modulePath": "district/auth.js",
     "sourceFile": "district/auth.js",
     "navigateBefore": false,
-    "siteSession": "persistent",
-    "defaultWindowMode": "foreground"
+    "siteSession": "persistent"
   },
   {
     "site": "district",
@@ -8059,8 +8047,7 @@
     "modulePath": "district/seats.js",
     "sourceFile": "district/seats.js",
     "navigateBefore": false,
-    "siteSession": "persistent",
-    "defaultWindowMode": "foreground"
+    "siteSession": "persistent"
   },
   {
     "site": "district",
@@ -8114,8 +8101,7 @@
     "modulePath": "district/set-location.js",
     "sourceFile": "district/set-location.js",
     "navigateBefore": false,
-    "siteSession": "persistent",
-    "defaultWindowMode": "foreground"
+    "siteSession": "persistent"
   },
   {
     "site": "district",
@@ -8222,8 +8208,7 @@
     "modulePath": "district/showtimes.js",
     "sourceFile": "district/showtimes.js",
     "navigateBefore": false,
-    "siteSession": "persistent",
-    "defaultWindowMode": "foreground"
+    "siteSession": "persistent"
   },
   {
     "site": "district",
@@ -8625,8 +8610,7 @@
     "modulePath": "facebook/auth.js",
     "sourceFile": "facebook/auth.js",
     "navigateBefore": false,
-    "siteSession": "persistent",
-    "defaultWindowMode": "foreground"
+    "siteSession": "persistent"
   },
   {
     "site": "facebook",
@@ -9201,8 +9185,7 @@
     "modulePath": "gemini/auth.js",
     "sourceFile": "gemini/auth.js",
     "navigateBefore": false,
-    "siteSession": "persistent",
-    "defaultWindowMode": "foreground"
+    "siteSession": "persistent"
   },
   {
     "site": "gemini",
@@ -9597,8 +9580,7 @@
     "modulePath": "github/auth.js",
     "sourceFile": "github/auth.js",
     "navigateBefore": false,
-    "siteSession": "persistent",
-    "defaultWindowMode": "foreground"
+    "siteSession": "persistent"
   },
   {
     "site": "github",
@@ -10346,8 +10328,7 @@
     "modulePath": "grok/auth.js",
     "sourceFile": "grok/auth.js",
     "navigateBefore": false,
-    "siteSession": "persistent",
-    "defaultWindowMode": "foreground"
+    "siteSession": "persistent"
   },
   {
     "site": "grok",
@@ -10900,8 +10881,7 @@
     "modulePath": "hf/auth.js",
     "sourceFile": "hf/auth.js",
     "navigateBefore": false,
-    "siteSession": "persistent",
-    "defaultWindowMode": "foreground"
+    "siteSession": "persistent"
   },
   {
     "site": "hf",
@@ -11821,8 +11801,7 @@
     "modulePath": "instagram/auth.js",
     "sourceFile": "instagram/auth.js",
     "navigateBefore": false,
-    "siteSession": "persistent",
-    "defaultWindowMode": "foreground"
+    "siteSession": "persistent"
   },
   {
     "site": "instagram",
@@ -13220,8 +13199,7 @@
     "modulePath": "linkedin/auth.js",
     "sourceFile": "linkedin/auth.js",
     "navigateBefore": false,
-    "siteSession": "persistent",
-    "defaultWindowMode": "foreground"
+    "siteSession": "persistent"
   },
   {
     "site": "linkedin",
@@ -14056,8 +14034,7 @@
     "modulePath": "linkedin-learning/auth.js",
     "sourceFile": "linkedin-learning/auth.js",
     "navigateBefore": false,
-    "siteSession": "persistent",
-    "defaultWindowMode": "foreground"
+    "siteSession": "persistent"
   },
   {
     "site": "linkedin-learning",
@@ -14490,8 +14467,7 @@
     "modulePath": "manus/auth.js",
     "sourceFile": "manus/auth.js",
     "navigateBefore": false,
-    "siteSession": "persistent",
-    "defaultWindowMode": "foreground"
+    "siteSession": "persistent"
   },
   {
     "site": "manus",
@@ -14872,8 +14848,7 @@
     "modulePath": "mercury/check-login.js",
     "sourceFile": "mercury/check-login.js",
     "navigateBefore": false,
-    "siteSession": "persistent",
-    "defaultWindowMode": "foreground"
+    "siteSession": "persistent"
   },
   {
     "site": "mercury",
@@ -14971,8 +14946,7 @@
     "modulePath": "mercury/reimbursement-draft.js",
     "sourceFile": "mercury/reimbursement-draft.js",
     "navigateBefore": false,
-    "siteSession": "persistent",
-    "defaultWindowMode": "foreground"
+    "siteSession": "persistent"
   },
   {
     "site": "mercury",
@@ -15357,8 +15331,7 @@
     "modulePath": "notebooklm/auth.js",
     "sourceFile": "notebooklm/auth.js",
     "navigateBefore": false,
-    "siteSession": "persistent",
-    "defaultWindowMode": "foreground"
+    "siteSession": "persistent"
   },
   {
     "site": "notebooklm",
@@ -16792,8 +16765,7 @@
     "modulePath": "pixiv/auth.js",
     "sourceFile": "pixiv/auth.js",
     "navigateBefore": false,
-    "siteSession": "persistent",
-    "defaultWindowMode": "foreground"
+    "siteSession": "persistent"
   },
   {
     "site": "pixiv",
@@ -17075,8 +17047,7 @@
     "modulePath": "practo/book-confirm.js",
     "sourceFile": "practo/book-confirm.js",
     "navigateBefore": false,
-    "siteSession": "persistent",
-    "defaultWindowMode": "foreground"
+    "siteSession": "persistent"
   },
   {
     "site": "practo",
@@ -17194,8 +17165,7 @@
     "modulePath": "practo/cancel.js",
     "sourceFile": "practo/cancel.js",
     "navigateBefore": false,
-    "siteSession": "persistent",
-    "defaultWindowMode": "foreground"
+    "siteSession": "persistent"
   },
   {
     "site": "practo",
@@ -17245,8 +17215,7 @@
     "modulePath": "practo/login.js",
     "sourceFile": "practo/login.js",
     "navigateBefore": false,
-    "siteSession": "persistent",
-    "defaultWindowMode": "foreground"
+    "siteSession": "persistent"
   },
   {
     "site": "practo",
@@ -18751,8 +18720,7 @@
     "modulePath": "reddit/auth.js",
     "sourceFile": "reddit/auth.js",
     "navigateBefore": false,
-    "siteSession": "persistent",
-    "defaultWindowMode": "foreground"
+    "siteSession": "persistent"
   },
   {
     "site": "reddit",
@@ -19514,8 +19482,7 @@
     "modulePath": "reuters/auth.js",
     "sourceFile": "reuters/auth.js",
     "navigateBefore": false,
-    "siteSession": "persistent",
-    "defaultWindowMode": "foreground"
+    "siteSession": "persistent"
   },
   {
     "site": "reuters",
@@ -20603,8 +20570,7 @@
     "modulePath": "slock/whoami.js",
     "sourceFile": "slock/whoami.js",
     "navigateBefore": false,
-    "siteSession": "persistent",
-    "defaultWindowMode": "foreground"
+    "siteSession": "persistent"
   },
   {
     "site": "slock",
@@ -22516,8 +22482,7 @@
     "modulePath": "suno/auth.js",
     "sourceFile": "suno/auth.js",
     "navigateBefore": false,
-    "siteSession": "persistent",
-    "defaultWindowMode": "foreground"
+    "siteSession": "persistent"
   },
   {
     "site": "suno",
@@ -22845,8 +22810,7 @@
     "modulePath": "tiktok/auth.js",
     "sourceFile": "tiktok/auth.js",
     "navigateBefore": false,
-    "siteSession": "persistent",
-    "defaultWindowMode": "foreground"
+    "siteSession": "persistent"
   },
   {
     "site": "tiktok",
@@ -24922,8 +24886,7 @@
     "modulePath": "twitter/auth.js",
     "sourceFile": "twitter/auth.js",
     "navigateBefore": false,
-    "siteSession": "persistent",
-    "defaultWindowMode": "foreground"
+    "siteSession": "persistent"
   },
   {
     "site": "twitter",
@@ -25876,8 +25839,7 @@
     "modulePath": "upwork/auth.js",
     "sourceFile": "upwork/auth.js",
     "navigateBefore": false,
-    "siteSession": "persistent",
-    "defaultWindowMode": "foreground"
+    "siteSession": "persistent"
   },
   {
     "site": "upwork",
@@ -27266,8 +27228,7 @@
     "modulePath": "youtube/auth.js",
     "sourceFile": "youtube/auth.js",
     "navigateBefore": false,
-    "siteSession": "persistent",
-    "defaultWindowMode": "foreground"
+    "siteSession": "persistent"
   },
   {
     "site": "youtube",
@@ -27709,8 +27670,7 @@
     "modulePath": "zepto/auth.js",
     "sourceFile": "zepto/auth.js",
     "navigateBefore": false,
-    "siteSession": "persistent",
-    "defaultWindowMode": "foreground"
+    "siteSession": "persistent"
   },
   {
     "site": "zepto",

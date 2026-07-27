@@ -351,7 +351,6 @@ cli({
   strategy: Strategy.COOKIE,
   browser: true,
   navigateBefore: false,
-  defaultWindowMode: 'foreground',
   siteSession: 'persistent',
   args: [
     { name: 'movie', positional: true, required: true, help: 'Movie name or District movie URL' },

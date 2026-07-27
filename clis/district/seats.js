@@ -140,7 +140,6 @@ cli({
   strategy: Strategy.COOKIE,
   browser: true,
   navigateBefore: false,
-  defaultWindowMode: 'foreground',
   siteSession: 'persistent',
   args: [
     {

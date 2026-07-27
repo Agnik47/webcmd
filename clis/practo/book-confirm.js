@@ -11,7 +11,6 @@ cli({
   strategy: Strategy.COOKIE,
   browser: true,
   navigateBefore: false,
-  defaultWindowMode: 'foreground',
   siteSession: 'persistent',
   args: [
     { name: 'practice_doctor_id', positional: true, required: true, help: 'Practo practice_doctor_id' },

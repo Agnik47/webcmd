@@ -264,7 +264,6 @@ cli({
   strategy: Strategy.COOKIE,
   browser: true,
   navigateBefore: false,
-  defaultWindowMode: 'foreground',
   siteSession: 'persistent',
   // Checkout is the most state-sensitive district command: always start on a
   // clean page so modals/drawers left by earlier commands cannot poison it.

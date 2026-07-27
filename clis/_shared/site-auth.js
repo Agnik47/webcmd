@@ -90,7 +90,6 @@ export function registerSiteAuthCommands(config) {
     strategy: Strategy.COOKIE,
     browser: true,
     navigateBefore: false,
-    defaultWindowMode: 'foreground',
     siteSession: 'persistent',
     args: [],
     columns: loginColumns(config),
