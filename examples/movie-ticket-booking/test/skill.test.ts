@@ -21,6 +21,10 @@ test('Hermes movie-booking profile keeps the confirmation and payment boundary e
   assert.match(skill, /booking-status/);
   assert.match(skill, /explicit yes/i);
   assert.match(skill, /"I've paid".*not proof/is);
+  assert.match(skill, /once per explicit confirmation/i);
+  assert.match(skill, /AUTH_REQUIRED.*exact summary.*explicit yes.*checkout/is);
+  assert.match(skill, /EMPTY_RESULT.*COMMAND_EXEC.*prepare a new attempt.*exact summary.*explicit yes/is);
+  assert.match(skill, /unknown.*pending.*booking-status.*not checkout/is);
   assert.doesNotMatch(
     `${skill}\n${soul}\n${readFileSync(import.meta.filename, 'utf8')}`,
     new RegExp(['book', 'my', 'show'].join(''), 'i'),

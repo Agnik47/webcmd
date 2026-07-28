@@ -19,6 +19,7 @@ metadata:
   payment data. The user completes login and payment on District.
 - Show recommendations, then the chosen screening and exact seats.
 - Never infer success. A user's "I've paid" claim is not proof of payment.
+- Run checkout once per explicit confirmation. Never blindly retry it.
 
 ## Workflow
 
@@ -48,9 +49,11 @@ metadata:
    Take `FORMAT_ID` from the showtime row and `CONTENT_ID` from the chosen show
    URL's `contentid` query value. Display the returned attempt's exact movie,
    cinema, show time, seats, and amount. Ask for an explicit yes and wait.
-6. Only after explicit yes, run exactly once:
+6. Only after explicit yes, run exactly once for that confirmation:
    `npm --prefix "$MOVIE_DEMO_ROOT" run moviectl -- district checkout "$ATTEMPT_ID"`.
-   Return the resulting District payment link. Never retry checkout.
+   Return the resulting District payment link. If checkout returns an error, do
+   not invoke it again until the recovery table explicitly requires a fresh
+   summary and a new explicit yes.
 7. After the user says "I've paid", always run
    `npm --prefix "$MOVIE_DEMO_ROOT" run moviectl -- district booking-status "$ATTEMPT_ID"`.
    Report confirmed only when District returns `confirmed` and a non-empty
@@ -60,16 +63,17 @@ metadata:
 
 | Result | Action |
 |---|---|
-| Authentication required | Run `npm --prefix "$MOVIE_DEMO_ROOT" run moviectl -- district login`; ask the user to complete login on District, without sharing credentials or OTPs, then resume before checkout. |
-| Seats unavailable or show stale | Re-run showtimes and seats; prepare a new attempt for the user's new exact choice. Never checkout the old attempt. |
+| `AUTH_REQUIRED` before payment | The attempt returns to `awaiting_confirmation`. Run `npm --prefix "$MOVIE_DEMO_ROOT" run moviectl -- district login`; ask the user to complete login on District without sharing credentials or OTPs. Then display the attempt's exact summary again, obtain a new explicit yes, and invoke checkout once for that confirmation. |
+| `EMPTY_RESULT` or seat-unavailable `COMMAND_EXEC` during checkout | The old attempt is expired. Re-run showtimes and seats, prepare a new attempt for the user's new exact choice, display its exact summary, and obtain a new explicit yes. Never checkout the old attempt. |
 | Payment pending | Keep the attempt pending and report that result. Re-run `booking-status` only after the user asks or reports payment; do not start another checkout. |
 | Payment failed or expired | Report the result. Start a new showtime/seat choice only if the user wants to try again. |
-| Service or invalid-provider failure | State the typed error and stop. Retry read-only discovery later; never infer a result or retry checkout. |
+| Unknown, service, or invalid-provider failure | The attempt remains pending because payment state is ambiguous. State the safe error and run `booking-status`, not checkout. Never infer a result or start another checkout while it is pending. |
 
 ## Common Pitfalls
 
 - Do not skip `prepare-checkout`, alter its summary, accept vague confirmation,
-  run checkout twice, or treat a payment claim as confirmation.
+  reuse an old confirmation after recovery, or treat a payment claim as
+  confirmation.
 - Do not reuse stale seats, omit `--count` or `--together`, or report a booking
   reference not returned by District.
 
@@ -77,7 +81,7 @@ metadata:
 
 - [ ] Recommendation, chosen screening, and exact seats were shown.
 - [ ] Prepared movie, cinema, show time, seats, and amount were displayed.
-- [ ] Explicit yes preceded the single checkout call.
+- [ ] A fresh explicit yes preceded each single checkout call.
 - [ ] The returned payment link was relayed without collecting payment data.
 - [ ] Any payment claim triggered `booking-status`.
 - [ ] Confirmation includes District's non-empty booking reference.

@@ -102,6 +102,42 @@ function providerRow(value: unknown): Record<string, unknown> {
   return row as Record<string, unknown>;
 }
 
+function webcmdError(stderr: string, status: number | null): MoviectlError {
+  const lines = stderr.trimEnd().split(/\r?\n/);
+  const errorIndex = lines.indexOf('error:');
+  if (lines[0] !== 'ok: false' || errorIndex < 0) {
+    return new MoviectlError('WEBCMD_FAILED', 'WebCMD command failed');
+  }
+  const fields = new Map<string, string>();
+  for (const line of lines.slice(errorIndex + 1)) {
+    const match = /^  ([A-Za-z][A-Za-z0-9]*):\s*(.*?)\s*$/.exec(line);
+    if (!match) break;
+    fields.set(match[1]!, match[2]!);
+  }
+  const code = fields.get('code');
+  const exitCode = Number(fields.get('exitCode'));
+  if (status === 77 && exitCode === status && code === 'AUTH_REQUIRED') {
+    return new MoviectlError('AUTH_REQUIRED', 'District login is required');
+  }
+  if (status === 66 && exitCode === status && code === 'EMPTY_RESULT') {
+    return new MoviectlError('EMPTY_RESULT', 'District returned no data');
+  }
+  const message = fields.get('message') ?? '';
+  if (
+    status === 1
+    && exitCode === status
+    && code === 'COMMAND_EXEC'
+    && (
+      /^[A-Z]+[0-9]+ is not available$/i.test(message)
+      || message === 'District says booking is now closed for this show'
+      || message.startsWith('District no longer offers this show session;')
+    )
+  ) {
+    return new MoviectlError('COMMAND_EXEC', 'District seats are no longer available');
+  }
+  return new MoviectlError('WEBCMD_FAILED', 'WebCMD command failed');
+}
+
 function callWebcmd(
   identity: Identity,
   args: string[],
@@ -143,7 +179,9 @@ function callWebcmd(
     { encoding: 'utf8', env: webcmdEnv },
   );
   if (child.error || child.status !== 0) {
-    throw new MoviectlError('WEBCMD_FAILED', 'WebCMD command failed');
+    throw child.error
+      ? new MoviectlError('WEBCMD_FAILED', 'WebCMD command failed')
+      : webcmdError(child.stderr, child.status);
   }
   try {
     return JSON.parse(child.stdout);
@@ -250,16 +288,43 @@ function checkout(
     }
     return updateBookingAttempt(db, identity.userId, current.id, { status: 'pending_payment' })!;
   });
-  const provider = providerRow(callWebcmd(identity, [
-    'checkout',
-    attempt.showTarget,
-    '--seats',
-    attempt.seats.join(','),
-    '--format-id',
-    attempt.formatId,
-    '--content-id',
-    attempt.contentId,
-  ], env));
+  let providerResult: unknown;
+  try {
+    providerResult = callWebcmd(identity, [
+      'checkout',
+      attempt.showTarget,
+      '--seats',
+      attempt.seats.join(','),
+      '--format-id',
+      attempt.formatId,
+      '--content-id',
+      attempt.contentId,
+    ], env);
+  } catch (error) {
+    if (error instanceof MoviectlError && error.code === 'AUTH_REQUIRED') {
+      transaction(db, () => updateBookingAttempt(
+        db,
+        identity.userId,
+        attempt.id,
+        { status: 'awaiting_confirmation' },
+      ));
+      throw new MoviectlError('AUTH_REQUIRED', 'District login is required before checkout');
+    }
+    if (
+      error instanceof MoviectlError
+      && (error.code === 'EMPTY_RESULT' || error.code === 'COMMAND_EXEC')
+    ) {
+      transaction(db, () => updateBookingAttempt(
+        db,
+        identity.userId,
+        attempt.id,
+        { status: 'expired' },
+      ));
+      throw new MoviectlError(error.code, 'District seats are no longer available');
+    }
+    throw error;
+  }
+  const provider = providerRow(providerResult);
   if (typeof provider.paymentUrl !== 'string' || !provider.paymentUrl.trim()) {
     throw new MoviectlError('INVALID_PROVIDER_RESULT', 'District checkout returned no payment URL');
   }

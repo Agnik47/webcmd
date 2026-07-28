@@ -26,6 +26,8 @@ function fixture() {
 const fs = require('node:fs');
 fs.appendFileSync(process.env.FAKE_WEBCMD_LOG, JSON.stringify(process.argv.slice(2)) + '\\n');
 process.stdout.write(process.env.FAKE_WEBCMD_RESPONSE || '{}');
+process.stderr.write(process.env.FAKE_WEBCMD_STDERR || '');
+process.exitCode = Number(process.env.FAKE_WEBCMD_EXIT_CODE || 0);
 `);
   chmodSync(executable, 0o755);
 
@@ -33,7 +35,7 @@ process.stdout.write(process.env.FAKE_WEBCMD_RESPONSE || '{}');
   const user = createUserRecord(db, 'alice@example.com', 'hash');
   db.close();
   const sessionKey = `movie-demo:user:${user.id}`;
-  const env = {
+  const env: NodeJS.ProcessEnv = {
     ...process.env,
     MOVIE_DEMO_DB_PATH: databasePath,
     HERMES_SESSION_KEY: sessionKey,
@@ -50,6 +52,23 @@ process.stdout.write(process.env.FAKE_WEBCMD_RESPONSE || '{}');
     }
   };
   return { databasePath, env, sessionKey, user, calls };
+}
+
+function failWebcmd(
+  state: ReturnType<typeof fixture>,
+  code: string,
+  message: string,
+  exitCode: number,
+) {
+  state.env.FAKE_WEBCMD_EXIT_CODE = String(exitCode);
+  state.env.FAKE_WEBCMD_STDERR = [
+    'ok: false',
+    'error:',
+    `  code: ${code}`,
+    `  message: ${message}`,
+    `  exitCode: ${exitCode}`,
+    '',
+  ].join('\n');
 }
 
 function unwrap<T>(result: Awaited<ReturnType<typeof runMoviectl>>): T {
@@ -218,4 +237,103 @@ test('rejects checkout outside awaiting confirmation before WebCMD runs', () => 
   assert.equal(result.ok, false);
   if (!result.ok) assert.equal(result.error.code, 'INVALID_STATE');
   assert.equal(state.calls().length, 0);
+});
+
+test('restores an auth-blocked checkout for fresh confirmation without leaking provider text', () => {
+  const state = fixture();
+  const prepared = unwrap<{ attempt: { id: string } }>(prepare(state));
+  failWebcmd(state, 'AUTH_REQUIRED', 'secret provider detail', 77);
+
+  const result = runMoviectl(['district', 'checkout', prepared.attempt.id], state.env);
+
+  assert.deepEqual(result, {
+    ok: false,
+    error: {
+      code: 'AUTH_REQUIRED',
+      message: 'District login is required before checkout',
+    },
+  });
+  const db = openDatabase(state.databasePath);
+  assert.equal(
+    findBookingAttempt(db, state.user.id, prepared.attempt.id)?.status,
+    'awaiting_confirmation',
+  );
+  db.close();
+});
+
+test('expires a checkout with unavailable seats so a new attempt can proceed', () => {
+  const state = fixture();
+  const stale = unwrap<{ attempt: { id: string } }>(prepare(state));
+  failWebcmd(state, 'EMPTY_RESULT', 'seat detail', 66);
+
+  const result = runMoviectl(['district', 'checkout', stale.attempt.id], state.env);
+
+  assert.deepEqual(result, {
+    ok: false,
+    error: {
+      code: 'EMPTY_RESULT',
+      message: 'District seats are no longer available',
+    },
+  });
+  let db = openDatabase(state.databasePath);
+  assert.equal(findBookingAttempt(db, state.user.id, stale.attempt.id)?.status, 'expired');
+  db.close();
+
+  delete state.env.FAKE_WEBCMD_EXIT_CODE;
+  delete state.env.FAKE_WEBCMD_STDERR;
+  state.env.FAKE_WEBCMD_RESPONSE = JSON.stringify({
+    status: 'ready_for_payment',
+    paymentUrl: 'https://pay.example/new',
+  });
+  const fresh = unwrap<{ attempt: { id: string } }>(prepare(
+    state,
+    'https://www.district.in/movies/seat-layout/imax?encsessionid=show-new',
+    'B1,B2',
+  ));
+  const checkout = runMoviectl(['district', 'checkout', fresh.attempt.id], state.env);
+  assert.equal(checkout.ok, true);
+  db = openDatabase(state.databasePath);
+  assert.equal(findBookingAttempt(db, state.user.id, fresh.attempt.id)?.status, 'pending_payment');
+  db.close();
+});
+
+test('expires an unequivocal COMMAND_EXEC unavailable-seat checkout', () => {
+  const state = fixture();
+  const prepared = unwrap<{ attempt: { id: string } }>(prepare(state));
+  failWebcmd(state, 'COMMAND_EXEC', 'A1 is not available', 1);
+
+  const result = runMoviectl(['district', 'checkout', prepared.attempt.id], state.env);
+
+  assert.deepEqual(result, {
+    ok: false,
+    error: {
+      code: 'COMMAND_EXEC',
+      message: 'District seats are no longer available',
+    },
+  });
+  const db = openDatabase(state.databasePath);
+  assert.equal(findBookingAttempt(db, state.user.id, prepared.attempt.id)?.status, 'expired');
+  db.close();
+});
+
+test('keeps ambiguous checkout failures pending for status reconciliation', () => {
+  const state = fixture();
+  const prepared = unwrap<{ attempt: { id: string } }>(prepare(state));
+  failWebcmd(state, 'COMMAND_EXEC', 'raw provider detail', 1);
+
+  const result = runMoviectl(['district', 'checkout', prepared.attempt.id], state.env);
+
+  assert.deepEqual(result, {
+    ok: false,
+    error: {
+      code: 'WEBCMD_FAILED',
+      message: 'WebCMD command failed',
+    },
+  });
+  const db = openDatabase(state.databasePath);
+  assert.equal(findBookingAttempt(db, state.user.id, prepared.attempt.id)?.status, 'pending_payment');
+  db.close();
+  const retry = runMoviectl(['district', 'checkout', prepared.attempt.id], state.env);
+  assert.equal(retry.ok, false);
+  if (!retry.ok) assert.equal(retry.error.code, 'INVALID_STATE');
 });
