@@ -52,12 +52,19 @@ export MOVIE_DEMO_DB_PATH="$MOVIE_DEMO_ROOT/movie-demo.db"
 
 hermes -p movie-booking config set API_SERVER_ENABLED true
 hermes -p movie-booking config set API_SERVER_KEY "$(openssl rand -hex 32)"
+hermes -p movie-booking config set API_SERVER_HOST 127.0.0.1
+hermes -p movie-booking config set API_SERVER_PORT 8642
 hermes -p movie-booking config set --force MOVIE_DEMO_ROOT "$MOVIE_DEMO_ROOT"
 hermes -p movie-booking config set --force MOVIE_DEMO_DB_PATH "$MOVIE_DEMO_DB_PATH"
 ```
 
 Hermes stores the generated bearer key in the profile's private `.env`; the
-command does not print the key.
+command does not print the key. Pinning host and port prevents values inherited
+by `--clone` from sending the gateway somewhere the app does not expect.
+
+Ports 8642 for Hermes and 3000 for the app must be free. To change 8642, set
+`API_SERVER_PORT` and `HERMES_API_URL` to the same new port. To change 3000,
+set `PORT` and open that port in the browser.
 
 ## 3. Start Hermes
 
@@ -91,6 +98,8 @@ Open `http://127.0.0.1:3000`, register a local account, and start a chat.
 | Variable | Used by | Purpose |
 | --- | --- | --- |
 | `API_SERVER_KEY` | Hermes and app | Backend-only bearer key; both processes must use the same value |
+| `API_SERVER_HOST` | Hermes | API bind address, pinned to loopback |
+| `API_SERVER_PORT` | Hermes | API port, pinned to match `HERMES_API_URL` |
 | `HERMES_API_URL` | App | Hermes API base URL |
 | `MOVIE_DEMO_ROOT` | Hermes skill | Absolute example package path |
 | `MOVIE_DEMO_DB_PATH` | Hermes and app | Shared absolute SQLite path |
