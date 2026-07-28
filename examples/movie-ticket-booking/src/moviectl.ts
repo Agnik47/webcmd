@@ -120,8 +120,10 @@ function yamlString(value: string): string | null {
 }
 
 function webcmdError(stderr: string, status: number | null): MoviectlError {
-  if (!stderr.endsWith('\n')) return new MoviectlError('WEBCMD_FAILED', 'WebCMD command failed');
-  const lines = stderr.slice(0, -1).replaceAll('\r\n', '\n').split('\n');
+  if (!stderr.endsWith('\n') || stderr.includes('\r')) {
+    return new MoviectlError('WEBCMD_FAILED', 'WebCMD command failed');
+  }
+  const lines = stderr.slice(0, -1).split('\n');
   if (lines[0] !== 'ok: false' || lines[1] !== 'error:') {
     return new MoviectlError('WEBCMD_FAILED', 'WebCMD command failed');
   }

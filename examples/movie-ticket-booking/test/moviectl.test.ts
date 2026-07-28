@@ -383,6 +383,16 @@ test('keeps ambiguous checkout failures pending for status reconciliation', () =
 test('rejects noncanonical or spoofed WebCMD envelopes without releasing checkout', () => {
   const cases = [
     {
+      label: 'canonical empty result with mixed newlines',
+      exitCode: 66,
+      stderr: REAL_EMPTY_RESULT_STDERR.replace('\n', '\r\n'),
+    },
+    {
+      label: 'canonical auth with mixed newlines',
+      exitCode: 77,
+      stderr: REAL_AUTH_REQUIRED_STDERR.replace('\n', '\r\n'),
+    },
+    {
       label: 'help-less real auth shape',
       exitCode: 77,
       stderr: [
