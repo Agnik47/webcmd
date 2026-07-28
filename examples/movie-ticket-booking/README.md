@@ -34,142 +34,52 @@ in this repository, the Hermes skill, or chat.
 ## 2. Install the example and Hermes profile
 
 ```bash
-(
-  set -eu
-
-  MOVIE_DEMO_ROOT="$(pwd -P)/examples/movie-ticket-booking"
-  MOVIE_DEMO_PROFILE="$HOME/.hermes/profiles/movie-booking"
-  MOVIE_DEMO_API_KEY_FILE="$MOVIE_DEMO_PROFILE/.movie-demo-api-key"
-
-  if [ -e "$MOVIE_DEMO_PROFILE" ] || [ -L "$MOVIE_DEMO_PROFILE" ]; then
-    echo "Profile already exists; refusing to modify it: $MOVIE_DEMO_PROFILE" >&2
-    exit 1
-  fi
-
-  npm --prefix "$MOVIE_DEMO_ROOT" install
-  hermes profile create movie-booking
-  hermes -p movie-booking setup
-
-  MOVIE_DEMO_SECRETS_JSON="$(hermes -p movie-booking config get secrets --json)"
-  MOVIE_DEMO_MANAGED_DIR="${HERMES_MANAGED_DIR-}"
-  MOVIE_DEMO_PROFILE="$MOVIE_DEMO_PROFILE" \
-  MOVIE_DEMO_MANAGED_DIR="$MOVIE_DEMO_MANAGED_DIR" \
-  MOVIE_DEMO_SECRETS_JSON="$MOVIE_DEMO_SECRETS_JSON" \
-  node <<'NODE'
-const fs = require('node:fs');
-const path = require('node:path');
-const owned = new Set([
-  'API_SERVER_ENABLED',
-  'API_SERVER_KEY',
-  'API_SERVER_HOST',
-  'API_SERVER_PORT',
-  'MOVIE_DEMO_ROOT',
-  'MOVIE_DEMO_DB_PATH',
-]);
-
-function assignedKeys(file) {
-  if (!fs.existsSync(file)) return [];
-  return fs.readFileSync(file, 'utf8').split(/\r?\n/).flatMap((line) => {
-    const match = /^\s*(?:export\s+)?([A-Z_][A-Z0-9_]*)\s*=/.exec(line);
-    return match ? [match[1]] : [];
-  });
-}
-
-const profileEnv = path.join(process.env.MOVIE_DEMO_PROFILE, '.env');
-const managedDir = process.env.MOVIE_DEMO_MANAGED_DIR.trim() || '/etc/hermes';
-const managedEnv = path.join(managedDir, '.env');
-for (const file of [profileEnv, managedEnv]) {
-  const conflicts = assignedKeys(file).filter((key) => owned.has(key));
-  if (conflicts.length) {
-    throw new Error(`${file} owns demo variables: ${conflicts.join(', ')}`);
-  }
-}
-
-const enabled = [];
-function findEnabled(value, prefix = 'secrets') {
-  if (!value || typeof value !== 'object') return;
-  if (value.enabled === true) enabled.push(prefix);
-  for (const [key, child] of Object.entries(value)) {
-    findEnabled(child, `${prefix}.${key}`);
-  }
-}
-findEnabled(JSON.parse(process.env.MOVIE_DEMO_SECRETS_JSON));
-if (enabled.length) {
-  throw new Error(`Disable external secret sources for this profile: ${enabled.join(', ')}`);
-}
-NODE
-
-  cp "$MOVIE_DEMO_ROOT/hermes/SOUL.md" "$MOVIE_DEMO_PROFILE/SOUL.md"
-  mkdir -p "$MOVIE_DEMO_PROFILE/skills"
-  cp -R "$MOVIE_DEMO_ROOT/hermes/skills/movie-ticket-booking" "$MOVIE_DEMO_PROFILE/skills/"
-
-  umask 077
-  MOVIE_DEMO_KEY_TMP="$(mktemp "$MOVIE_DEMO_PROFILE/.movie-demo-api-key.tmp.XXXXXX")"
-  trap '[ ! -e "$MOVIE_DEMO_KEY_TMP" ] || unlink "$MOVIE_DEMO_KEY_TMP"' 0 HUP INT TERM
-  openssl rand -hex 32 > "$MOVIE_DEMO_KEY_TMP"
-  chmod 600 "$MOVIE_DEMO_KEY_TMP"
-  mv -f "$MOVIE_DEMO_KEY_TMP" "$MOVIE_DEMO_API_KEY_FILE"
-  trap - 0 HUP INT TERM
-)
+examples/movie-ticket-booking/scripts/setup.sh setup
 ```
 
-The existence check runs before this section mutates anything. It will not
-overwrite or delete an existing `movie-booking` profile. The fresh profile has
-no inherited configuration: complete its interactive model setup before the
-demo files are copied. If setup is cancelled, later commands stop and the new
-profile remains for you to inspect; rerunning this block safely refuses to
-modify it.
+The helper refuses an unrelated existing `movie-booking` profile. It records
+ownership in a sibling marker, so an interrupted helper-owned setup can resume
+safely; once complete, rerunning skips model setup and its provider request.
 
-The read-only preflight rejects any of the six demo variables in the fresh
-profile or machine-managed `.env`, and rejects enabled external secret sources.
-Those are the built-in layers that can override launch values. The key is
-written to a same-directory temporary file and atomically renamed only after
-`openssl` succeeds; the subshell confines `umask 077`.
+Before every Hermes setup or launch, the helper reads the target dotenv, YAML,
+secret-source, and managed-scope configuration through Hermes' own parsing
+rules. This raw preflight does not invoke the Hermes CLI or fetch an external
+secret source. It rejects settings that could override this demo's key, host,
+port, root, or database path.
 
-Ports 8642 for Hermes and 3000 for the app must be free. To change 8642, set
-`API_SERVER_PORT` and `HERMES_API_URL` to the same new port. To change 3000,
-set `PORT` and open that port in the browser.
+After interactive `hermes setup`, the helper makes one minimal provider request
+to prove that the configured model can answer. This may incur provider usage.
+A cancelled setup or failed readiness request exits nonzero and leaves only a
+marker-owned partial profile for the next run to resume; demo files and the API
+key are installed only after readiness succeeds. Key creation is atomic and
+signal-safe.
+
+Ports 8642 for Hermes and 3000 for the app must be free.
 
 ## 3. Start Hermes
 
 In terminal 1:
 
 ```bash
-MOVIE_DEMO_ROOT="$(pwd -P)/examples/movie-ticket-booking"
-MOVIE_DEMO_DB_PATH="$MOVIE_DEMO_ROOT/movie-demo.db"
-MOVIE_DEMO_API_KEY_FILE="$HOME/.hermes/profiles/movie-booking/.movie-demo-api-key"
-
-API_SERVER_ENABLED=true \
-API_SERVER_KEY="$(cat "$MOVIE_DEMO_API_KEY_FILE")" \
-API_SERVER_HOST=127.0.0.1 \
-API_SERVER_PORT=8642 \
-MOVIE_DEMO_ROOT="$MOVIE_DEMO_ROOT" \
-MOVIE_DEMO_DB_PATH="$MOVIE_DEMO_DB_PATH" \
-hermes -p movie-booking gateway run
+examples/movie-ticket-booking/scripts/setup.sh gateway
 ```
 
 The profile gateway exposes its authenticated Sessions API at
-`http://127.0.0.1:8642`. Keep this foreground process running.
+`http://127.0.0.1:8642`. The helper pins every gateway value after its raw
+preflight, so later Hermes loaders cannot replace them. Keep this foreground
+process running.
 
 ## 4. Start the app
 
 In terminal 2, from the repository root:
 
 ```bash
-MOVIE_DEMO_ROOT="$(pwd -P)/examples/movie-ticket-booking"
-MOVIE_DEMO_DB_PATH="$MOVIE_DEMO_ROOT/movie-demo.db"
-MOVIE_DEMO_API_KEY_FILE="$HOME/.hermes/profiles/movie-booking/.movie-demo-api-key"
-
-HERMES_API_URL="http://127.0.0.1:8642" \
-API_SERVER_KEY="$(cat "$MOVIE_DEMO_API_KEY_FILE")" \
-PORT=3000 \
-MOVIE_DEMO_DB_PATH="$MOVIE_DEMO_DB_PATH" \
-npm --prefix "$MOVIE_DEMO_ROOT" run dev
+examples/movie-ticket-booking/scripts/setup.sh app
 ```
 
 Open `http://127.0.0.1:3000`, register a local account, and start a chat.
-The bearer key is scoped to each launch command; stopping the processes leaves
-no `API_SERVER_KEY` in either shell environment.
+The helper passes the bearer key only to each launched process; it never prints
+the key or leaves `API_SERVER_KEY` in either shell environment.
 
 ## Environment
 
@@ -211,19 +121,7 @@ state remains in the derived WebCMD workspace.
 To rotate the local API key, stop both processes and run:
 
 ```bash
-(
-  set -eu
-
-  MOVIE_DEMO_API_KEY_FILE="$HOME/.hermes/profiles/movie-booking/.movie-demo-api-key"
-  MOVIE_DEMO_PROFILE="${MOVIE_DEMO_API_KEY_FILE%/*}"
-  umask 077
-  MOVIE_DEMO_KEY_TMP="$(mktemp "$MOVIE_DEMO_PROFILE/.movie-demo-api-key.tmp.XXXXXX")"
-  trap '[ ! -e "$MOVIE_DEMO_KEY_TMP" ] || unlink "$MOVIE_DEMO_KEY_TMP"' 0 HUP INT TERM
-  openssl rand -hex 32 > "$MOVIE_DEMO_KEY_TMP"
-  chmod 600 "$MOVIE_DEMO_KEY_TMP"
-  mv -f "$MOVIE_DEMO_KEY_TMP" "$MOVIE_DEMO_API_KEY_FILE"
-  trap - 0 HUP INT TERM
-)
+examples/movie-ticket-booking/scripts/setup.sh rotate-key
 ```
 
 Both start commands read the new value on their next launch. To remove only
