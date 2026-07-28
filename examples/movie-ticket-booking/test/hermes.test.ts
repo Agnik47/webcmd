@@ -126,3 +126,29 @@ test('turns Hermes failures into safe typed errors', async () => {
     await hermes.close();
   }
 });
+
+test('rejects malformed successful Hermes responses', async () => {
+  const hermes = await fixture((request) => ({
+    body: request.path.endsWith('/messages')
+      ? { object: 'list', data: {} }
+      : {
+          object: 'hermes.session.chat.completion',
+          session_id: 'hermes-1',
+          message: { role: 'assistant' },
+        },
+  }));
+
+  try {
+    const client = new HermesClient(hermes.url, 'hermes-secret');
+    await assert.rejects(
+      () => client.getMessages('hermes-1'),
+      (error: unknown) => error instanceof HermesHttpError && error.status === 502,
+    );
+    await assert.rejects(
+      () => client.chat('hermes-1', 'movie-demo:user:user-1', 'Find Dune'),
+      (error: unknown) => error instanceof HermesHttpError && error.status === 502,
+    );
+  } finally {
+    await hermes.close();
+  }
+});

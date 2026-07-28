@@ -13,6 +13,15 @@ export interface HermesChatResponse {
   [key: string]: unknown;
 }
 
+function isHermesMessage(value: unknown): value is HermesMessage {
+  return Boolean(
+    value
+    && typeof value === 'object'
+    && typeof (value as Record<string, unknown>).role === 'string'
+    && typeof (value as Record<string, unknown>).content === 'string',
+  );
+}
+
 export class HermesHttpError extends Error {
   constructor(
     readonly status: number,
@@ -55,15 +64,26 @@ export class HermesClient {
 
   async getMessages(sessionId: string): Promise<HermesMessage[]> {
     const response = await this.#request(`/api/sessions/${encodeURIComponent(sessionId)}/messages`);
-    return Array.isArray(response.data) ? response.data as HermesMessage[] : [];
+    if (!Array.isArray(response.data) || !response.data.every(isHermesMessage)) {
+      throw new HermesHttpError(502);
+    }
+    return response.data;
   }
 
-  chat(sessionId: string, sessionKey: string, message: string): Promise<HermesChatResponse> {
-    return this.#request(`/api/sessions/${encodeURIComponent(sessionId)}/chat`, {
+  async chat(sessionId: string, sessionKey: string, message: string): Promise<HermesChatResponse> {
+    const response = await this.#request(`/api/sessions/${encodeURIComponent(sessionId)}/chat`, {
       method: 'POST',
       headers: { 'X-Hermes-Session-Key': sessionKey },
       body: JSON.stringify({ input: message }),
-    }) as Promise<HermesChatResponse>;
+    });
+    if (
+      typeof response.object !== 'string'
+      || typeof response.session_id !== 'string'
+      || !isHermesMessage(response.message)
+    ) {
+      throw new HermesHttpError(502);
+    }
+    return response as unknown as HermesChatResponse;
   }
 
   async #request(path: string, init: RequestInit = {}): Promise<Record<string, unknown>> {

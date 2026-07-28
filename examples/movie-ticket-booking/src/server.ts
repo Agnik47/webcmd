@@ -45,7 +45,7 @@ function send(response: ServerResponse, status: number, body: unknown, headers: 
 function cookieToken(request: IncomingMessage): string {
   for (const part of (request.headers.cookie ?? '').split(';')) {
     const [name, ...value] = part.trim().split('=');
-    if (name === COOKIE) return decodeURIComponent(value.join('='));
+    if (name === COOKIE) return value.join('=');
   }
   return '';
 }
@@ -57,13 +57,15 @@ function requireUser(db: DatabaseSync, request: IncomingMessage): UserRecord {
 }
 
 async function readJson(request: IncomingMessage, allowEmpty = false): Promise<Record<string, unknown>> {
-  let raw = '';
+  const chunks: Buffer[] = [];
   let bytes = 0;
   for await (const chunk of request) {
-    bytes += Buffer.byteLength(chunk);
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    bytes += buffer.length;
     if (bytes > MAX_JSON_BYTES) throw new HttpError(413, 'request body is too large');
-    raw += chunk;
+    chunks.push(buffer);
   }
+  const raw = Buffer.concat(chunks, bytes).toString('utf8');
   if (!raw && allowEmpty) return {};
   let value: unknown;
   try {
@@ -82,7 +84,9 @@ function loginInput(body: Record<string, unknown>): { email: string; password: s
   if (typeof email !== 'string' || !email.includes('@') || email.length > 320) {
     throw new HttpError(400, 'valid email is required');
   }
-  if (typeof password !== 'string') throw new HttpError(400, 'password is required');
+  if (typeof password !== 'string' || password.length < 8) {
+    throw new HttpError(400, 'password must contain at least 8 characters');
+  }
   return { email, password };
 }
 
@@ -125,7 +129,16 @@ export function createApp({ db, hermes, userQueue = new PerUserQueue() }: AppOpt
 
       if (method === 'POST' && path === '/api/register') {
         const input = loginInput(await readJson(request));
-        const login = loginResponse(db, createUser(db, input.email, input.password));
+        let user: UserRecord;
+        try {
+          user = createUser(db, input.email, input.password);
+        } catch (error) {
+          if (/email is already registered/.test(String(error))) {
+            throw new HttpError(400, 'email is already registered');
+          }
+          throw error;
+        }
+        const login = loginResponse(db, user);
         send(response, 201, login.body, { 'set-cookie': login.cookie });
         return;
       }

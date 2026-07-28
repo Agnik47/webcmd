@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { mkdtempSync } from 'node:fs';
-import { createServer } from 'node:http';
+import { createServer, request as httpRequest } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -47,6 +47,98 @@ async function register(baseUrl: string, email: string): Promise<string> {
   assert(cookie);
   return cookie;
 }
+
+function testApp() {
+  const directory = mkdtempSync(join(tmpdir(), 'movie-demo-server-'));
+  const db = openDatabase(join(directory, 'app.db'));
+  const app = createApp({
+    db,
+    hermes: {
+      createSession: async () => 'movie_fixture',
+      getMessages: async () => [],
+      chat: async () => ({
+        object: 'hermes.session.chat.completion',
+        session_id: 'movie_fixture',
+        message: { role: 'assistant', content: 'ok' },
+      }),
+    },
+  });
+  return { db, app };
+}
+
+test('treats malformed cookie encoding as unauthenticated', async () => {
+  const { db, app } = testApp();
+  const baseUrl = await listen(app);
+
+  try {
+    const { response } = await request(baseUrl, '/api/bootstrap', {
+      cookie: 'movie_demo_session=%E0%A4%A',
+    });
+    assert.equal(response.status, 401);
+  } finally {
+    await close(app);
+    db.close();
+  }
+});
+
+test('returns client errors for invalid and duplicate registration', async () => {
+  const { db, app } = testApp();
+  const baseUrl = await listen(app);
+
+  try {
+    const shortPassword = await request(baseUrl, '/api/register', {
+      method: 'POST',
+      body: { email: 'alice@example.com', password: 'short' },
+    });
+    assert.equal(shortPassword.response.status, 400);
+
+    await register(baseUrl, 'alice@example.com');
+    const duplicate = await request(baseUrl, '/api/register', {
+      method: 'POST',
+      body: { email: ' ALICE@example.com ', password: 'another correct password' },
+    });
+    assert.equal(duplicate.response.status, 400);
+  } finally {
+    await close(app);
+    db.close();
+  }
+});
+
+test('decodes JSON after joining split UTF-8 request chunks', async () => {
+  const { db, app } = testApp();
+  const baseUrl = await listen(app);
+
+  try {
+    const cookie = await register(baseUrl, 'alice@example.com');
+    const body = Buffer.from(JSON.stringify({ title: 'Café night' }));
+    const split = body.indexOf(Buffer.from('é')) + 1;
+    const url = new URL('/api/conversations', baseUrl);
+    const result = await new Promise<{ status: number; body: any }>((resolve, reject) => {
+      const outgoing = httpRequest(url, {
+        method: 'POST',
+        headers: {
+          cookie,
+          'content-type': 'application/json',
+          'content-length': body.length,
+        },
+      }, async (incoming) => {
+        let raw = '';
+        for await (const chunk of incoming) raw += chunk;
+        resolve({ status: incoming.statusCode ?? 0, body: JSON.parse(raw) });
+      });
+      outgoing.on('error', reject);
+      outgoing.setNoDelay(true);
+      outgoing.write(body.subarray(0, split));
+      setTimeout(() => outgoing.end(body.subarray(split)), 10);
+    });
+
+    assert.equal(result.status, 201);
+    assert.equal(result.body.title, 'Café night');
+  } finally {
+    await close(app);
+    db.close();
+  }
+});
 
 test('returns 404 when a user requests another user conversation', async () => {
   const hermesServer = createServer(async (incoming, outgoing) => {
