@@ -21,6 +21,11 @@ describe('observation redaction', () => {
       .toBe('https://x.test/api?token=[REDACTED]&ok=1&password=[REDACTED]');
   });
 
+  it('redacts credentials embedded in url authority', () => {
+    expect(redactUrl('https://alice:secret@x.test/private?ok=1'))
+      .toBe('https://[REDACTED]@x.test/private?ok=1');
+  });
+
   it('redacts password and token fields recursively', () => {
     expect(redactValue({
       user: 'alice',

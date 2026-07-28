@@ -23,7 +23,9 @@ export interface RedactionOptions {
 }
 
 export function redactUrl(url: string): string {
-  return url.replace(SENSITIVE_URL_PARAMS, '$1$2=[REDACTED]');
+  return url
+    .replace(/(https?:\/\/)[^/\s@]+@/gi, '$1[REDACTED]@')
+    .replace(SENSITIVE_URL_PARAMS, '$1$2=[REDACTED]');
 }
 
 export function redactHeaders(headers: Record<string, unknown> | undefined, opts: RedactionOptions = {}): Record<string, unknown> | undefined {
