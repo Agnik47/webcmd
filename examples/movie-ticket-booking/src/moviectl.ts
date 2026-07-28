@@ -419,9 +419,12 @@ function checkout(
     throw error;
   }
   const providerData = providerRow(providerResult.data);
-  const paymentUrl = providerResult.viewUrl ?? providerData.paymentUrl;
-  if (typeof paymentUrl !== 'string' || !paymentUrl.trim()) {
-    throw new MoviectlError('INVALID_PROVIDER_RESULT', 'District checkout returned no payment URL');
+  const paymentUrl = providerResult.viewUrl;
+  if (!paymentUrl) {
+    throw new MoviectlError(
+      'INVALID_PROVIDER_RESULT',
+      'WebCMD checkout returned no hosted browser link',
+    );
   }
   const provider = { ...providerData, paymentUrl };
   return { attempt, provider };

@@ -272,15 +272,17 @@ test('persists pending, failed, and expired provider booking results', () => {
     const prepared = unwrap<{ attempt: { id: string } }>(prepare(state));
     state.env.FAKE_WEBCMD_RESPONSE = JSON.stringify({
       status: 'ready_for_payment',
-      paymentUrl: 'https://www.district.in/movies/order-review/local-session',
+      paymentUrl: 'https://www.district.in/movies/order-review/private-provider-session',
     });
+    state.env.FAKE_WEBCMD_STDERR =
+      'Webcmd browser: https://api.webcmd.test/account/live/status-token\n';
     const checkout = unwrap<{ provider: { paymentUrl: string } }>(
       runMoviectl(['district', 'checkout', prepared.attempt.id], state.env),
     );
     assert.equal(
       checkout.provider.paymentUrl,
-      'https://www.district.in/movies/order-review/local-session',
-      `${status} local checkout`,
+      'https://api.webcmd.test/account/live/status-token',
+      `${status} hosted checkout`,
     );
 
     state.env.FAKE_WEBCMD_RESPONSE = JSON.stringify({ status, bookingId: '' });
@@ -318,6 +320,26 @@ test('rejects noncanonical hosted viewer metadata without relaying the provider 
     },
   });
   assert.doesNotMatch(JSON.stringify(result), /private-provider-session|secret=1/);
+});
+
+test('requires hosted viewer metadata without relaying the provider URL', () => {
+  const state = fixture();
+  const prepared = unwrap<{ attempt: { id: string } }>(prepare(state));
+  state.env.FAKE_WEBCMD_RESPONSE = JSON.stringify({
+    status: 'ready_for_payment',
+    paymentUrl: 'https://www.district.in/movies/order-review/private-provider-session',
+  });
+
+  const result = runMoviectl(['district', 'checkout', prepared.attempt.id], state.env);
+
+  assert.deepEqual(result, {
+    ok: false,
+    error: {
+      code: 'INVALID_PROVIDER_RESULT',
+      message: 'WebCMD checkout returned no hosted browser link',
+    },
+  });
+  assert.doesNotMatch(JSON.stringify(result), /private-provider-session/);
 });
 
 test('normalizes and validates seats before persistence', () => {
@@ -401,6 +423,8 @@ test('expires a checkout with unavailable seats so a new attempt can proceed', (
     status: 'ready_for_payment',
     paymentUrl: 'https://pay.example/new',
   });
+  state.env.FAKE_WEBCMD_STDERR =
+    'Webcmd browser: https://api.webcmd.test/account/live/fresh-token\n';
   const fresh = unwrap<{ attempt: { id: string } }>(prepare(
     state,
     'https://www.district.in/movies/seat-layout/imax?encsessionid=show-new',
