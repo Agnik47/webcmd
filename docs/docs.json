@@ -71,6 +71,12 @@
             ]
           },
           {
+            "group": "Guides",
+            "pages": [
+              "guides/movie-ticket-booking"
+            ]
+          },
+          {
             "group": "Reference and Support",
             "pages": [
               "cli-reference",
