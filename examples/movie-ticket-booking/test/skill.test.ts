@@ -17,7 +17,10 @@ test('Hermes movie-booking profile keeps the confirmation and payment boundary e
   assert.match(frontmatter[1], /^description:\s*\S+/m);
   assert.match(`${skill}\n${soul}`, /District-only/i);
   assert.match(skill, /prepare-checkout/);
-  assert.match(skill, /checkout/);
+  assert.match(
+    skill,
+    /npm --prefix "\$MOVIE_DEMO_ROOT" run moviectl -- district checkout "\$ATTEMPT_ID"/,
+  );
   assert.match(skill, /booking-status/);
   assert.match(skill, /explicit yes/i);
   assert.match(skill, /"I've paid".*not proof/is);

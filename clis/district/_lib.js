@@ -58,19 +58,36 @@ export function validateId(raw, name) {
 }
 
 export function classifyBookingPage({ url, text }) {
-  const message = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 240);
+  const normalized = String(text || '').replace(/\s+/g, ' ').trim();
+  const message = normalized.slice(0, 240);
+  let districtPage = false;
+  try {
+    const parsed = new URL(String(url || ''));
+    const hostname = parsed.hostname.toLowerCase();
+    districtPage = parsed.protocol === 'https:'
+      && (hostname === 'district.in' || hostname.endsWith('.district.in'));
+  } catch {
+    // A malformed or relative URL cannot prove provider state.
+  }
+  if (!districtPage) {
+    return {
+      status: 'pending',
+      bookingId: '',
+      message: message || `District has not reported a final result at ${url}`,
+    };
+  }
   const bookingId = (
-    message.match(/(?:booking|order|confirmation)\s*(?:id|number|no\.?)\s*[:#-]?\s*([a-z0-9-]{6,})/i)
+    normalized.match(/(?:booking|order|confirmation)\s*(?:id|number|no\.?)\s*[:#-]?\s*([a-z0-9-]{6,})/i)
     || []
   )[1] || '';
 
-  if (/booking session.*expired|session has expired|booking expired/i.test(message)) {
+  if (/booking session.*expired|session has expired|booking expired/i.test(normalized)) {
     return { status: 'expired', bookingId: '', message };
   }
-  if (/payment failed|booking failed|transaction failed|payment was unsuccessful/i.test(message)) {
+  if (/payment failed|booking failed|transaction failed|payment was unsuccessful/i.test(normalized)) {
     return { status: 'failed', bookingId: '', message };
   }
-  if (bookingId && /booking confirmed|payment successful|booking successful|your tickets?/i.test(message)) {
+  if (bookingId && /booking confirmed|payment successful|booking successful|your tickets?/i.test(normalized)) {
     return { status: 'confirmed', bookingId, message };
   }
   return {

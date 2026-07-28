@@ -4,7 +4,11 @@ import { createServer, request as httpRequest } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { openDatabase } from '../src/db.js';
+import {
+  createBookingAttempt,
+  openDatabase,
+  recordDistrictBookingResult,
+} from '../src/db.js';
 import { HermesClient } from '../src/hermes.js';
 import { createApp } from '../src/server.js';
 
@@ -171,6 +175,74 @@ test('resumes the most recently chatted conversation', async () => {
     assert.deepEqual(
       bootstrap.body.conversations.map((conversation: { id: string }) => conversation.id),
       [first.body.id, second.body.id],
+    );
+  } finally {
+    await close(app);
+    db.close();
+  }
+});
+
+test('returns the authenticated booking snapshot completed during a Hermes turn', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'movie-demo-server-'));
+  const db = openDatabase(join(directory, 'app.db'));
+  let userId = '';
+  const app = createApp({
+    db,
+    hermes: {
+      createSession: async () => 'movie_fixture',
+      getMessages: async () => [],
+      chat: async () => {
+        const attempt = createBookingAttempt(db, userId, {
+          conversationId: null,
+          status: 'pending_payment',
+          movie: 'Dune',
+          cinema: 'PVR Phoenix',
+          showTime: '2026-07-28T19:00:00+05:30',
+          showTarget: 'show-1',
+          formatId: 'imax',
+          contentId: 'dune-2',
+          seats: ['A1', 'A2'],
+          amountPaise: 80000,
+        });
+        recordDistrictBookingResult(db, userId, attempt.id, {
+          status: 'confirmed',
+          bookingId: 'DBX123456',
+        });
+        return {
+          object: 'hermes.session.chat.completion',
+          session_id: 'movie_fixture',
+          message: { role: 'assistant' as const, content: 'District confirmed DBX123456' },
+        };
+      },
+    },
+  });
+  const baseUrl = await listen(app);
+
+  try {
+    const cookie = await register(baseUrl, 'alice@example.com');
+    const bootstrap = await request(baseUrl, '/api/bootstrap', { cookie });
+    userId = bootstrap.body.user.id as string;
+    const conversation = await request(baseUrl, '/api/conversations', {
+      method: 'POST',
+      cookie,
+    });
+    const chat = await request(
+      baseUrl,
+      `/api/conversations/${conversation.body.id as string}/chat`,
+      {
+        method: 'POST',
+        cookie,
+        body: { message: "I've paid" },
+      },
+    );
+
+    assert.equal(chat.response.status, 200);
+    assert.deepEqual(
+      chat.body.bookings.map((booking: { status: string; districtBookingId: string }) => ({
+        status: booking.status,
+        districtBookingId: booking.districtBookingId,
+      })),
+      [{ status: 'confirmed', districtBookingId: 'DBX123456' }],
     );
   } finally {
     await close(app);

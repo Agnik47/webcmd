@@ -1,7 +1,58 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 // @ts-ignore -- exercise the browser JavaScript module directly.
-import { createApi, createRequestEpoch, requiresAuthReset } from '../public/app.js';
+import { appendTranscriptContent, applyChatResponse, createApi, createRequestEpoch, renderBookings, requiresAuthReset, safeTranscriptUrl } from '../public/app.js';
+
+class FakeNode {
+  children: FakeNode[] = [];
+  className = '';
+  hidden = false;
+  href = '';
+  rel = '';
+  target = '';
+  #text = '';
+
+  constructor(readonly tagName: string) {}
+
+  set textContent(value: string) {
+    this.#text = value;
+    this.children = [];
+  }
+
+  get textContent(): string {
+    return this.#text + this.children.map(child => child.textContent).join('');
+  }
+
+  append(...children: FakeNode[]): void {
+    this.children.push(...children);
+  }
+
+  replaceChildren(...children: FakeNode[]): void {
+    this.#text = '';
+    this.children = children;
+  }
+}
+
+function fakeDocument() {
+  const nodes = new Map([
+    ['booking-list', new FakeNode('UL')],
+    ['no-bookings', new FakeNode('P')],
+  ]);
+  return {
+    nodes,
+    createElement: (tag: string) => new FakeNode(tag.toUpperCase()),
+    createTextNode: (text: string) => {
+      const node = new FakeNode('#text');
+      node.textContent = text;
+      return node;
+    },
+    getElementById: (id: string) => nodes.get(id),
+  };
+}
+
+function descendants(node: FakeNode): FakeNode[] {
+  return node.children.flatMap(child => [child, ...descendants(child)]);
+}
 
 test('invalidates an async result captured before the session changes', async () => {
   const requests = createRequestEpoch();
@@ -52,4 +103,61 @@ test('resets a current unauthorized request and keeps initial bootstrap neutral'
   await assert.rejects(api('/api/bootstrap', {}, requests.capture(), ''), /authentication required/);
 
   assert.deepEqual(resets, ['Your session expired. Please log in again.', '']);
+});
+
+test('renders only validated HTTPS transcript URLs as safe anchors', () => {
+  const valid = 'https://api.webcmd.test/account/live/checkout-token';
+  assert.equal(safeTranscriptUrl(valid), valid);
+  for (const unsafe of [
+    'http://api.webcmd.test/account/live/token',
+    'javascript:alert(1)',
+    'data:text/html,unsafe',
+    'https://user:pass@api.webcmd.test/account/live/token',
+  ]) {
+    assert.equal(safeTranscriptUrl(unsafe), null, unsafe);
+  }
+
+  const documentRoot = fakeDocument();
+  const content = new FakeNode('P');
+  appendTranscriptContent(
+    content,
+    `Pay here: ${valid} not http://unsafe.example or javascript:alert(1)`,
+    documentRoot,
+  );
+  const anchors = descendants(content).filter(node => node.tagName === 'A');
+  assert.equal(anchors.length, 1);
+  assert.equal(anchors[0]?.href, valid);
+  assert.equal(anchors[0]?.target, '_blank');
+  assert.equal(anchors[0]?.rel, 'noopener noreferrer');
+  assert.match(content.textContent, /http:\/\/unsafe\.example/);
+  assert.match(content.textContent, /javascript:alert/);
+});
+
+test('applies confirmed bookings immediately and ignores a stale session response', () => {
+  const requests = createRequestEpoch();
+  const documentRoot = fakeDocument();
+  const apply = (status: string, captured: number) => applyChatResponse(
+    {
+      message: { role: 'assistant', content: status },
+      bookings: [{
+        movie: 'Dune',
+        cinema: 'PVR Phoenix',
+        showTime: '2026-07-28T19:00:00+05:30',
+        seats: ['A1', 'A2'],
+        status,
+      }],
+    },
+    () => requests.isCurrent(captured),
+    () => {},
+    (bookings: unknown[]) => renderBookings(bookings, documentRoot),
+  );
+
+  assert.equal(apply('confirmed', requests.capture()), true);
+  assert.match(documentRoot.nodes.get('booking-list')?.textContent ?? '', /confirmed/);
+
+  const stale = requests.capture();
+  requests.advance();
+  assert.equal(apply('failed', stale), false);
+  assert.doesNotMatch(documentRoot.nodes.get('booking-list')?.textContent ?? '', /failed/);
+  assert.match(documentRoot.nodes.get('booking-list')?.textContent ?? '', /confirmed/);
 });

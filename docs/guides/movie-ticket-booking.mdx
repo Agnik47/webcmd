@@ -108,6 +108,11 @@ random versioned owner token is stored privately beside the profile and inside
 it; only matching tokens allow an interrupted setup to resume. Completed setups
 also revalidate the installed files, configuration, and private API key.
 
+A narrow crash window remains: if the helper stops after Hermes creates the
+profile but before its owner marker is written, the next run refuses that
+unowned profile. Inspect and remove only that newly created `movie-booking`
+profile before retrying setup.
+
 Every Hermes command runs from a helper-owned empty directory with inherited
 profile, project, and managed-directory settings cleared. External secret
 sources, custom context-engine configuration, and dotenv overrides for this
@@ -195,8 +200,9 @@ change the `district-default` browser profile.
 5. `prepare-checkout` writes the chosen movie, cinema, time, seats, and amount
    as `awaiting_confirmation`.
 6. Hermes repeats that exact summary and waits for an explicit yes.
-7. One checkout call moves the attempt to `pending_payment` and returns
-   District's payment link. Complete login and payment only in the hosted
+7. One checkout call moves the attempt to `pending_payment` and returns a
+   short-lived WebCMD-owned hosted browser link. The raw District checkout URL
+   stays inside the hosted command. Complete login and payment only in that
    browser handoff.
 8. When you say you paid, Hermes calls `booking-status`; your statement alone
    is never evidence.
@@ -237,8 +243,8 @@ applies.
 - The shared Hermes profile plus terminal skill is a behavioral boundary, not
   a sandbox against a malicious model.
 - SQLite and one app process are not a horizontal-scaling design.
-- The hosted payment link may remain in the user's Hermes transcript, although
-  it is excluded from booking-history records.
+- The short-lived WebCMD viewer link may remain in the user's Hermes
+  transcript, although it is excluded from booking-history records.
 - A production service should expose a dedicated narrow Hermes tool, use
   durable distributed coordination, and apply its own deployment and secret
   controls.

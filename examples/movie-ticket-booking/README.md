@@ -42,6 +42,11 @@ random versioned owner token is stored privately beside the profile and inside
 it; only matching tokens allow an interrupted setup to resume. Completed setups
 also revalidate the installed files, configuration, and private API key.
 
+A narrow crash window remains: if the helper stops after Hermes creates the
+profile but before its owner marker is written, the next run refuses that
+unowned profile. Inspect and remove only that newly created `movie-booking`
+profile before retrying setup.
+
 Every Hermes command runs from a helper-owned empty directory with inherited
 profile, project, and managed-directory settings cleared. External secret
 sources, custom context-engine configuration, and dotenv overrides for this
@@ -103,8 +108,9 @@ database files.
    screenings and seats.
 2. `moviectl` records the selected movie, cinema, time, seats, and amount.
 3. Hermes displays that exact summary and waits for an explicit yes.
-4. Checkout runs once and returns District's payment link; the user completes
-   payment on District.
+4. Checkout runs once and returns a short-lived WebCMD-owned hosted browser
+   link; the raw District checkout URL stays inside the hosted command, and the
+   user completes payment on District through that viewer.
 5. A user's payment claim triggers `booking-status`. It is not proof.
 6. The app shows `confirmed` only when District returns that status with a
    non-empty booking reference.

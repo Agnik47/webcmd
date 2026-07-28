@@ -26,6 +26,8 @@ export interface HostedClientOptions {
   fetchImpl?: typeof fetch;
 }
 
+const HOSTED_CLIENT_CAPABILITIES = 'hosted-execution-viewer-v1';
+
 /**
  * Resolves the active workspace from CLI flags/env, precedence: --workspace flag > WEBCMD_WORKSPACE env > undefined.
  */
@@ -112,7 +114,7 @@ export class HostedClient {
       method: 'POST',
       body: JSON.stringify(input),
     }, { command: input.command, traceMode });
-    if (!isHostedExecuteResponse(body, input.command, traceMode)) {
+    if (!isHostedExecuteResponse(body, input.command, traceMode, this.apiBaseUrl)) {
       throw protocolError('Webcmd Cloud returned an invalid execution response.');
     }
     return body;
@@ -170,7 +172,7 @@ export class HostedClient {
         ...(input.profile !== undefined ? { profile: input.profile } : {}),
       }),
     }, { command: input.command, traceMode });
-    if (!isHostedExecuteResponse(body, input.command, traceMode)) {
+    if (!isHostedExecuteResponse(body, input.command, traceMode, this.apiBaseUrl)) {
       throw protocolError('Webcmd Cloud returned an invalid execution response.');
     }
     return body;
@@ -276,6 +278,7 @@ export class HostedClient {
         accept: 'application/json',
         ...(init.body ? { 'content-type': 'application/json' } : {}),
         authorization: `Bearer ${this.apiKey}`,
+        'x-webcmd-client-capabilities': HOSTED_CLIENT_CAPABILITIES,
         ...(this.workspace ? { 'x-webcmd-workspace': this.workspace } : {}),
         ...(init.headers ?? {}),
       },
@@ -349,8 +352,9 @@ function isHostedExecuteResponse(
   value: unknown,
   requestedCommand: string,
   traceMode: HostedTraceMode,
+  apiBaseUrl: string,
 ): value is HostedExecuteResponse {
-  if (!hasOnlyKeys(value, ['ok', 'result', 'columns', 'footerExtra', 'execution', 'trace', 'artifacts'])
+  if (!hasOnlyKeys(value, ['ok', 'result', 'viewUrl', 'columns', 'footerExtra', 'execution', 'trace', 'artifacts'])
     || value.ok !== true
     || !Object.prototype.hasOwnProperty.call(value, 'result')) return false;
   if (!isHostedExecution(value.execution) || value.execution.status !== 'succeeded') return false;
@@ -359,6 +363,7 @@ function isHostedExecuteResponse(
     return false;
   }
   if (value.footerExtra !== undefined && typeof value.footerExtra !== 'string') return false;
+  if (value.viewUrl !== undefined && !isPublicLiveViewUrl(value.viewUrl, apiBaseUrl)) return false;
   if (value.artifacts !== undefined && (!Array.isArray(value.artifacts) || !value.artifacts.every(isHostedArtifactReceipt))) return false;
   if (value.trace !== undefined && !isHostedTraceReceipt(value.trace)) return false;
   if (value.trace && value.trace.executionId !== value.execution.id) return false;
@@ -586,6 +591,23 @@ function publicExecutionBase(executionId: string): string | undefined {
 
 function optionalExactPath(value: unknown, expected: string): boolean {
   return value === undefined || value === expected;
+}
+
+function isPublicLiveViewUrl(value: unknown, apiBaseUrl: string): value is string {
+  if (typeof value !== 'string' || value.includes('?') || value.includes('#')) return false;
+  try {
+    const url = new URL(value);
+    const api = new URL(apiBaseUrl);
+    const loopback = api.hostname === 'localhost' || api.hostname === '127.0.0.1' || api.hostname === '[::1]';
+    return url.href === value
+      && url.origin === api.origin
+      && !url.username
+      && !url.password
+      && (url.protocol === 'https:' || (url.protocol === 'http:' && loopback))
+      && /^\/account\/live\/[A-Za-z0-9_-]+$/.test(url.pathname);
+  } catch {
+    return false;
+  }
 }
 
 function isSafeReceiptToken(value: unknown): value is string {

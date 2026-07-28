@@ -31,4 +31,5 @@ sitemaps/
 
 # Database files
 *.db
+*.db-*
 autoresearch-results.tsv

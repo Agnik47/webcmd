@@ -51,9 +51,9 @@ metadata:
    cinema, show time, seats, and amount. Ask for an explicit yes and wait.
 6. Only after explicit yes, run exactly once for that confirmation:
    `npm --prefix "$MOVIE_DEMO_ROOT" run moviectl -- district checkout "$ATTEMPT_ID"`.
-   Return the resulting District payment link. If checkout returns an error, do
-   not invoke it again until the recovery table explicitly requires a fresh
-   summary and a new explicit yes.
+   Return the resulting WebCMD-hosted browser link; do not return a raw District
+   checkout URL. If checkout returns an error, do not invoke it again until the
+   recovery table explicitly requires a fresh summary and a new explicit yes.
 7. After the user says "I've paid", always run
    `npm --prefix "$MOVIE_DEMO_ROOT" run moviectl -- district booking-status "$ATTEMPT_ID"`.
    Report confirmed only when District returns `confirmed` and a non-empty
@@ -82,6 +82,6 @@ metadata:
 - [ ] Recommendation, chosen screening, and exact seats were shown.
 - [ ] Prepared movie, cinema, show time, seats, and amount were displayed.
 - [ ] A fresh explicit yes preceded each single checkout call.
-- [ ] The returned payment link was relayed without collecting payment data.
+- [ ] The returned WebCMD-hosted browser link was relayed without collecting payment data.
 - [ ] Any payment claim triggered `booking-status`.
 - [ ] Confirmation includes District's non-empty booking reference.

@@ -21,10 +21,15 @@ function fixture() {
   const directory = mkdtempSync(join(tmpdir(), 'moviectl-'));
   const databasePath = join(directory, 'movie-demo.db');
   const logPath = join(directory, 'webcmd-argv.jsonl');
+  const envLogPath = join(directory, 'webcmd-env.json');
   const executable = join(directory, 'fake-webcmd');
   writeFileSync(executable, `#!/usr/bin/env node
 const fs = require('node:fs');
 fs.appendFileSync(process.env.FAKE_WEBCMD_LOG, JSON.stringify(process.argv.slice(2)) + '\\n');
+fs.writeFileSync(process.env.FAKE_WEBCMD_ENV_LOG, JSON.stringify({
+  hermesSessionKey: process.env.HERMES_SESSION_KEY || null,
+  movieDemoDbPath: process.env.MOVIE_DEMO_DB_PATH || null,
+}));
 if (process.env.FAKE_WEBCMD_RACE_DB_PATH) {
   const { DatabaseSync } = require('node:sqlite');
   const db = new DatabaseSync(process.env.FAKE_WEBCMD_RACE_DB_PATH);
@@ -48,6 +53,7 @@ process.exitCode = Number(process.env.FAKE_WEBCMD_EXIT_CODE || 0);
     HERMES_SESSION_KEY: sessionKey,
     WEBCMD_BIN: executable,
     FAKE_WEBCMD_LOG: logPath,
+    FAKE_WEBCMD_ENV_LOG: envLogPath,
     FAKE_WEBCMD_RESPONSE: JSON.stringify([{ movie: 'Dune' }]),
   };
   const calls = () => {
@@ -58,7 +64,11 @@ process.exitCode = Number(process.env.FAKE_WEBCMD_EXIT_CODE || 0);
       return [];
     }
   };
-  return { databasePath, env, sessionKey, user, calls };
+  const childEnv = () => JSON.parse(readFileSync(envLogPath, 'utf8')) as {
+    hermesSessionKey: string | null;
+    movieDemoDbPath: string | null;
+  };
+  return { databasePath, env, sessionKey, user, calls, childEnv };
 }
 
 function failWebcmd(
@@ -171,6 +181,10 @@ test('derives a stable workspace and fixes WebCMD identity arguments', () => {
     '-f',
     'json',
   ]);
+  assert.deepEqual(state.childEnv(), {
+    hermesSessionKey: null,
+    movieDemoDbPath: null,
+  });
 
   const override = runMoviectl(
     ['district', 'showtimes', 'Dune', '--workspace', 'attacker'],
@@ -204,14 +218,20 @@ test('enforces confirmation, payment, and provider-confirmed transitions', () =>
 
   state.env.FAKE_WEBCMD_RESPONSE = JSON.stringify({
     status: 'ready_for_payment',
-    paymentUrl: 'https://pay.example/temporary',
+    paymentUrl: 'https://www.district.in/movies/order-review/private-provider-session',
   });
+  state.env.FAKE_WEBCMD_STDERR =
+    'Webcmd browser: https://api.webcmd.test/account/live/checkout-token\n';
   const checkout = unwrap<{
     attempt: { status: string };
     provider: { paymentUrl: string };
   }>(runMoviectl(['district', 'checkout', prepared.attempt.id], state.env));
   assert.equal(checkout.attempt.status, 'pending_payment');
-  assert.equal(checkout.provider.paymentUrl, 'https://pay.example/temporary');
+  assert.equal(
+    checkout.provider.paymentUrl,
+    'https://api.webcmd.test/account/live/checkout-token',
+  );
+  assert.doesNotMatch(JSON.stringify(checkout), /private-provider-session/);
 
   db = openDatabase(state.databasePath);
   const pending = findBookingAttempt(db, state.user.id, prepared.attempt.id);
@@ -244,6 +264,60 @@ test('enforces confirmation, payment, and provider-confirmed transitions', () =>
   );
   assert.equal(confirmed.attempt.status, 'confirmed');
   assert.equal(confirmed.attempt.districtBookingId, 'DBX123456');
+});
+
+test('persists pending, failed, and expired provider booking results', () => {
+  for (const status of ['pending', 'failed', 'expired'] as const) {
+    const state = fixture();
+    const prepared = unwrap<{ attempt: { id: string } }>(prepare(state));
+    state.env.FAKE_WEBCMD_RESPONSE = JSON.stringify({
+      status: 'ready_for_payment',
+      paymentUrl: 'https://www.district.in/movies/order-review/local-session',
+    });
+    const checkout = unwrap<{ provider: { paymentUrl: string } }>(
+      runMoviectl(['district', 'checkout', prepared.attempt.id], state.env),
+    );
+    assert.equal(
+      checkout.provider.paymentUrl,
+      'https://www.district.in/movies/order-review/local-session',
+      `${status} local checkout`,
+    );
+
+    state.env.FAKE_WEBCMD_RESPONSE = JSON.stringify({ status, bookingId: '' });
+    const result = unwrap<{ attempt: { status: string } }>(
+      runMoviectl(['district', 'booking-status', prepared.attempt.id], state.env),
+    );
+    assert.equal(result.attempt.status, status === 'pending' ? 'pending_payment' : status);
+
+    const db = openDatabase(state.databasePath);
+    assert.equal(
+      findBookingAttempt(db, state.user.id, prepared.attempt.id)?.status,
+      status === 'pending' ? 'pending_payment' : status,
+    );
+    db.close();
+  }
+});
+
+test('rejects noncanonical hosted viewer metadata without relaying the provider URL', () => {
+  const state = fixture();
+  const prepared = unwrap<{ attempt: { id: string } }>(prepare(state));
+  state.env.FAKE_WEBCMD_RESPONSE = JSON.stringify({
+    status: 'ready_for_payment',
+    paymentUrl: 'https://www.district.in/movies/order-review/private-provider-session',
+  });
+  state.env.FAKE_WEBCMD_STDERR =
+    'Webcmd browser: https://api.webcmd.test/account/live/token?secret=1\n';
+
+  const result = runMoviectl(['district', 'checkout', prepared.attempt.id], state.env);
+
+  assert.deepEqual(result, {
+    ok: false,
+    error: {
+      code: 'INVALID_PROVIDER_RESULT',
+      message: 'WebCMD returned invalid viewer metadata',
+    },
+  });
+  assert.doesNotMatch(JSON.stringify(result), /private-provider-session|secret=1/);
 });
 
 test('normalizes and validates seats before persistence', () => {

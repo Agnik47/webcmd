@@ -73,6 +73,7 @@ function executionResponse(input: {
   columns?: string[];
   trace?: Record<string, unknown>;
   command?: string;
+  viewUrl?: string;
 }): Response {
   return new Response(JSON.stringify({
     ok: true,
@@ -80,6 +81,7 @@ function executionResponse(input: {
     ...(input.columns ? { columns: input.columns } : {}),
     execution: { id: 'exec_success', command: input.command ?? 'github/whoami', status: 'succeeded' },
     ...(input.trace ? { trace: input.trace } : {}),
+    ...(input.viewUrl ? { viewUrl: input.viewUrl } : {}),
   }), { status: 200 });
 }
 
@@ -1124,6 +1126,28 @@ describe('runHostedCli', () => {
 
     expect(withResponseColumns.text()).toBe('secret\nhidden\n');
     expect(withoutResponseColumns.text()).toBe('username\noctocat\n');
+  });
+
+  it('keeps adapter JSON on stdout and emits the hosted viewer on stderr', async () => {
+    const stdout = sink();
+    const stderr = sink();
+    const viewUrl = 'https://api.example.com/account/live/checkout-token';
+    await runHostedCli(['github', 'whoami', '-f', 'json'], {
+      config: makeHostedConfig({ apiBaseUrl: 'https://api.example.com', apiKey: 'key' }),
+      stdout: stdout.stream,
+      stderr: stderr.stream,
+      fetchImpl: async (url) => String(url).endsWith('/v1/manifest')
+        ? manifestResponse()
+        : executionResponse({
+            result: [{ status: 'ready_for_payment', paymentUrl: 'https://www.district.in/private' }],
+            viewUrl,
+          }),
+    });
+
+    expect(JSON.parse(stdout.text())).toEqual([
+      { status: 'ready_for_payment', paymentUrl: 'https://www.district.in/private' },
+    ]);
+    expect(stderr.text()).toBe(`Webcmd browser: ${viewUrl}\n`);
   });
 
   it('propagates implicit versus explicit table format to non-TTY rendering', async () => {

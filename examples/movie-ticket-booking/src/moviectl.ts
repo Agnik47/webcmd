@@ -194,11 +194,34 @@ function webcmdError(stderr: string, status: number | null): MoviectlError {
   return new MoviectlError('WEBCMD_FAILED', 'WebCMD command failed');
 }
 
+function webcmdViewer(stderr: string): string | undefined {
+  if (!stderr) return undefined;
+  const value = /^Webcmd browser: (https:\/\/[^\s]+)\n$/.exec(stderr)?.[1];
+  if (!value) throw new MoviectlError('INVALID_PROVIDER_RESULT', 'WebCMD returned invalid viewer metadata');
+  try {
+    const url = new URL(value);
+    if (
+      url.href !== value
+      || url.protocol !== 'https:'
+      || url.username
+      || url.password
+      || url.search
+      || url.hash
+      || !/^\/account\/live\/[A-Za-z0-9_-]+$/.test(url.pathname)
+    ) {
+      throw new Error('invalid viewer');
+    }
+  } catch {
+    throw new MoviectlError('INVALID_PROVIDER_RESULT', 'WebCMD returned invalid viewer metadata');
+  }
+  return value;
+}
+
 function callWebcmd(
   identity: Identity,
   args: string[],
   env: NodeJS.ProcessEnv,
-): unknown {
+): { data: unknown; viewUrl?: string } {
   if (args.some((arg) => (
     arg === '--workspace'
     || arg.startsWith('--workspace=')
@@ -239,11 +262,14 @@ function callWebcmd(
       ? new MoviectlError('WEBCMD_FAILED', 'WebCMD command failed')
       : webcmdError(child.stderr, child.status);
   }
+  let data: unknown;
   try {
-    return JSON.parse(child.stdout);
+    data = JSON.parse(child.stdout);
   } catch {
     throw new MoviectlError('INVALID_PROVIDER_RESULT', 'WebCMD returned invalid JSON');
   }
+  const viewUrl = webcmdViewer(child.stderr);
+  return { data, ...(viewUrl ? { viewUrl } : {}) };
 }
 
 function assertUser(db: DatabaseSync, userId: string): void {
@@ -344,7 +370,7 @@ function checkout(
     }
     return updateBookingAttempt(db, identity.userId, current.id, { status: 'pending_payment' })!;
   });
-  let providerResult: unknown;
+  let providerResult: { data: unknown; viewUrl?: string };
   try {
     providerResult = callWebcmd(identity, [
       'checkout',
@@ -392,10 +418,12 @@ function checkout(
     }
     throw error;
   }
-  const provider = providerRow(providerResult);
-  if (typeof provider.paymentUrl !== 'string' || !provider.paymentUrl.trim()) {
+  const providerData = providerRow(providerResult.data);
+  const paymentUrl = providerResult.viewUrl ?? providerData.paymentUrl;
+  if (typeof paymentUrl !== 'string' || !paymentUrl.trim()) {
     throw new MoviectlError('INVALID_PROVIDER_RESULT', 'District checkout returned no payment URL');
   }
+  const provider = { ...providerData, paymentUrl };
   return { attempt, provider };
 }
 
@@ -413,7 +441,7 @@ function bookingStatus(
   if (!attempt || attempt.status !== 'pending_payment') {
     throw new MoviectlError('INVALID_STATE', 'booking-status requires a pending payment attempt');
   }
-  const provider = providerRow(callWebcmd(identity, ['booking-status'], env));
+  const provider = providerRow(callWebcmd(identity, ['booking-status'], env).data);
   const status = provider.status;
   if (!['pending', 'confirmed', 'failed', 'expired'].includes(String(status))) {
     throw new MoviectlError('INVALID_PROVIDER_RESULT', 'District returned an unknown booking status');
@@ -453,7 +481,7 @@ function runDistrict(
   if (!['search', 'showtimes', 'login', 'seats'].includes(command ?? '')) {
     throw new MoviectlError('INVALID_ARGUMENT', 'unsupported District command');
   }
-  return callWebcmd(identity, [command!, ...rest], env);
+  return callWebcmd(identity, [command!, ...rest], env).data;
 }
 
 export function runMoviectl(

@@ -253,7 +253,7 @@ export function createApp({ db, hermes, userQueue = new PerUserQueue() }: AppOpt
               body.message as string,
             );
             touchConversation(db, user.id, conversation.id);
-            return chat;
+            return { ...chat, bookings: listBookingAttempts(db, user.id) };
           });
           send(response, 200, result);
           return;

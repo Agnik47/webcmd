@@ -41,6 +41,71 @@ export function createApi(fetchRequest, isCurrent, onUnauthorized) {
   };
 }
 
+export function safeTranscriptUrl(value) {
+  if (typeof value !== 'string' || /[\u0000-\u001f\u007f]/u.test(value)) return null;
+  try {
+    const url = new URL(value);
+    return url.href === value
+      && url.protocol === 'https:'
+      && !url.username
+      && !url.password
+      ? value
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+export function appendTranscriptContent(element, value, documentRoot = document) {
+  const text = String(value ?? '');
+  const links = /https?:\/\/[^\s<>"']+/g;
+  let offset = 0;
+  for (const match of text.matchAll(links)) {
+    const index = match.index ?? 0;
+    if (index > offset) element.append(documentRoot.createTextNode(text.slice(offset, index)));
+    const candidate = match[0];
+    const safe = safeTranscriptUrl(candidate);
+    if (safe) {
+      const anchor = documentRoot.createElement('a');
+      anchor.href = safe;
+      anchor.target = '_blank';
+      anchor.rel = 'noopener noreferrer';
+      anchor.textContent = candidate;
+      element.append(anchor);
+    } else {
+      element.append(documentRoot.createTextNode(candidate));
+    }
+    offset = index + candidate.length;
+  }
+  if (offset < text.length) element.append(documentRoot.createTextNode(text.slice(offset)));
+}
+
+export function renderBookings(bookings, documentRoot = document) {
+  const list = documentRoot.getElementById('booking-list');
+  list.replaceChildren();
+  documentRoot.getElementById('no-bookings').hidden = bookings.length > 0;
+  for (const booking of bookings) {
+    const item = documentRoot.createElement('li');
+    const title = documentRoot.createElement('h3');
+    const details = documentRoot.createElement('p');
+    const status = documentRoot.createElement('span');
+    title.textContent = booking.movie || 'Movie booking';
+    details.textContent = [booking.cinema, booking.showTime, booking.seats.join(', ')]
+      .filter(Boolean).join(' · ');
+    status.className = 'badge';
+    status.textContent = booking.status.replaceAll('_', ' ');
+    item.append(title, details, status);
+    list.append(item);
+  }
+}
+
+export function applyChatResponse(response, isCurrent, appendMessage, renderBookingSnapshot) {
+  if (!isCurrent()) return false;
+  appendMessage(response.message);
+  renderBookingSnapshot(response.bookings);
+  return true;
+}
+
 if (typeof document !== 'undefined') startApp();
 
 function startApp() {
@@ -116,25 +181,6 @@ function renderPreferences(preferences) {
   byId('budget').value = preferences.budgetPaise ? String(preferences.budgetPaise / 100) : '';
 }
 
-function renderBookings(bookings) {
-  const list = byId('booking-list');
-  list.replaceChildren();
-  byId('no-bookings').hidden = bookings.length > 0;
-  for (const booking of bookings) {
-    const item = document.createElement('li');
-    const title = document.createElement('h3');
-    const details = document.createElement('p');
-    const status = document.createElement('span');
-    title.textContent = booking.movie || 'Movie booking';
-    details.textContent = [booking.cinema, booking.showTime, booking.seats.join(', ')]
-      .filter(Boolean).join(' · ');
-    status.className = 'badge';
-    status.textContent = booking.status.replaceAll('_', ' ');
-    item.append(title, details, status);
-    list.append(item);
-  }
-}
-
 function renderConversations() {
   conversationList.replaceChildren();
   byId('no-conversations').hidden = conversations.length > 0;
@@ -157,7 +203,7 @@ function appendMessage(message) {
   const content = document.createElement('p');
   item.className = message.role === 'user' ? 'message user-message' : 'message';
   role.textContent = message.role === 'user' ? 'You' : 'Assistant';
-  content.textContent = message.content;
+  appendTranscriptContent(content, message.content);
   item.append(role, content);
   transcript.append(item);
 }
@@ -264,9 +310,12 @@ chatForm.addEventListener('submit', async (event) => {
       method: 'POST',
       body: JSON.stringify({ message }),
     }, captured);
-    if (requests.isCurrent(captured) && activeConversationId === conversationId) {
-      appendMessage(response.message);
-    }
+    applyChatResponse(
+      response,
+      () => requests.isCurrent(captured) && activeConversationId === conversationId,
+      appendMessage,
+      renderBookings,
+    );
   } catch (error) {
     if (requests.isCurrent(captured) && activeConversationId === conversationId) {
       showError(byId('chat-error'), error);

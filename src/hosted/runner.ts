@@ -306,6 +306,9 @@ async function dispatchHosted(
       stdout,
     });
   }
+  if (response.viewUrl) {
+    await writeToStream(stderr, `Webcmd browser: ${response.viewUrl}\n`);
+  }
   if (parsed.trace === 'on' && response.trace) {
     await writeToStream(stderr, `Webcmd trace artifact: ${response.trace.receipt}\n`);
   }

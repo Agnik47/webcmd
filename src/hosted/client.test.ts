@@ -70,6 +70,16 @@ const validTraceUrlCases = [
   { field: 'replayUrl', suffix: 'replay', executionId: 'exec_trace' },
 ] as const;
 
+const invalidViewerUrlCases = [
+  ['raw provider URL', 'https://www.district.in/movies/order-review/private'],
+  ['wrong origin', 'https://other.example.com/account/live/token'],
+  ['credentials', 'https://user:pass@api.example.com/account/live/token'],
+  ['query string', 'https://api.example.com/account/live/token?secret=1'],
+  ['fragment', 'https://api.example.com/account/live/token#secret'],
+  ['wrong path', 'https://api.example.com/v1/executions/exec/live'],
+  ['insecure production URL', 'http://api.example.com/account/live/token'],
+] as const;
+
 describe('HostedClient', () => {
   it('sends bearer auth and parses hosted manifest', async () => {
     const requests: Array<{ url: string; authorization: string | null }> = [];
@@ -106,6 +116,45 @@ describe('HostedClient', () => {
       commands: [],
     });
     expect(requests).toEqual([{ url: 'https://api.example.com/v1/manifest', authorization: 'Bearer wcmd_live_test' }]);
+  });
+
+  it('negotiates and accepts a Webcmd-owned hosted execution viewer', async () => {
+    const capabilities: Array<string | null> = [];
+    const viewUrl = 'https://api.example.com/account/live/opaque-token_123';
+    const client = new HostedClient({
+      apiBaseUrl: 'https://api.example.com',
+      apiKey: 'key',
+      fetchImpl: async (_url, init) => {
+        capabilities.push(new Headers(init?.headers).get('x-webcmd-client-capabilities'));
+        return new Response(JSON.stringify({
+          ok: true,
+          result: [{ status: 'ready_for_payment', paymentUrl: 'https://www.district.in/private' }],
+          viewUrl,
+          execution: { id: 'exec_view', command: 'district/checkout', status: 'succeeded' },
+        }), { status: 200 });
+      },
+    });
+
+    await expect(client.execute({ command: 'district/checkout', args: {} }))
+      .resolves.toMatchObject({ viewUrl });
+    expect(capabilities[0]?.split(',').map(value => value.trim()))
+      .toContain('hosted-execution-viewer-v1');
+  });
+
+  it.each(invalidViewerUrlCases)('rejects hosted execution viewer with %s', async (_name, viewUrl) => {
+    const client = new HostedClient({
+      apiBaseUrl: 'https://api.example.com',
+      apiKey: 'key',
+      fetchImpl: async () => new Response(JSON.stringify({
+        ok: true,
+        result: [],
+        viewUrl,
+        execution: { id: 'exec_view', command: 'district/checkout', status: 'succeeded' },
+      }), { status: 200 }),
+    });
+
+    await expect(client.execute({ command: 'district/checkout', args: {} }))
+      .rejects.toMatchObject({ code: 'HOSTED_PROTOCOL' });
   });
 
   it('accepts boolean freshPage command metadata', async () => {
