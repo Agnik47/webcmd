@@ -7750,6 +7750,35 @@
   },
   {
     "site": "district",
+    "name": "booking-status",
+    "description": "Check the current District movie checkout or confirmation result",
+    "access": "read",
+    "domain": "www.district.in",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "timeout",
+        "type": "int",
+        "default": 5,
+        "required": false,
+        "help": "Seconds to wait for District to show a booking state"
+      }
+    ],
+    "columns": [
+      "status",
+      "bookingId",
+      "message",
+      "pageUrl"
+    ],
+    "type": "js",
+    "modulePath": "district/booking-status.js",
+    "sourceFile": "district/booking-status.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "district",
     "name": "checkout",
     "description": "Select District movie seats and stop at the payment handoff page",
     "access": "write",

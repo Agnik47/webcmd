@@ -57,6 +57,29 @@ export function validateId(raw, name) {
   return value;
 }
 
+export function classifyBookingPage({ url, text }) {
+  const message = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 240);
+  const bookingId = (
+    message.match(/(?:booking|order|confirmation)\s*(?:id|number|no\.?)\s*[:#-]?\s*([a-z0-9-]{6,})/i)
+    || []
+  )[1] || '';
+
+  if (/booking session.*expired|session has expired|booking expired/i.test(message)) {
+    return { status: 'expired', bookingId: '', message };
+  }
+  if (/payment failed|booking failed|transaction failed|payment was unsuccessful/i.test(message)) {
+    return { status: 'failed', bookingId: '', message };
+  }
+  if (bookingId && /booking confirmed|payment successful|booking successful|your tickets?/i.test(message)) {
+    return { status: 'confirmed', bookingId, message };
+  }
+  return {
+    status: 'pending',
+    bookingId: '',
+    message: message || `District has not reported a final result at ${url}`,
+  };
+}
+
 // ── seat-layout target and URL ──
 
 export function parseSeatUrl(raw) {
