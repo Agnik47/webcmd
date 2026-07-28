@@ -87,6 +87,32 @@ function failWebcmdRaw(
   state.env.FAKE_WEBCMD_STDERR = stderr;
 }
 
+// Copied from formatErrorEnvelope(toEnvelope(new AuthRequiredError(...)),
+// { cmdName: 'district/checkout' }) using the checkout adapter's exact error.
+const REAL_AUTH_REQUIRED_STDERR = [
+  'ok: false',
+  'error:',
+  '  code: AUTH_REQUIRED',
+  "  message: 'District login required before checkout. Run: webcmd district login'",
+  '  help: Please open Chrome or Chromium and log in to https://www.district.in',
+  '  exitCode: 77',
+  '',
+].join('\n');
+
+// Copied from formatErrorEnvelope(toEnvelope(new EmptyResultError(...)),
+// { cmdName: 'district/checkout' }) for checkout seat A1.
+const REAL_EMPTY_RESULT_STDERR = [
+  'ok: false',
+  'error:',
+  '  code: EMPTY_RESULT',
+  '  message: district checkout returned no data',
+  '  help: A1 was not found in the rendered seat map',
+  '  exitCode: 66',
+  '# AutoFix: re-run with --trace=retain-on-failure for trace artifact',
+  '# webcmd district checkout --trace retain-on-failure',
+  '',
+].join('\n');
+
 function unwrap<T>(result: Awaited<ReturnType<typeof runMoviectl>>): T {
   assert.equal(result.ok, true, JSON.stringify(result));
   return result.data as T;
@@ -258,7 +284,7 @@ test('rejects checkout outside awaiting confirmation before WebCMD runs', () => 
 test('restores an auth-blocked checkout for fresh confirmation without leaking provider text', () => {
   const state = fixture();
   const prepared = unwrap<{ attempt: { id: string } }>(prepare(state));
-  failWebcmd(state, 'AUTH_REQUIRED', 'secret provider detail', 77);
+  failWebcmdRaw(state, REAL_AUTH_REQUIRED_STDERR, 77);
 
   const result = runMoviectl(['district', 'checkout', prepared.attempt.id], state.env);
 
@@ -280,7 +306,7 @@ test('restores an auth-blocked checkout for fresh confirmation without leaking p
 test('expires a checkout with unavailable seats so a new attempt can proceed', () => {
   const state = fixture();
   const stale = unwrap<{ attempt: { id: string } }>(prepare(state));
-  failWebcmd(state, 'EMPTY_RESULT', 'seat detail', 66);
+  failWebcmdRaw(state, REAL_EMPTY_RESULT_STDERR, 66);
 
   const result = runMoviectl(['district', 'checkout', stale.attempt.id], state.env);
 
@@ -356,6 +382,99 @@ test('keeps ambiguous checkout failures pending for status reconciliation', () =
 
 test('rejects noncanonical or spoofed WebCMD envelopes without releasing checkout', () => {
   const cases = [
+    {
+      label: 'help-less real auth shape',
+      exitCode: 77,
+      stderr: [
+        'ok: false',
+        'error:',
+        '  code: AUTH_REQUIRED',
+        "  message: 'District login required before checkout. Run: webcmd district login'",
+        '  exitCode: 77',
+        '',
+      ].join('\n'),
+    },
+    {
+      label: 'auth spoof with trailing whitespace',
+      exitCode: 77,
+      stderr: [
+        'ok: false',
+        'error:',
+        '  code: AUTH_REQUIRED',
+        '  message: spoof ',
+        '  help: Please open Chrome or Chromium and log in to https://www.district.in',
+        '  exitCode: 77',
+        '',
+      ].join('\n'),
+    },
+    {
+      label: 'auth help with noncanonical quoting',
+      exitCode: 77,
+      stderr: [
+        'ok: false',
+        'error:',
+        '  code: AUTH_REQUIRED',
+        "  message: 'District login required before checkout. Run: webcmd district login'",
+        "  help: 'Please open Chrome or Chromium and log in to https://www.district.in'",
+        '  exitCode: 77',
+        '',
+      ].join('\n'),
+    },
+    {
+      label: 'help-less empty result without AutoFix',
+      exitCode: 66,
+      stderr: [
+        'ok: false',
+        'error:',
+        '  code: EMPTY_RESULT',
+        '  message: district checkout returned no data',
+        '  exitCode: 66',
+        '',
+      ].join('\n'),
+    },
+    {
+      label: 'empty result without required AutoFix',
+      exitCode: 66,
+      stderr: [
+        'ok: false',
+        'error:',
+        '  code: EMPTY_RESULT',
+        '  message: district checkout returned no data',
+        '  help: A1 was not found in the rendered seat map',
+        '  exitCode: 66',
+        '',
+      ].join('\n'),
+    },
+    {
+      label: 'empty-result spoof with trailing whitespace',
+      exitCode: 66,
+      stderr: [
+        'ok: false',
+        'error:',
+        '  code: EMPTY_RESULT',
+        '  message: spoof ',
+        '  help: A1 was not found in the rendered seat map',
+        '  exitCode: 66',
+        '# AutoFix: re-run with --trace=retain-on-failure for trace artifact',
+        '# webcmd district checkout --trace retain-on-failure',
+        '',
+      ].join('\n'),
+    },
+    {
+      label: 'empty-result fields with noncanonical quoting',
+      exitCode: 66,
+      stderr: [
+        'ok: false',
+        'error:',
+        '  code: EMPTY_RESULT',
+        "  message: 'district checkout returned no data'",
+        "  help: 'A1 was not found in the rendered seat map'",
+        '  exitCode: 66',
+        '# AutoFix: re-run with --trace=retain-on-failure for trace artifact',
+        '# webcmd district checkout --trace retain-on-failure',
+        '',
+      ].join('\n'),
+    },
     {
       label: 'duplicate code',
       exitCode: 77,
@@ -484,7 +603,7 @@ test('rejects noncanonical or spoofed WebCMD envelopes without releasing checkou
 test('does not overwrite a terminal booking-status result during recovery', () => {
   const state = fixture();
   const prepared = unwrap<{ attempt: { id: string } }>(prepare(state));
-  failWebcmd(state, 'AUTH_REQUIRED', 'District login required before checkout', 77);
+  failWebcmdRaw(state, REAL_AUTH_REQUIRED_STDERR, 77);
   state.env.NODE_NO_WARNINGS = '1';
   state.env.FAKE_WEBCMD_RACE_DB_PATH = state.databasePath;
   state.env.FAKE_WEBCMD_RACE_ATTEMPT_ID = prepared.attempt.id;

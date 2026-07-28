@@ -103,9 +103,10 @@ function providerRow(value: unknown): Record<string, unknown> {
 }
 
 function yamlString(value: string): string | null {
+  if (value.trimEnd() !== value) return null;
   if (/^'(?:[^']|'')*'$/.test(value)) {
     const decoded = value.slice(1, -1).replaceAll("''", "'");
-    return decoded.length > 0 ? decoded : null;
+    return decoded.length > 0 && decoded.trim() === decoded ? decoded : null;
   }
   if (
     !/^[A-Za-z0-9][^\r\n]*$/.test(value)
@@ -131,8 +132,11 @@ function webcmdError(stderr: string, status: number | null): MoviectlError {
     return new MoviectlError('WEBCMD_FAILED', 'WebCMD command failed');
   }
   let index = 4;
+  let help: string | null = null;
+  let helpValue: string | null = null;
   if (lines[index]?.startsWith('  help: ')) {
-    const help = yamlString(lines[index]!.slice('  help: '.length));
+    helpValue = lines[index]!.slice('  help: '.length);
+    help = yamlString(helpValue);
     if (help === null) return new MoviectlError('WEBCMD_FAILED', 'WebCMD command failed');
     index += 1;
   }
@@ -145,16 +149,32 @@ function webcmdError(stderr: string, status: number | null): MoviectlError {
     '# AutoFix: re-run with --trace=retain-on-failure for trace artifact',
     '# webcmd district checkout --trace retain-on-failure',
   ];
+  const hasAutoFix = trailing.join('\n') === autoFix.join('\n');
   if (
     trailing.length !== 0
-    && !(code === 'EMPTY_RESULT' && trailing.join('\n') === autoFix.join('\n'))
+    && !(code === 'EMPTY_RESULT' && hasAutoFix)
   ) {
     return new MoviectlError('WEBCMD_FAILED', 'WebCMD command failed');
   }
-  if (status === 77 && exitCode === status && code === 'AUTH_REQUIRED') {
+  if (
+    status === 77
+    && exitCode === status
+    && code === 'AUTH_REQUIRED'
+    && messageValue === "'District login required before checkout. Run: webcmd district login'"
+    && helpValue === 'Please open Chrome or Chromium and log in to https://www.district.in'
+    && trailing.length === 0
+  ) {
     return new MoviectlError('AUTH_REQUIRED', 'District login is required');
   }
-  if (status === 66 && exitCode === status && code === 'EMPTY_RESULT') {
+  if (
+    status === 66
+    && exitCode === status
+    && code === 'EMPTY_RESULT'
+    && messageValue === 'district checkout returned no data'
+    && helpValue !== null
+    && /^[A-Z]+[0-9]+ was not found in the rendered seat map$/.test(helpValue)
+    && hasAutoFix
+  ) {
     return new MoviectlError('EMPTY_RESULT', 'District returned no data');
   }
   if (
