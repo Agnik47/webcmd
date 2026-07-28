@@ -57,6 +57,32 @@ function unwrap<T>(result: Awaited<ReturnType<typeof runMoviectl>>): T {
   return result.data as T;
 }
 
+function prepare(
+  state: ReturnType<typeof fixture>,
+  show = 'https://www.district.in/movies/seat-layout/imax?encsessionid=show-1',
+  seats = 'A1,A2',
+) {
+  return runMoviectl([
+    'district',
+    'prepare-checkout',
+    show,
+    '--movie',
+    'Dune',
+    '--cinema',
+    'PVR Phoenix',
+    '--show-time',
+    '2026-07-28T19:00:00+05:30',
+    '--format-id',
+    'imax',
+    '--content-id',
+    'dune-2',
+    '--seats',
+    seats,
+    '--amount-paise',
+    '80000',
+  ], state.env);
+}
+
 test('derives a stable workspace and fixes WebCMD identity arguments', () => {
   const key = 'movie-demo:user:550e8400-e29b-41d4-a716-446655440000';
   assert.equal(
@@ -97,29 +123,18 @@ test('derives a stable workspace and fixes WebCMD identity arguments', () => {
     },
   });
   assert.equal(state.calls().length, 1);
+
+  for (const trace of [['--trace', 'on'], ['--trace=on']]) {
+    const traced = runMoviectl(['district', 'login', ...trace], state.env);
+    assert.equal(traced.ok, false);
+    if (!traced.ok) assert.equal(traced.error.code, 'INVALID_ARGUMENT');
+  }
+  assert.equal(state.calls().length, 1);
 });
 
 test('enforces confirmation, payment, and provider-confirmed transitions', () => {
   const state = fixture();
-  const prepared = unwrap<{ attempt: { id: string; status: string } }>(runMoviectl([
-    'district',
-    'prepare-checkout',
-    'https://www.district.in/movies/seat-layout/imax?encsessionid=show-1',
-    '--movie',
-    'Dune',
-    '--cinema',
-    'PVR Phoenix',
-    '--show-time',
-    '2026-07-28T19:00:00+05:30',
-    '--format-id',
-    'imax',
-    '--content-id',
-    'dune-2',
-    '--seats',
-    'A1,A2',
-    '--amount-paise',
-    '80000',
-  ], state.env));
+  const prepared = unwrap<{ attempt: { id: string; status: string } }>(prepare(state));
   assert.equal(prepared.attempt.status, 'awaiting_confirmation');
 
   let db = openDatabase(state.databasePath);
@@ -144,9 +159,14 @@ test('enforces confirmation, payment, and provider-confirmed transitions', () =>
   db.close();
 
   const callsAfterCheckout = state.calls().length;
-  const duplicate = runMoviectl(['district', 'checkout', prepared.attempt.id], state.env);
+  const second = unwrap<{ attempt: { id: string } }>(prepare(
+    state,
+    'https://www.district.in/movies/seat-layout/imax?encsessionid=show-2',
+    'B3,B4',
+  ));
+  const duplicate = runMoviectl(['district', 'checkout', second.attempt.id], state.env);
   assert.equal(duplicate.ok, false);
-  if (!duplicate.ok) assert.equal(duplicate.error.code, 'INVALID_STATE');
+  if (!duplicate.ok) assert.equal(duplicate.error.code, 'CHECKOUT_PENDING');
   assert.equal(state.calls().length, callsAfterCheckout);
 
   state.env.FAKE_WEBCMD_RESPONSE = JSON.stringify({ status: 'confirmed', bookingId: '' });
@@ -163,6 +183,18 @@ test('enforces confirmation, payment, and provider-confirmed transitions', () =>
   );
   assert.equal(confirmed.attempt.status, 'confirmed');
   assert.equal(confirmed.attempt.districtBookingId, 'DBX123456');
+});
+
+test('normalizes and validates seats before persistence', () => {
+  const state = fixture();
+  const prepared = unwrap<{ attempt: { seats: string[] } }>(prepare(state, undefined, 'a1,a2'));
+  assert.deepEqual(prepared.attempt.seats, ['A1', 'A2']);
+
+  for (const seats of ['A-1,A2', 'a1,A1']) {
+    const result = prepare(state, undefined, seats);
+    assert.equal(result.ok, false);
+    if (!result.ok) assert.equal(result.error.code, 'INVALID_ARGUMENT');
+  }
 });
 
 test('rejects checkout outside awaiting confirmation before WebCMD runs', () => {

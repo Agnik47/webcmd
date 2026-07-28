@@ -116,6 +116,8 @@ function callWebcmd(
     || arg.startsWith('-f=')
     || arg === '--format'
     || arg.startsWith('--format=')
+    || arg === '--trace'
+    || arg.startsWith('--trace=')
     || arg === '--'
   ))) {
     throw new MoviectlError(
@@ -198,8 +200,19 @@ function prepareCheckout(db: DatabaseSync, userId: string, args: string[]): Book
   if (positionals.length !== 1) {
     throw new MoviectlError('INVALID_ARGUMENT', 'prepare-checkout requires one show URL or ID');
   }
-  const seats = required(values.seats, 'seats').split(',').map((seat) => seat.trim()).filter(Boolean);
-  if (!seats.length) throw new MoviectlError('INVALID_ARGUMENT', 'seats is required');
+  const seats = required(values.seats, 'seats')
+    .split(',')
+    .map((seat) => seat.trim().toUpperCase())
+    .filter(Boolean);
+  if (seats.length > 10) {
+    throw new MoviectlError('INVALID_ARGUMENT', 'seats must contain 10 seats or fewer');
+  }
+  if (seats.some((seat) => !/^[A-Z]+[0-9]+$/.test(seat))) {
+    throw new MoviectlError('INVALID_ARGUMENT', 'seats must use row+number labels like I22');
+  }
+  if (new Set(seats).size !== seats.length) {
+    throw new MoviectlError('INVALID_ARGUMENT', 'seats must not contain duplicates');
+  }
   return transaction(db, () => createBookingAttempt(db, userId, {
     conversationId: values['conversation-id']?.trim() || null,
     status: 'awaiting_confirmation',
@@ -212,15 +225,6 @@ function prepareCheckout(db: DatabaseSync, userId: string, args: string[]): Book
     seats,
     amountPaise: positiveInteger(values['amount-paise'], 'amount-paise'),
   }));
-}
-
-function sameSelection(left: BookingAttempt, right: BookingAttempt): boolean {
-  return (
-    left.showTarget === right.showTarget
-    && left.formatId === right.formatId
-    && left.contentId === right.contentId
-    && [...left.seats].sort().join('\0') === [...right.seats].sort().join('\0')
-  );
 }
 
 function checkout(
@@ -239,9 +243,9 @@ function checkout(
       throw new MoviectlError('INVALID_STATE', 'checkout requires an awaiting confirmation attempt');
     }
     if (listBookingAttempts(db, identity.userId).some(
-      (candidate) => candidate.status === 'pending_payment' && sameSelection(candidate, current),
+      (candidate) => candidate.status === 'pending_payment',
     )) {
-      throw new MoviectlError('CHECKOUT_PENDING', 'this selection already has an unresolved checkout');
+      throw new MoviectlError('CHECKOUT_PENDING', 'another checkout is unresolved');
     }
     return updateBookingAttempt(db, identity.userId, current.id, { status: 'pending_payment' })!;
   });
