@@ -66,6 +66,36 @@ function testApp() {
   return { db, app };
 }
 
+test('serves only the three public assets with their correct content types', async () => {
+  const { db, app } = testApp();
+  const baseUrl = await listen(app);
+
+  try {
+    for (const [path, contentType] of [
+      ['/', 'text/html; charset=utf-8'],
+      ['/app.js', 'text/javascript; charset=utf-8'],
+      ['/style.css', 'text/css; charset=utf-8'],
+    ]) {
+      const response = await fetch(`${baseUrl}${path}`);
+      assert.equal(response.status, 200, path);
+      assert.equal(response.headers.get('content-type'), contentType, path);
+    }
+
+    const traversal = await new Promise<number>((resolve, reject) => {
+      const outgoing = httpRequest(baseUrl, { path: '/../app.js' }, (incoming) => {
+        incoming.resume();
+        resolve(incoming.statusCode ?? 0);
+      });
+      outgoing.on('error', reject);
+      outgoing.end();
+    });
+    assert.equal(traversal, 404);
+  } finally {
+    await close(app);
+    db.close();
+  }
+});
+
 test('treats malformed cookie encoding as unauthenticated', async () => {
   const { db, app } = testApp();
   const baseUrl = await listen(app);

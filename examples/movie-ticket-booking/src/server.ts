@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { DatabaseSync } from 'node:sqlite';
 import { pathToFileURL } from 'node:url';
@@ -24,6 +25,11 @@ import { PerUserQueue } from './user-queue.js';
 
 const COOKIE = 'movie_demo_session';
 const MAX_JSON_BYTES = 64 * 1024;
+const PUBLIC_FILES = new Map([
+  ['/', { url: new URL('../public/index.html', import.meta.url), type: 'text/html; charset=utf-8' }],
+  ['/app.js', { url: new URL('../public/app.js', import.meta.url), type: 'text/javascript; charset=utf-8' }],
+  ['/style.css', { url: new URL('../public/style.css', import.meta.url), type: 'text/css; charset=utf-8' }],
+]);
 
 class HttpError extends Error {
   constructor(readonly status: number, message: string) {
@@ -125,7 +131,18 @@ export function createApp({ db, hermes, userQueue = new PerUserQueue() }: AppOpt
   return createServer(async (request, response) => {
     try {
       const method = request.method ?? 'GET';
+      const rawPath = (request.url ?? '/').split('?', 1)[0];
       const path = new URL(request.url ?? '/', 'http://localhost').pathname;
+
+      if (method === 'GET') {
+        const file = PUBLIC_FILES.get(rawPath);
+        if (file) {
+          response.writeHead(200, { 'content-type': file.type });
+          response.end(await readFile(file.url));
+          return;
+        }
+        if (!rawPath.startsWith('/api/')) throw new HttpError(404, 'not found');
+      }
 
       if (method === 'POST' && path === '/api/register') {
         const input = loginInput(await readJson(request));
