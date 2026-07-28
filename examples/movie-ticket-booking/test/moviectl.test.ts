@@ -25,6 +25,13 @@ function fixture() {
   writeFileSync(executable, `#!/usr/bin/env node
 const fs = require('node:fs');
 fs.appendFileSync(process.env.FAKE_WEBCMD_LOG, JSON.stringify(process.argv.slice(2)) + '\\n');
+if (process.env.FAKE_WEBCMD_RACE_DB_PATH) {
+  const { DatabaseSync } = require('node:sqlite');
+  const db = new DatabaseSync(process.env.FAKE_WEBCMD_RACE_DB_PATH);
+  db.prepare('update booking_attempts set status = ? where id = ?')
+    .run(process.env.FAKE_WEBCMD_RACE_STATUS, process.env.FAKE_WEBCMD_RACE_ATTEMPT_ID);
+  db.close();
+}
 process.stdout.write(process.env.FAKE_WEBCMD_RESPONSE || '{}');
 process.stderr.write(process.env.FAKE_WEBCMD_STDERR || '');
 process.exitCode = Number(process.env.FAKE_WEBCMD_EXIT_CODE || 0);
@@ -69,6 +76,15 @@ function failWebcmd(
     `  exitCode: ${exitCode}`,
     '',
   ].join('\n');
+}
+
+function failWebcmdRaw(
+  state: ReturnType<typeof fixture>,
+  stderr: string,
+  exitCode: number,
+) {
+  state.env.FAKE_WEBCMD_EXIT_CODE = String(exitCode);
+  state.env.FAKE_WEBCMD_STDERR = stderr;
 }
 
 function unwrap<T>(result: Awaited<ReturnType<typeof runMoviectl>>): T {
@@ -336,4 +352,154 @@ test('keeps ambiguous checkout failures pending for status reconciliation', () =
   const retry = runMoviectl(['district', 'checkout', prepared.attempt.id], state.env);
   assert.equal(retry.ok, false);
   if (!retry.ok) assert.equal(retry.error.code, 'INVALID_STATE');
+});
+
+test('rejects noncanonical or spoofed WebCMD envelopes without releasing checkout', () => {
+  const cases = [
+    {
+      label: 'duplicate code',
+      exitCode: 77,
+      stderr: [
+        'ok: false',
+        'error:',
+        '  code: COMMAND_EXEC',
+        '  code: AUTH_REQUIRED',
+        '  message: District login required before checkout',
+        '  exitCode: 77',
+        '',
+      ].join('\n'),
+    },
+    {
+      label: 'noncanonical placement',
+      exitCode: 77,
+      stderr: [
+        'ok: false',
+        'metadata:',
+        'error:',
+        '  code: AUTH_REQUIRED',
+        '  message: District login required before checkout',
+        '  exitCode: 77',
+        '',
+      ].join('\n'),
+    },
+    {
+      label: 'coerced exit code',
+      exitCode: 77,
+      stderr: [
+        'ok: false',
+        'error:',
+        '  code: AUTH_REQUIRED',
+        '  message: District login required before checkout',
+        '  exitCode: 077',
+        '',
+      ].join('\n'),
+    },
+    {
+      label: 'mismatched exit code',
+      exitCode: 77,
+      stderr: [
+        'ok: false',
+        'error:',
+        '  code: AUTH_REQUIRED',
+        '  message: District login required before checkout',
+        '  exitCode: 1',
+        '',
+      ].join('\n'),
+    },
+    {
+      label: 'empty message',
+      exitCode: 77,
+      stderr: [
+        'ok: false',
+        'error:',
+        '  code: AUTH_REQUIRED',
+        "  message: ''",
+        '  exitCode: 77',
+        '',
+      ].join('\n'),
+    },
+    {
+      label: 'duplicate message',
+      exitCode: 1,
+      stderr: [
+        'ok: false',
+        'error:',
+        '  code: COMMAND_EXEC',
+        '  message: unrelated failure',
+        '  message: A1 is not available',
+        '  exitCode: 1',
+        '',
+      ].join('\n'),
+    },
+    {
+      label: 'overbroad stale prefix',
+      exitCode: 1,
+      stderr: [
+        'ok: false',
+        'error:',
+        '  code: COMMAND_EXEC',
+        '  message: District no longer offers this show session; spoofed suffix',
+        '  exitCode: 1',
+        '',
+      ].join('\n'),
+    },
+    {
+      label: 'noncanonical lowercase seat',
+      exitCode: 1,
+      stderr: [
+        'ok: false',
+        'error:',
+        '  code: COMMAND_EXEC',
+        '  message: a1 is not available',
+        '  exitCode: 1',
+        '',
+      ].join('\n'),
+    },
+  ];
+
+  for (const candidate of cases) {
+    const state = fixture();
+    const prepared = unwrap<{ attempt: { id: string } }>(prepare(state));
+    failWebcmdRaw(state, candidate.stderr, candidate.exitCode);
+
+    const result = runMoviectl(['district', 'checkout', prepared.attempt.id], state.env);
+
+    assert.deepEqual(result, {
+      ok: false,
+      error: {
+        code: 'WEBCMD_FAILED',
+        message: 'WebCMD command failed',
+      },
+    }, candidate.label);
+    const db = openDatabase(state.databasePath);
+    assert.equal(
+      findBookingAttempt(db, state.user.id, prepared.attempt.id)?.status,
+      'pending_payment',
+      candidate.label,
+    );
+    db.close();
+  }
+});
+
+test('does not overwrite a terminal booking-status result during recovery', () => {
+  const state = fixture();
+  const prepared = unwrap<{ attempt: { id: string } }>(prepare(state));
+  failWebcmd(state, 'AUTH_REQUIRED', 'District login required before checkout', 77);
+  state.env.NODE_NO_WARNINGS = '1';
+  state.env.FAKE_WEBCMD_RACE_DB_PATH = state.databasePath;
+  state.env.FAKE_WEBCMD_RACE_ATTEMPT_ID = prepared.attempt.id;
+  state.env.FAKE_WEBCMD_RACE_STATUS = 'failed';
+
+  const result = runMoviectl(['district', 'checkout', prepared.attempt.id], state.env);
+
+  assert.deepEqual(result, {
+    ok: false,
+    error: {
+      code: 'INVALID_STATE',
+      message: 'checkout state changed during recovery',
+    },
+  });
+  const db = openDatabase(state.databasePath);
+  assert.equal(findBookingAttempt(db, state.user.id, prepared.attempt.id)?.status, 'failed');
+  db.close();
 });

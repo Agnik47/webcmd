@@ -102,35 +102,69 @@ function providerRow(value: unknown): Record<string, unknown> {
   return row as Record<string, unknown>;
 }
 
+function yamlString(value: string): string | null {
+  if (/^'(?:[^']|'')*'$/.test(value)) {
+    const decoded = value.slice(1, -1).replaceAll("''", "'");
+    return decoded.length > 0 ? decoded : null;
+  }
+  if (
+    !/^[A-Za-z0-9][^\r\n]*$/.test(value)
+    || value.includes(': ')
+    || value.includes(' #')
+    || /^(?:null|true|false|~|[-+]?(?:\d+(?:\.\d*)?|\.\d+))$/i.test(value)
+  ) {
+    return null;
+  }
+  return value;
+}
+
 function webcmdError(stderr: string, status: number | null): MoviectlError {
-  const lines = stderr.trimEnd().split(/\r?\n/);
-  const errorIndex = lines.indexOf('error:');
-  if (lines[0] !== 'ok: false' || errorIndex < 0) {
+  if (!stderr.endsWith('\n')) return new MoviectlError('WEBCMD_FAILED', 'WebCMD command failed');
+  const lines = stderr.slice(0, -1).replaceAll('\r\n', '\n').split('\n');
+  if (lines[0] !== 'ok: false' || lines[1] !== 'error:') {
     return new MoviectlError('WEBCMD_FAILED', 'WebCMD command failed');
   }
-  const fields = new Map<string, string>();
-  for (const line of lines.slice(errorIndex + 1)) {
-    const match = /^  ([A-Za-z][A-Za-z0-9]*):\s*(.*?)\s*$/.exec(line);
-    if (!match) break;
-    fields.set(match[1]!, match[2]!);
+  const code = /^  code: ([A-Z][A-Z0-9_]*)$/.exec(lines[2] ?? '')?.[1];
+  const messageValue = /^  message: (.+)$/.exec(lines[3] ?? '')?.[1];
+  const message = messageValue === undefined ? null : yamlString(messageValue);
+  if (!code || message === null) {
+    return new MoviectlError('WEBCMD_FAILED', 'WebCMD command failed');
   }
-  const code = fields.get('code');
-  const exitCode = Number(fields.get('exitCode'));
+  let index = 4;
+  if (lines[index]?.startsWith('  help: ')) {
+    const help = yamlString(lines[index]!.slice('  help: '.length));
+    if (help === null) return new MoviectlError('WEBCMD_FAILED', 'WebCMD command failed');
+    index += 1;
+  }
+  const exitValue = /^  exitCode: (0|[1-9][0-9]*)$/.exec(lines[index] ?? '')?.[1];
+  if (exitValue === undefined) return new MoviectlError('WEBCMD_FAILED', 'WebCMD command failed');
+  const exitCode = Number(exitValue);
+  index += 1;
+  const trailing = lines.slice(index);
+  const autoFix = [
+    '# AutoFix: re-run with --trace=retain-on-failure for trace artifact',
+    '# webcmd district checkout --trace retain-on-failure',
+  ];
+  if (
+    trailing.length !== 0
+    && !(code === 'EMPTY_RESULT' && trailing.join('\n') === autoFix.join('\n'))
+  ) {
+    return new MoviectlError('WEBCMD_FAILED', 'WebCMD command failed');
+  }
   if (status === 77 && exitCode === status && code === 'AUTH_REQUIRED') {
     return new MoviectlError('AUTH_REQUIRED', 'District login is required');
   }
   if (status === 66 && exitCode === status && code === 'EMPTY_RESULT') {
     return new MoviectlError('EMPTY_RESULT', 'District returned no data');
   }
-  const message = fields.get('message') ?? '';
   if (
     status === 1
     && exitCode === status
     && code === 'COMMAND_EXEC'
     && (
-      /^[A-Z]+[0-9]+ is not available$/i.test(message)
+      /^[A-Z]+[0-9]+ is not available$/.test(message)
       || message === 'District says booking is now closed for this show'
-      || message.startsWith('District no longer offers this show session;')
+      || message === 'District no longer offers this show session; re-run webcmd district showtimes and pick a current show'
     )
   ) {
     return new MoviectlError('COMMAND_EXEC', 'District seats are no longer available');
@@ -302,24 +336,36 @@ function checkout(
     ], env);
   } catch (error) {
     if (error instanceof MoviectlError && error.code === 'AUTH_REQUIRED') {
-      transaction(db, () => updateBookingAttempt(
-        db,
-        identity.userId,
-        attempt.id,
-        { status: 'awaiting_confirmation' },
-      ));
+      transaction(db, () => {
+        const recovered = updateBookingAttempt(
+          db,
+          identity.userId,
+          attempt.id,
+          { status: 'awaiting_confirmation' },
+          'pending_payment',
+        );
+        if (!recovered) {
+          throw new MoviectlError('INVALID_STATE', 'checkout state changed during recovery');
+        }
+      });
       throw new MoviectlError('AUTH_REQUIRED', 'District login is required before checkout');
     }
     if (
       error instanceof MoviectlError
       && (error.code === 'EMPTY_RESULT' || error.code === 'COMMAND_EXEC')
     ) {
-      transaction(db, () => updateBookingAttempt(
-        db,
-        identity.userId,
-        attempt.id,
-        { status: 'expired' },
-      ));
+      transaction(db, () => {
+        const recovered = updateBookingAttempt(
+          db,
+          identity.userId,
+          attempt.id,
+          { status: 'expired' },
+          'pending_payment',
+        );
+        if (!recovered) {
+          throw new MoviectlError('INVALID_STATE', 'checkout state changed during recovery');
+        }
+      });
       throw new MoviectlError(error.code, 'District seats are no longer available');
     }
     throw error;

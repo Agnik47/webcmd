@@ -352,14 +352,23 @@ export function updateBookingAttempt(
   userId: string,
   attemptId: string,
   update: BookingAttemptUpdate,
+  expectedStatus?: BookingAttemptStatus,
 ): BookingAttempt | null {
   assertGenericStatus(update.status);
-  db.prepare(`
+  const result = db.prepare(`
     update booking_attempts
     set status = coalesce(?, status), district_booking_id = coalesce(?, district_booking_id), updated_at = ?
-    where id = ? and user_id = ?
-  `).run(update.status ?? null, update.districtBookingId ?? null, Date.now(), attemptId, userId);
-  return findBookingAttempt(db, userId, attemptId);
+    where id = ? and user_id = ? and (? is null or status = ?)
+  `).run(
+    update.status ?? null,
+    update.districtBookingId ?? null,
+    Date.now(),
+    attemptId,
+    userId,
+    expectedStatus ?? null,
+    expectedStatus ?? null,
+  );
+  return result.changes === 1 ? findBookingAttempt(db, userId, attemptId) : null;
 }
 
 export function recordDistrictBookingResult(
