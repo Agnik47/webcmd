@@ -1,3 +1,19 @@
+export function createRequestEpoch() {
+  let current = 0;
+  return {
+    advance: () => ++current,
+    capture: () => current,
+    isCurrent: (captured) => captured === current,
+  };
+}
+
+export function requiresAuthReset(path, status) {
+  return status === 401 && path !== '/api/login' && path !== '/api/register';
+}
+
+if (typeof document !== 'undefined') startApp();
+
+function startApp() {
 const byId = (id) => document.getElementById(id);
 const authView = byId('auth-view');
 const appView = byId('app-view');
@@ -12,6 +28,7 @@ const messageInput = byId('message');
 const sendButton = byId('send');
 let conversations = [];
 let activeConversationId = '';
+const requests = createRequestEpoch();
 
 class ApiError extends Error {
   constructor(status, message) {
@@ -26,7 +43,11 @@ async function api(path, options = {}) {
     headers: options.body ? { 'content-type': 'application/json' } : {},
   });
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new ApiError(response.status, body.error || 'Request failed');
+  if (!response.ok) {
+    const error = new ApiError(response.status, body.error || 'Request failed');
+    if (requiresAuthReset(path, response.status)) resetSession('Your session expired. Please log in again.');
+    throw error;
+  }
   return body;
 }
 
@@ -44,6 +65,33 @@ function showAuth(message = '') {
 function showApp() {
   authView.hidden = true;
   appView.hidden = false;
+}
+
+function setAuthPending(pending) {
+  authForm.querySelectorAll('button').forEach((button) => { button.disabled = pending; });
+}
+
+function resetSession(message = '') {
+  requests.advance();
+  conversations = [];
+  activeConversationId = '';
+  byId('user-email').textContent = '';
+  chatTitle.textContent = 'Choose a conversation';
+  transcript.replaceChildren();
+  renderConversations();
+  renderBookings([]);
+  renderPreferences({ city: '', languages: [], formats: [], seatPosition: '', budgetPaise: 0 });
+  appError.textContent = '';
+  byId('chat-error').textContent = '';
+  byId('preferences-status').textContent = '';
+  messageInput.value = '';
+  messageInput.disabled = true;
+  sendButton.disabled = true;
+  byId('preferences-form').querySelector('button').disabled = false;
+  setAuthPending(false);
+  authForm.reset();
+  showAuth(message);
+  return requests.capture();
 }
 
 function splitList(value) {
@@ -105,6 +153,7 @@ function appendMessage(message) {
 }
 
 async function selectConversation(conversation) {
+  const captured = requests.capture();
   activeConversationId = conversation.id;
   chatTitle.textContent = conversation.title;
   transcript.replaceChildren();
@@ -114,14 +163,14 @@ async function selectConversation(conversation) {
   renderConversations();
   try {
     const messages = await api(`/api/conversations/${encodeURIComponent(conversation.id)}/messages`);
-    if (activeConversationId !== conversation.id) return;
+    if (!requests.isCurrent(captured) || activeConversationId !== conversation.id) return;
     transcript.replaceChildren();
     messages.forEach(appendMessage);
     messageInput.disabled = false;
     sendButton.disabled = false;
     messageInput.focus();
   } catch (error) {
-    if (activeConversationId === conversation.id) {
+    if (requests.isCurrent(captured) && activeConversationId === conversation.id) {
       showError(byId('chat-error'), error);
       messageInput.disabled = false;
       sendButton.disabled = false;
@@ -129,8 +178,9 @@ async function selectConversation(conversation) {
   }
 }
 
-async function loadApp() {
+async function loadApp(captured = requests.capture()) {
   const data = await api('/api/bootstrap');
+  if (!requests.isCurrent(captured)) return;
   byId('user-email').textContent = data.user.email;
   conversations = data.conversations;
   renderPreferences(data.preferences);
@@ -143,9 +193,10 @@ async function loadApp() {
 
 authForm.addEventListener('submit', async (event) => {
   event.preventDefault();
+  requests.advance();
+  const captured = requests.capture();
   const mode = event.submitter?.value || 'login';
-  const buttons = authForm.querySelectorAll('button');
-  buttons.forEach((button) => { button.disabled = true; });
+  setAuthPending(true);
   authError.textContent = '';
   try {
     await api(`/api/${mode}`, {
@@ -155,25 +206,29 @@ authForm.addEventListener('submit', async (event) => {
         password: byId('password').value,
       }),
     });
-    await loadApp();
+    if (!requests.isCurrent(captured)) return;
+    authForm.reset();
+    await loadApp(captured);
   } catch (error) {
-    showError(authError, error);
+    if (requests.isCurrent(captured)) showError(authError, error);
   } finally {
-    buttons.forEach((button) => { button.disabled = false; });
+    if (requests.isCurrent(captured)) setAuthPending(false);
   }
 });
 
 byId('new-chat').addEventListener('click', async () => {
+  const captured = requests.capture();
   appError.textContent = '';
   try {
     const conversation = await api('/api/conversations', {
       method: 'POST',
       body: JSON.stringify({}),
     });
+    if (!requests.isCurrent(captured)) return;
     conversations.unshift(conversation);
     await selectConversation(conversation);
   } catch (error) {
-    showError(appError, error);
+    if (requests.isCurrent(captured)) showError(appError, error);
   }
 });
 
@@ -181,6 +236,7 @@ chatForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const message = messageInput.value.trim();
   if (!message || !activeConversationId) return;
+  const captured = requests.capture();
   const conversationId = activeConversationId;
   sendButton.disabled = true;
   byId('chat-error').textContent = '';
@@ -191,11 +247,15 @@ chatForm.addEventListener('submit', async (event) => {
       method: 'POST',
       body: JSON.stringify({ message }),
     });
-    if (activeConversationId === conversationId) appendMessage(response.message);
+    if (requests.isCurrent(captured) && activeConversationId === conversationId) {
+      appendMessage(response.message);
+    }
   } catch (error) {
-    if (activeConversationId === conversationId) showError(byId('chat-error'), error);
+    if (requests.isCurrent(captured) && activeConversationId === conversationId) {
+      showError(byId('chat-error'), error);
+    }
   } finally {
-    if (activeConversationId === conversationId) {
+    if (requests.isCurrent(captured) && activeConversationId === conversationId) {
       sendButton.disabled = false;
       messageInput.focus();
     }
@@ -204,6 +264,7 @@ chatForm.addEventListener('submit', async (event) => {
 
 byId('preferences-form').addEventListener('submit', async (event) => {
   event.preventDefault();
+  const captured = requests.capture();
   const form = event.currentTarget;
   const button = form.querySelector('button');
   const status = byId('preferences-status');
@@ -220,29 +281,30 @@ byId('preferences-form').addEventListener('submit', async (event) => {
         budgetPaise: Math.round(Number(byId('budget').value || 0) * 100),
       }),
     });
+    if (!requests.isCurrent(captured)) return;
     renderPreferences(preferences);
     status.textContent = 'Preferences saved.';
   } catch (error) {
-    showError(status, error);
+    if (requests.isCurrent(captured)) showError(status, error);
   } finally {
-    button.disabled = false;
+    if (requests.isCurrent(captured)) button.disabled = false;
   }
 });
 
 byId('logout').addEventListener('click', async () => {
-  appError.textContent = '';
+  const captured = resetSession();
+  setAuthPending(true);
   try {
     await api('/api/logout', { method: 'POST' });
-    conversations = [];
-    activeConversationId = '';
-    transcript.replaceChildren();
-    authForm.reset();
-    showAuth();
   } catch (error) {
-    showError(appError, error);
+    if (requests.isCurrent(captured)) showError(authError, error);
+  } finally {
+    if (requests.isCurrent(captured)) setAuthPending(false);
   }
 });
 
-loadApp().catch((error) => {
-  showAuth(error.status === 401 ? '' : error.message);
+const startup = requests.capture();
+loadApp(startup).catch((error) => {
+  if (requests.isCurrent(startup)) resetSession(error.message);
 });
+}

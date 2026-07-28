@@ -220,6 +220,21 @@ export function updateConversation(
   return findConversation(db, userId, conversationId);
 }
 
+export function touchConversation(
+  db: DatabaseSync,
+  userId: string,
+  conversationId: string,
+): Conversation | null {
+  const result = db.prepare(`
+    update conversations
+    set updated_at = max(?, (
+      select max(updated_at) + 1 from conversations where user_id = ?
+    ))
+    where id = ? and user_id = ?
+  `).run(Date.now(), userId, conversationId, userId);
+  return result.changes ? findConversation(db, userId, conversationId) : null;
+}
+
 export function deleteConversation(db: DatabaseSync, userId: string, conversationId: string): boolean {
   return db.prepare('delete from conversations where id = ? and user_id = ?')
     .run(conversationId, userId).changes > 0;

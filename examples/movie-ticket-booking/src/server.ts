@@ -16,6 +16,7 @@ import {
   listBookingAttempts,
   listConversations,
   openDatabase,
+  touchConversation,
   updatePreferences,
   type Preferences,
   type UserRecord,
@@ -131,17 +132,20 @@ export function createApp({ db, hermes, userQueue = new PerUserQueue() }: AppOpt
   return createServer(async (request, response) => {
     try {
       const method = request.method ?? 'GET';
-      const rawPath = (request.url ?? '/').split('?', 1)[0];
-      const path = new URL(request.url ?? '/', 'http://localhost').pathname;
+      const rawUrl = request.url ?? '/';
 
       if (method === 'GET') {
-        const file = PUBLIC_FILES.get(rawPath);
+        const file = PUBLIC_FILES.get(rawUrl);
         if (file) {
           response.writeHead(200, { 'content-type': file.type });
           response.end(await readFile(file.url));
           return;
         }
-        if (!rawPath.startsWith('/api/')) throw new HttpError(404, 'not found');
+      }
+
+      const path = new URL(rawUrl, 'http://localhost').pathname;
+      if (method === 'GET') {
+        if (!path.startsWith('/api/')) throw new HttpError(404, 'not found');
       }
 
       if (method === 'POST' && path === '/api/register') {
@@ -242,11 +246,15 @@ export function createApp({ db, hermes, userQueue = new PerUserQueue() }: AppOpt
           if (typeof body.message !== 'string' || !body.message.trim()) {
             throw new HttpError(400, 'message is required');
           }
-          const result = await userQueue.run(user.id, () => hermes.chat(
-            conversation.hermesSessionId,
-            `movie-demo:user:${user.id}`,
-            body.message as string,
-          ));
+          const result = await userQueue.run(user.id, async () => {
+            const chat = await hermes.chat(
+              conversation.hermesSessionId,
+              `movie-demo:user:${user.id}`,
+              body.message as string,
+            );
+            touchConversation(db, user.id, conversation.id);
+            return chat;
+          });
           send(response, 200, result);
           return;
         }

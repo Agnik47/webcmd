@@ -16,6 +16,7 @@ import {
   listBookingAttempts,
   listConversations,
   openDatabase,
+  touchConversation,
   updateBookingAttempt,
   updateConversation,
   updatePreferences,
@@ -92,5 +93,19 @@ test('keeps conversation and booking-attempt CRUD scoped to their owner', () => 
   updatePreferences(db, alice.id, { city: 'Mumbai', languages: [], formats: [], seatPosition: '', budgetPaise: 0 });
   assert.equal(deletePreferences(db, alice.id), true);
   assert.equal(deleteConversation(db, alice.id, conversation.id), true);
+  db.close();
+});
+
+test('touches only an owned conversation and moves it to the front', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'movie-demo-db-'));
+  const db = openDatabase(join(directory, 'app.db'));
+  const alice = createUserRecord(db, 'alice@example.com', 'hash-a');
+  const bob = createUserRecord(db, 'bob@example.com', 'hash-b');
+  const first = createConversation(db, alice.id, 'hermes-a');
+  const second = createConversation(db, alice.id, 'hermes-b');
+
+  assert.equal(touchConversation(db, bob.id, first.id), null);
+  assert.equal(touchConversation(db, alice.id, first.id)?.id, first.id);
+  assert.deepEqual(listConversations(db, alice.id).map((row) => row.id), [first.id, second.id]);
   db.close();
 });

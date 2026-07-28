@@ -51,10 +51,11 @@ async function register(baseUrl: string, email: string): Promise<string> {
 function testApp() {
   const directory = mkdtempSync(join(tmpdir(), 'movie-demo-server-'));
   const db = openDatabase(join(directory, 'app.db'));
+  let sessionNumber = 0;
   const app = createApp({
     db,
     hermes: {
-      createSession: async () => 'movie_fixture',
+      createSession: async () => `movie_fixture_${++sessionNumber}`,
       getMessages: async () => [],
       chat: async () => ({
         object: 'hermes.session.chat.completion',
@@ -81,15 +82,24 @@ test('serves only the three public assets with their correct content types', asy
       assert.equal(response.headers.get('content-type'), contentType, path);
     }
 
-    const traversal = await new Promise<number>((resolve, reject) => {
-      const outgoing = httpRequest(baseUrl, { path: '/../app.js' }, (incoming) => {
-        incoming.resume();
-        resolve(incoming.statusCode ?? 0);
+    for (const path of [
+      '/?cache=1',
+      '/app.js?cache=1',
+      '/style.css?cache=1',
+      '/../app.js',
+      '/api/../app.js',
+      '/api/%2e%2e/app.js',
+    ]) {
+      const status = await new Promise<number>((resolve, reject) => {
+        const outgoing = httpRequest(baseUrl, { path }, (incoming) => {
+          incoming.resume();
+          resolve(incoming.statusCode ?? 0);
+        });
+        outgoing.on('error', reject);
+        outgoing.end();
       });
-      outgoing.on('error', reject);
-      outgoing.end();
-    });
-    assert.equal(traversal, 404);
+      assert.equal(status, 404, path);
+    }
   } finally {
     await close(app);
     db.close();
@@ -128,6 +138,33 @@ test('returns client errors for invalid and duplicate registration', async () =>
       body: { email: ' ALICE@example.com ', password: 'another correct password' },
     });
     assert.equal(duplicate.response.status, 400);
+  } finally {
+    await close(app);
+    db.close();
+  }
+});
+
+test('resumes the most recently chatted conversation', async () => {
+  const { db, app } = testApp();
+  const baseUrl = await listen(app);
+
+  try {
+    const cookie = await register(baseUrl, 'alice@example.com');
+    const first = await request(baseUrl, '/api/conversations', { method: 'POST', cookie });
+    const second = await request(baseUrl, '/api/conversations', { method: 'POST', cookie });
+
+    const chat = await request(baseUrl, `/api/conversations/${first.body.id as string}/chat`, {
+      method: 'POST',
+      cookie,
+      body: { message: 'Resume this chat' },
+    });
+    assert.equal(chat.response.status, 200);
+
+    const bootstrap = await request(baseUrl, '/api/bootstrap', { cookie });
+    assert.deepEqual(
+      bootstrap.body.conversations.map((conversation: { id: string }) => conversation.id),
+      [first.body.id, second.body.id],
+    );
   } finally {
     await close(app);
     db.close();
