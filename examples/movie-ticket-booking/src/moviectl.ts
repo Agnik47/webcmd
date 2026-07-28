@@ -204,6 +204,7 @@ function prepareCheckout(db: DatabaseSync, userId: string, args: string[]): Book
     .split(',')
     .map((seat) => seat.trim().toUpperCase())
     .filter(Boolean);
+  if (!seats.length) throw new MoviectlError('INVALID_ARGUMENT', 'seats is required');
   if (seats.length > 10) {
     throw new MoviectlError('INVALID_ARGUMENT', 'seats must contain 10 seats or fewer');
   }

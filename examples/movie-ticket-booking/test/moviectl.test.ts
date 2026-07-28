@@ -190,7 +190,7 @@ test('normalizes and validates seats before persistence', () => {
   const prepared = unwrap<{ attempt: { seats: string[] } }>(prepare(state, undefined, 'a1,a2'));
   assert.deepEqual(prepared.attempt.seats, ['A1', 'A2']);
 
-  for (const seats of ['A-1,A2', 'a1,A1']) {
+  for (const seats of [', ,', 'A-1,A2', 'a1,A1']) {
     const result = prepare(state, undefined, seats);
     assert.equal(result.ok, false);
     if (!result.ok) assert.equal(result.error.code, 'INVALID_ARGUMENT');
