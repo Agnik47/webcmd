@@ -42,7 +42,14 @@ export interface BookingAttempt {
   updatedAt: number;
 }
 
-export type BookingAttemptStatus = 'pending' | 'failed' | 'cancelled' | 'confirmed';
+export type BookingAttemptStatus =
+  | 'pending'
+  | 'awaiting_confirmation'
+  | 'pending_payment'
+  | 'failed'
+  | 'expired'
+  | 'cancelled'
+  | 'confirmed';
 export type GenericBookingAttemptStatus = Exclude<BookingAttemptStatus, 'confirmed'>;
 
 export type NewBookingAttempt = Omit<
@@ -54,6 +61,11 @@ export type BookingAttemptUpdate = {
   status?: GenericBookingAttemptStatus;
   districtBookingId?: string;
 };
+
+export interface DistrictBookingResult {
+  status: 'pending' | 'confirmed' | 'failed' | 'expired';
+  bookingId?: string;
+}
 
 const EMPTY_PREFERENCES: Preferences = {
   city: '',
@@ -347,6 +359,36 @@ export function updateBookingAttempt(
     set status = coalesce(?, status), district_booking_id = coalesce(?, district_booking_id), updated_at = ?
     where id = ? and user_id = ?
   `).run(update.status ?? null, update.districtBookingId ?? null, Date.now(), attemptId, userId);
+  return findBookingAttempt(db, userId, attemptId);
+}
+
+export function recordDistrictBookingResult(
+  db: DatabaseSync,
+  userId: string,
+  attemptId: string,
+  result: DistrictBookingResult,
+): BookingAttempt | null {
+  const attempt = findBookingAttempt(db, userId, attemptId);
+  if (!attempt) return null;
+  if (attempt.status !== 'pending_payment') {
+    throw new Error('District booking status requires a pending payment attempt');
+  }
+  if (result.status === 'pending') return attempt;
+  const bookingId = result.bookingId?.trim() ?? '';
+  if (result.status === 'confirmed' && !bookingId) {
+    throw new Error('confirmed District result requires a booking ID');
+  }
+  db.prepare(`
+    update booking_attempts
+    set status = ?, district_booking_id = ?, updated_at = ?
+    where id = ? and user_id = ?
+  `).run(
+    result.status,
+    result.status === 'confirmed' ? bookingId : attempt.districtBookingId,
+    Date.now(),
+    attemptId,
+    userId,
+  );
   return findBookingAttempt(db, userId, attemptId);
 }
 
