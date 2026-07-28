@@ -91,7 +91,7 @@ TypeScript implementation:
 - Node's HTTP, crypto, fetch, and SQLite facilities.
 - Static HTML and CSS served by the backend, with lightweight browser
   JavaScript.
-- No frontend framework, ORM, external auth service, or queue.
+- No frontend framework, ORM, external auth service, or external queue.
 - Synchronous Hermes chat is sufficient for the first demo; streaming is not a
   prerequisite.
 
@@ -103,6 +103,12 @@ The app provides:
 - User preference editing.
 - Booking-history display.
 - A payment-handoff link shown only inside the authenticated chat.
+
+The backend keeps one in-memory FIFO promise chain per authenticated user.
+Only one Hermes turn for that user may run at a time, even if they submit from
+two conversations. Different users proceed concurrently with no app-wide
+concurrency limit. The entry is removed when its chain becomes idle; queued
+requests are not persisted across a backend restart.
 
 ### 4.2 Hermes profile
 
@@ -232,6 +238,10 @@ without changing the stable user identity.
 
 The backend must not expose Hermes session-list or arbitrary session-resource
 endpoints directly to the browser.
+
+The per-user FIFO queue prevents two turns from concurrently changing the same
+user's District browser workspace or app booking state. It is deliberately
+process-local because the guide runs one local backend process.
 
 ## 6. Persistence
 
@@ -363,6 +373,8 @@ Use the smallest checks that protect the important boundaries:
 - `confirmed` cannot be written without a typed District-success result.
 - An unresolved checkout cannot create a duplicate attempt.
 - A changed show or seat selection returns to confirmation.
+- Two simultaneous turns for one user execute in submission order, while turns
+  for two different users may overlap.
 - Skill scenarios cover missing requirements, recommendation, seat
   confirmation, login handoff, payment handoff, and status verification.
 
@@ -451,6 +463,7 @@ The demo is complete only when:
 - BookMyShow is absent from product copy, code paths, skill behavior, and guide.
 - Each authenticated app user maps to one stable Hermes key and one stable,
   isolated WebCMD workspace.
+- Turns for the same app user run in FIFO order.
 - Returning users resume their most recent chat and can create new chats.
 - Hermes recommends District screening and adjacent-seat options from live
   data.
