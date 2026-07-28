@@ -9,11 +9,19 @@ PROFILE_NAME=movie-booking
 PROFILES_ROOT="$HOME/.hermes/profiles"
 PROFILE_DIR="$PROFILES_ROOT/$PROFILE_NAME"
 OWNER_DIR="$PROFILES_ROOT/.$PROFILE_NAME.webcmd-demo"
+OWNER_STATE="$OWNER_DIR/owner"
+PROFILE_STATE="$PROFILE_DIR/.movie-demo-owner"
 COMPLETE_MARKER="$OWNER_DIR/complete"
 SAFE_MANAGED_DIR="$OWNER_DIR/managed"
+CLEAN_CWD="$OWNER_DIR/work"
+OWNER_ENV="$OWNER_DIR/.env"
 KEY_FILE="$PROFILE_DIR/.movie-demo-api-key"
 DB_PATH="$MOVIE_DEMO_ROOT/movie-demo.db"
+STATE_VERSION='webcmd movie-ticket-booking setup v2'
 TEMP_PATH=
+READY_PATH=
+CHILD_PID=
+OWNER_TOKEN=
 
 die() {
   printf 'movie demo: %s\n' "$*" >&2
@@ -21,345 +29,468 @@ die() {
 }
 
 cleanup() {
-  if [ -n "$TEMP_PATH" ] && { [ -e "$TEMP_PATH" ] || [ -L "$TEMP_PATH" ]; }; then
-    unlink "$TEMP_PATH" 2>/dev/null || true
+  for cleanup_path in "$TEMP_PATH" "$READY_PATH"; do
+    if [ -n "$cleanup_path" ] && { [ -e "$cleanup_path" ] || [ -L "$cleanup_path" ]; }; then
+      unlink "$cleanup_path" 2>/dev/null || true
+    fi
+  done
+}
+
+forward_signal() {
+  signal=$1
+  signal_exit_code=$2
+  if [ -n "$CHILD_PID" ]; then
+    kill -"$signal" "$CHILD_PID" 2>/dev/null || true
+    wait "$CHILD_PID" 2>/dev/null || true
+    CHILD_PID=
   fi
-}
-
-on_hup() {
-  exit 129
-}
-
-on_int() {
-  exit 130
-}
-
-on_term() {
-  exit 143
+  exit "$signal_exit_code"
 }
 
 trap cleanup EXIT
-trap on_hup HUP
-trap on_int INT
-trap on_term TERM
+trap 'forward_signal HUP 129' HUP
+trap 'forward_signal INT 130' INT
+trap 'forward_signal TERM 143' TERM
 
 require_command() {
   command -v "$1" >/dev/null 2>&1 || die "required command not found: $1"
 }
 
-validate_owned_profile() {
-  if [ -L "$OWNER_DIR" ] || { [ -e "$OWNER_DIR" ] && [ ! -d "$OWNER_DIR" ]; }; then
-    die "invalid ownership marker: $OWNER_DIR"
-  fi
-  if [ -L "$PROFILE_DIR" ] || { [ -e "$PROFILE_DIR" ] && [ ! -d "$PROFILE_DIR" ]; }; then
-    die "refusing non-directory profile path: $PROFILE_DIR"
-  fi
-  if { [ -e "$PROFILE_DIR" ] || [ -L "$PROFILE_DIR" ]; } && [ ! -d "$OWNER_DIR" ]; then
-    die "profile is unrelated to this demo (not owned): $PROFILE_DIR"
-  fi
-}
-
-claim_profile() {
-  validate_owned_profile
-  if [ ! -d "$OWNER_DIR" ]; then
-    mkdir -p "$PROFILES_ROOT"
-    if ! mkdir "$OWNER_DIR"; then
-      validate_owned_profile
-      [ -d "$OWNER_DIR" ] || die "could not create ownership marker: $OWNER_DIR"
-    fi
-  fi
-  mkdir -p "$SAFE_MANAGED_DIR"
-}
-
-preflight_python() {
-  if [ -n "${MOVIE_DEMO_PREFLIGHT_PYTHON-}" ]; then
-    [ -x "$MOVIE_DEMO_PREFLIGHT_PYTHON" ] \
-      || die "preflight Python is not executable: $MOVIE_DEMO_PREFLIGHT_PYTHON"
-    printf '%s\n' "$MOVIE_DEMO_PREFLIGHT_PYTHON"
-    return
-  fi
-
-  hermes_path=$(command -v hermes 2>/dev/null || true)
-  [ -n "$hermes_path" ] || die "required command not found: hermes"
-  shebang=$(LC_ALL=C sed -n '1p' "$hermes_path")
-  case "$shebang" in
-    '#!/usr/bin/env '*)
-      interpreter=${shebang#\#!/usr/bin/env }
-      interpreter=${interpreter%% *}
-      command -v "$interpreter" 2>/dev/null \
-        || die "could not resolve Hermes Python interpreter"
-      ;;
-    '#!'*)
-      interpreter=${shebang#\#!}
-      interpreter=${interpreter%% *}
-      [ -x "$interpreter" ] || die "Hermes launcher does not expose an executable Python"
-      printf '%s\n' "$interpreter"
-      ;;
-    *)
-      die "Hermes launcher does not expose its Python interpreter"
-      ;;
+file_mode() {
+  case "$(uname -s)" in
+    Darwin|*BSD) stat -f '%Lp' "$1" ;;
+    *) stat -c '%a' "$1" ;;
   esac
 }
 
-configured_managed_dir() {
-  if [ -n "${HERMES_MANAGED_DIR-}" ]; then
-    [ -d "$HERMES_MANAGED_DIR" ] && printf '%s\n' "$HERMES_MANAGED_DIR"
-    return 0
+is_private_file() {
+  [ -f "$1" ] && [ ! -L "$1" ] && [ "$(file_mode "$1" 2>/dev/null)" = 600 ]
+}
+
+is_hex_64() {
+  [ "${#1}" -eq 64 ] || return 1
+  case "$1" in
+    *[!0-9a-f]*) return 1 ;;
+  esac
+}
+
+require_no_nul() {
+  hex_bytes=$(LC_ALL=C od -An -v -t x1 "$1") \
+    || die "could not inspect text encoding: $1"
+  for hex_byte in $hex_bytes; do
+    [ "$hex_byte" != 00 ] \
+      || die "NUL-padded and UTF-16 files are not supported: $1"
+  done
+}
+
+reject_pattern() {
+  inspected_file=$1
+  pattern=$2
+  rejection=$3
+  set +e
+  LC_ALL=C grep -Eq "$pattern" "$inspected_file"
+  grep_exit_code=$?
+  set -e
+  case "$grep_exit_code" in
+    0) die "$rejection" ;;
+    1) return ;;
+    *) die "could not inspect configuration: $inspected_file" ;;
+  esac
+}
+
+reject_symlinks() {
+  for managed_path in "$HOME/.hermes" "$PROFILES_ROOT" "$OWNER_DIR" "$PROFILE_DIR"; do
+    [ ! -L "$managed_path" ] || die "refusing symlink in managed path: $managed_path"
+  done
+  for root in "$OWNER_DIR" "$PROFILE_DIR"; do
+    if [ -d "$root" ]; then
+      symlink_found=$(find "$root" -type l -print -quit 2>/dev/null) \
+        || die "could not inspect managed path: $root"
+      [ -z "$symlink_found" ] || die "refusing symlink in managed path: $symlink_found"
+    fi
+  done
+}
+
+require_empty_dir() {
+  [ -d "$1" ] && [ ! -L "$1" ] || die "invalid helper directory: $1"
+  entry=$(find "$1" ! -path "$1" -print -quit 2>/dev/null) \
+    || die "could not inspect helper directory: $1"
+  [ -z "$entry" ] || die "helper directory is not empty: $1"
+}
+
+read_state_token() {
+  state_file=$1
+  is_private_file "$state_file" || return 1
+  [ "$(LC_ALL=C wc -l <"$state_file" | tr -d ' ')" = 2 ] || return 1
+  [ "$(sed -n '1p' "$state_file")" = "$STATE_VERSION" ] || return 1
+  token=$(sed -n '2p' "$state_file")
+  is_hex_64 "$token" || return 1
+  printf '%s\n' "$token"
+}
+
+write_state() {
+  state_file=$1
+  token=$2
+  is_hex_64 "$token" || die "invalid ownership token"
+  [ ! -L "$state_file" ] || die "refusing symlink state file: $state_file"
+  [ ! -e "$state_file" ] || [ -f "$state_file" ] || die "refusing non-file state path: $state_file"
+  TEMP_PATH=$(mktemp "$(dirname "$state_file")/.movie-demo-state.tmp.XXXXXX")
+  printf '%s\n%s\n' "$STATE_VERSION" "$token" >"$TEMP_PATH"
+  chmod 600 "$TEMP_PATH"
+  mv -f "$TEMP_PATH" "$state_file"
+  TEMP_PATH=
+}
+
+new_hex_64() {
+  value=$(openssl rand -hex 32) || return $?
+  is_hex_64 "$value" || return 1
+  printf '%s\n' "$value"
+}
+
+prepare_owner_dirs() {
+  for dir in "$SAFE_MANAGED_DIR" "$CLEAN_CWD"; do
+    [ ! -e "$dir" ] || require_empty_dir "$dir"
+  done
+
+  if [ -e "$OWNER_ENV" ]; then
+    is_private_file "$OWNER_ENV" && [ ! -s "$OWNER_ENV" ] \
+      || die "invalid helper dotenv: $OWNER_ENV"
   fi
-  [ -d /etc/hermes ] && printf '%s\n' /etc/hermes
+
+  for dir in "$SAFE_MANAGED_DIR" "$CLEAN_CWD"; do
+    [ -e "$dir" ] || mkdir "$dir"
+    chmod 700 "$dir"
+  done
+  if [ ! -e "$OWNER_ENV" ]; then
+    : >"$OWNER_ENV"
+    chmod 600 "$OWNER_ENV"
+  fi
+}
+
+claim_ownership() {
+  reject_symlinks
+  if [ -e "$PROFILE_DIR" ] && [ ! -d "$OWNER_DIR" ]; then
+    die "profile is unrelated to this demo (not owned): $PROFILE_DIR"
+  fi
+
+  if [ ! -e "$OWNER_DIR" ]; then
+    mkdir -p "$PROFILES_ROOT"
+    reject_symlinks
+    mkdir "$OWNER_DIR" || die "could not create ownership directory: $OWNER_DIR"
+    chmod 700 "$OWNER_DIR"
+    OWNER_TOKEN=$(new_hex_64) || die "could not create ownership token"
+    write_state "$OWNER_STATE" "$OWNER_TOKEN"
+    prepare_owner_dirs
+    return
+  fi
+
+  [ -d "$OWNER_DIR" ] && [ ! -L "$OWNER_DIR" ] \
+    || die "invalid ownership directory: $OWNER_DIR"
+  OWNER_TOKEN=$(read_state_token "$OWNER_STATE") \
+    || die "invalid ownership token: $OWNER_STATE"
+  if require_owned_profile; then
+    :
+  fi
+  prepare_owner_dirs
+  chmod 700 "$OWNER_DIR"
+}
+
+require_owned_profile() {
+  reject_symlinks
+  [ -d "$OWNER_DIR" ] && [ ! -L "$OWNER_DIR" ] \
+    || die "run '$0 setup' first"
+  OWNER_TOKEN=$(read_state_token "$OWNER_STATE") \
+    || die "invalid ownership token: $OWNER_STATE"
+
+  if [ -e "$PROFILE_DIR" ] && [ ! -d "$PROFILE_DIR" ]; then
+    die "refusing non-directory profile path: $PROFILE_DIR"
+  fi
+  if [ ! -d "$PROFILE_DIR" ]; then
+    [ ! -e "$COMPLETE_MARKER" ] \
+      || die "stale completion marker with missing profile: $COMPLETE_MARKER"
+    return 1
+  fi
+  [ ! -L "$PROFILE_DIR" ] || die "refusing symlink profile: $PROFILE_DIR"
+
+  profile_token=$(read_state_token "$PROFILE_STATE") \
+    || die "missing or invalid profile ownership token: $PROFILE_STATE"
+  [ "$profile_token" = "$OWNER_TOKEN" ] \
+    || die "ownership token mismatch for $PROFILE_DIR"
+
+  if [ -e "$COMPLETE_MARKER" ]; then
+    complete_token=$(read_state_token "$COMPLETE_MARKER") \
+      || die "invalid completion marker: $COMPLETE_MARKER"
+    [ "$complete_token" = "$OWNER_TOKEN" ] \
+      || die "completion token mismatch for $PROFILE_DIR"
+  fi
   return 0
 }
 
-raw_preflight() {
-  configured_managed=$(configured_managed_dir)
-  needs_python=false
-  for candidate in \
-    "$PROFILE_DIR/.env" \
-    "$PROFILE_DIR/.op.env" \
-    "$PROFILE_DIR/config.yaml" \
-    "${configured_managed:+$configured_managed/.env}" \
-    "$SAFE_MANAGED_DIR/.env"
-  do
-    if [ -n "$candidate" ] && [ -s "$candidate" ]; then
-      needs_python=true
-      break
-    fi
-  done
-  [ "$needs_python" = true ] || return 0
-
-  python=$(preflight_python)
-  "$python" -I - \
-    "$PROFILE_DIR" \
-    "$configured_managed" \
-    "$SAFE_MANAGED_DIR" <<'PY'
-from __future__ import annotations
-
-import codecs
-import io
-import sys
-from pathlib import Path
-
-AUTHORITY_KEYS = {
-    "API_SERVER_ENABLED",
-    "API_SERVER_KEY",
-    "API_SERVER_HOST",
-    "API_SERVER_PORT",
-    "MOVIE_DEMO_ROOT",
-    "MOVIE_DEMO_DB_PATH",
-    "HERMES_HOME",
-    "HERMES_PROFILE",
-    "HERMES_MANAGED_DIR",
+supervise_hermes() {
+  safe_mode=$1
+  shift
+  reject_symlinks
+  require_empty_dir "$SAFE_MANAGED_DIR"
+  require_empty_dir "$CLEAN_CWD"
+  is_private_file "$OWNER_ENV" && [ ! -s "$OWNER_ENV" ] \
+    || die "invalid helper dotenv: $OWNER_ENV"
+  MOVIE_SUPERVISE_CWD="$CLEAN_CWD" \
+  MOVIE_SUPERVISE_HOME="$OWNER_DIR" \
+  MOVIE_SUPERVISE_MANAGED="$SAFE_MANAGED_DIR" \
+  MOVIE_SUPERVISE_SAFE="$safe_mode" \
+    node -e '
+const { spawn } = require("node:child_process");
+const env = { ...process.env };
+for (const key of Object.keys(env)) {
+  if (key.startsWith("HERMES_") || key.startsWith("MOVIE_SUPERVISE_")) {
+    delete env[key];
+  }
+}
+env.HERMES_HOME = process.env.MOVIE_SUPERVISE_HOME;
+env.HERMES_MANAGED_DIR = process.env.MOVIE_SUPERVISE_MANAGED;
+if (process.env.MOVIE_SUPERVISE_SAFE === "1") env.HERMES_SAFE_MODE = "1";
+const child = spawn("hermes", process.argv.slice(1), {
+  cwd: process.env.MOVIE_SUPERVISE_CWD,
+  env,
+  stdio: "inherit",
+  detached: true,
+});
+const statuses = { SIGHUP: 129, SIGINT: 130, SIGTERM: 143 };
+let requested = 0;
+function signalGroup(signal) {
+  try { process.kill(-child.pid, signal); }
+  catch { try { child.kill(signal); } catch {} }
+}
+for (const [signal, status] of Object.entries(statuses)) {
+  process.on(signal, () => {
+    if (requested) return;
+    requested = status;
+    signalGroup(signal);
+    setTimeout(() => {
+      signalGroup("SIGKILL");
+      process.exit(requested);
+    }, 2000);
+  });
+}
+child.on("error", (error) => {
+  process.stderr.write(`movie demo: could not launch hermes: ${error.message}\n`);
+  process.exit(1);
+});
+child.on("exit", (code, signal) => {
+  if (!requested) process.exit(code || statuses[signal] || 0);
+});
+' -- "$@" &
+  CHILD_PID=$!
+  set +e
+  wait "$CHILD_PID"
+  child_exit_code=$?
+  set -e
+  CHILD_PID=
+  return "$child_exit_code"
 }
 
+validate_profile_config() {
+  config_requirement=${1-required}
+  reject_symlinks
+  is_private_file "$PROFILE_DIR/.env" \
+    || die "profile dotenv must be a mode-600 regular file: $PROFILE_DIR/.env"
+  require_no_nul "$PROFILE_DIR/.env"
+  reject_pattern "$PROFILE_DIR/.env" \
+    '(HERMES_[A-Z0-9_]+|API_SERVER_(ENABLED|KEY|HOST|PORT)|MOVIE_DEMO_(ROOT|DB_PATH)|PORT)[^A-Z0-9_]*=' \
+    "profile dotenv overrides helper-owned settings: $PROFILE_DIR/.env"
+  [ ! -e "$PROFILE_DIR/.op.env" ] \
+    || die "external-secret bootstrap is not supported: $PROFILE_DIR/.op.env"
 
-def fail(message: str) -> None:
-    print(f"movie demo preflight: {message}", file=sys.stderr)
-    raise SystemExit(1)
+  if [ ! -e "$PROFILE_DIR/config.yaml" ] && [ "$config_requirement" = optional ]; then
+    return
+  fi
+  [ -f "$PROFILE_DIR/config.yaml" ] && [ ! -L "$PROFILE_DIR/config.yaml" ] \
+    || die "missing regular Hermes config: $PROFILE_DIR/config.yaml"
+  require_no_nul "$PROFILE_DIR/config.yaml"
+  reject_pattern "$PROFILE_DIR/config.yaml" '\\' \
+    "unsupported config syntax, external secret source, or custom context engine: $PROFILE_DIR/config.yaml"
+  reject_pattern "$PROFILE_DIR/config.yaml" \
+    '(^|[^[:alnum:]_])(secrets|context)([^[:alnum:]_]|$)' \
+    "external secret sources and custom context engines are not supported"
+}
 
+key_is_valid() {
+  is_private_file "$KEY_FILE" || return 1
+  bytes=$(LC_ALL=C wc -c <"$KEY_FILE" | tr -d ' ')
+  [ "$bytes" = 64 ] || [ "$bytes" = 65 ] || return 1
+  key=$(sed -n '1p' "$KEY_FILE")
+  is_hex_64 "$key"
+}
 
-def dotenv_keys(path: Path) -> set[str]:
-    if not path.is_file() or path.stat().st_size == 0:
-        return set()
-    try:
-        raw = path.read_bytes()
-        if raw.startswith(codecs.BOM_UTF32_LE) or raw.startswith(codecs.BOM_UTF32_BE):
-            text = raw.decode("latin-1")
-        elif raw.startswith(codecs.BOM_UTF16_LE) or raw.startswith(codecs.BOM_UTF16_BE):
-            text = raw.decode("utf-16")
-        else:
-            text = raw.decode("utf-8-sig", errors="replace")
-            if text.startswith("\ufffd"):
-                text = raw.decode("latin-1")
-
-        from dotenv import dotenv_values
-        from hermes_cli.config import _sanitize_env_lines
-
-        with io.StringIO(text, newline=None) as stream:
-            lines = stream.readlines()
-        sanitized = _sanitize_env_lines([line.replace("\x00", "") for line in lines])
-        values = dotenv_values(stream=io.StringIO("".join(sanitized)))
-        return {key for key in values if isinstance(key, str)}
-    except Exception as exc:
-        fail(f"could not inspect {path}: {type(exc).__name__}")
-
-
-profile_dir = Path(sys.argv[1])
-managed_dirs = [Path(value) for value in sys.argv[2:] if value]
-for env_path in [
-    profile_dir / ".env",
-    profile_dir / ".op.env",
-    *(directory / ".env" for directory in managed_dirs),
-]:
-    conflicts = sorted(dotenv_keys(env_path) & AUTHORITY_KEYS)
-    if conflicts:
-        fail(f"{env_path} overrides: {', '.join(conflicts)}")
-
-config_path = profile_dir / "config.yaml"
-if config_path.is_file() and config_path.stat().st_size:
-    try:
-        from agent.secret_sources.registry import list_sources
-        from utils import fast_safe_load
-
-        with config_path.open(encoding="utf-8") as stream:
-            data = fast_safe_load(stream) or {}
-        secrets = data.get("secrets") if isinstance(data, dict) else {}
-        secrets = secrets if isinstance(secrets, dict) else {}
-        enabled = []
-        for source in list_sources():
-            config = secrets.get(source.name)
-            config = config if isinstance(config, dict) else {}
-            try:
-                is_enabled = source.is_enabled(config)
-            except Exception as exc:
-                fail(
-                    f"could not evaluate secret source {source.name}: "
-                    f"{type(exc).__name__}"
-                )
-            if is_enabled:
-                enabled.append(source.name)
-        if enabled:
-            fail(f"secret source is enabled: {', '.join(enabled)}")
-    except SystemExit:
-        raise
-    except Exception as exc:
-        fail(f"could not inspect {config_path}: {type(exc).__name__}")
-PY
+read_key() {
+  key_is_valid || die "API key must be exactly 64 lowercase hex characters in a mode-600 file: $KEY_FILE"
+  sed -n '1p' "$KEY_FILE"
 }
 
 write_key() {
-  if [ -L "$KEY_FILE" ] || { [ -e "$KEY_FILE" ] && [ ! -f "$KEY_FILE" ]; }; then
-    die "refusing non-regular API key path: $KEY_FILE"
-  fi
-
+  [ ! -L "$KEY_FILE" ] || die "refusing symlink API key: $KEY_FILE"
+  [ ! -e "$KEY_FILE" ] || [ -f "$KEY_FILE" ] \
+    || die "refusing non-file API key path: $KEY_FILE"
   TEMP_PATH=$(mktemp "$PROFILE_DIR/.movie-demo-api-key.tmp.XXXXXX")
   set +e
   openssl rand -hex 32 >"$TEMP_PATH"
-  key_status=$?
+  key_exit_code=$?
   set -e
-  if [ "$key_status" -ne 0 ]; then
+  if [ "$key_exit_code" -ne 0 ]; then
     cleanup
     TEMP_PATH=
-    return "$key_status"
+    return "$key_exit_code"
   fi
   chmod 600 "$TEMP_PATH"
+  bytes=$(LC_ALL=C wc -c <"$TEMP_PATH" | tr -d ' ')
+  candidate=$(sed -n '1p' "$TEMP_PATH")
+  if { [ "$bytes" != 64 ] && [ "$bytes" != 65 ]; } || ! is_hex_64 "$candidate"; then
+    cleanup
+    TEMP_PATH=
+    die "openssl produced an invalid API key"
+  fi
   mv -f "$TEMP_PATH" "$KEY_FILE"
   TEMP_PATH=
 }
 
-ensure_key() {
-  if [ -f "$KEY_FILE" ] && [ -s "$KEY_FILE" ] && [ ! -L "$KEY_FILE" ]; then
-    chmod 600 "$KEY_FILE"
-    return
-  fi
-  write_key
-}
-
-ensure_profile_env() {
-  profile_env="$PROFILE_DIR/.env"
-  if [ -L "$profile_env" ] || { [ -e "$profile_env" ] && [ ! -f "$profile_env" ]; }; then
-    die "refusing non-regular profile dotenv: $profile_env"
-  fi
-  if [ ! -f "$profile_env" ]; then
-    : >"$profile_env"
-  fi
-  chmod 600 "$profile_env"
-}
-
-mark_complete() {
-  TEMP_PATH=$(mktemp "$OWNER_DIR/.complete.tmp.XXXXXX")
-  printf '%s\n' 'webcmd movie-ticket-booking setup v1' >"$TEMP_PATH"
+install_file() {
+  source=$1
+  target=$2
+  mkdir -p "$(dirname "$target")"
+  reject_symlinks
+  TEMP_PATH=$(mktemp "$(dirname "$target")/.movie-demo-install.tmp.XXXXXX")
+  cp "$source" "$TEMP_PATH"
   chmod 600 "$TEMP_PATH"
-  mv -f "$TEMP_PATH" "$COMPLETE_MARKER"
+  mv -f "$TEMP_PATH" "$target"
   TEMP_PATH=
 }
 
-require_complete_profile() {
-  validate_owned_profile
-  [ -d "$OWNER_DIR" ] && [ -d "$PROFILE_DIR" ] && [ -f "$COMPLETE_MARKER" ] \
-    || die "run '$0 setup' first"
-  [ -f "$PROFILE_DIR/.env" ] && [ ! -L "$PROFILE_DIR/.env" ] \
-    || die "run '$0 setup' to restore the profile dotenv"
-  [ -f "$KEY_FILE" ] && [ -s "$KEY_FILE" ] && [ ! -L "$KEY_FILE" ] \
-    || die "missing regular API key: $KEY_FILE"
+artifacts_valid() {
+  [ -f "$PROFILE_DIR/.no-bundled-skills" ] \
+    && [ ! -L "$PROFILE_DIR/.no-bundled-skills" ] \
+    && [ -f "$PROFILE_DIR/SOUL.md" ] \
+    && cmp -s "$MOVIE_DEMO_ROOT/hermes/SOUL.md" "$PROFILE_DIR/SOUL.md" \
+    && [ -f "$PROFILE_DIR/skills/movie-ticket-booking/SKILL.md" ] \
+    && cmp -s \
+      "$MOVIE_DEMO_ROOT/hermes/skills/movie-ticket-booking/SKILL.md" \
+      "$PROFILE_DIR/skills/movie-ticket-booking/SKILL.md" \
+    && key_is_valid
+}
+
+run_readiness() {
+  READY_PATH=$(mktemp "$OWNER_DIR/.movie-demo-ready.tmp.XXXXXX")
+  if supervise_hermes 1 \
+    -p "$PROFILE_NAME" \
+    --ignore-rules \
+    -t context_engine \
+    -z 'Reply with exactly READY and nothing else.' >"$READY_PATH"; then
+    :
+  else
+    readiness_exit_code=$?
+    cleanup
+    READY_PATH=
+    return "$readiness_exit_code"
+  fi
+
+  bytes=$(LC_ALL=C wc -c <"$READY_PATH" | tr -d ' ')
+  response=$(sed -n '1p' "$READY_PATH")
+  if { [ "$bytes" != 5 ] && [ "$bytes" != 6 ]; } || [ "$response" != READY ]; then
+    die "provider readiness must reply with exactly READY"
+  fi
+  unlink "$READY_PATH"
+  READY_PATH=
 }
 
 setup_demo() {
   require_command hermes
+  require_command node
   require_command npm
   require_command openssl
-  claim_profile
-  raw_preflight
+  claim_ownership
 
-  if [ ! -d "$PROFILE_DIR" ]; then
-    HERMES_HOME="$OWNER_DIR" \
-    HERMES_MANAGED_DIR="$SAFE_MANAGED_DIR" \
-      hermes profile create "$PROFILE_NAME" --no-alias --no-skills
+  if ! require_owned_profile; then
+    supervise_hermes 0 profile create "$PROFILE_NAME" --no-alias --no-skills
     [ -d "$PROFILE_DIR" ] && [ ! -L "$PROFILE_DIR" ] \
       || die "Hermes did not create the expected profile: $PROFILE_DIR"
+    write_state "$PROFILE_STATE" "$OWNER_TOKEN"
   fi
+  require_owned_profile
+  [ -f "$PROFILE_DIR/.no-bundled-skills" ] \
+    || die "Hermes profile is missing its no-bundled-skills marker"
 
-  ensure_profile_env
-  raw_preflight
   npm --prefix "$MOVIE_DEMO_ROOT" install
 
-  if [ ! -f "$COMPLETE_MARKER" ]; then
-    HERMES_MANAGED_DIR="$SAFE_MANAGED_DIR" hermes -p "$PROFILE_NAME" setup
-    raw_preflight
-    HERMES_MANAGED_DIR="$SAFE_MANAGED_DIR" \
-      hermes -p "$PROFILE_NAME" --ignore-rules -t context_engine \
-        -z 'Reply with exactly: movie-booking-ready' >/dev/null
+  if [ -e "$COMPLETE_MARKER" ]; then
+    validate_profile_config
+    if artifacts_valid; then
+      printf 'Movie demo setup is ready at %s\n' "$PROFILE_DIR"
+      return
+    fi
   fi
 
-  cp "$MOVIE_DEMO_ROOT/hermes/SOUL.md" "$PROFILE_DIR/SOUL.md"
-  mkdir -p "$PROFILE_DIR/skills/movie-ticket-booking"
-  cp \
+  validate_profile_config optional
+  supervise_hermes 0 -p "$PROFILE_NAME" setup
+  validate_profile_config
+  run_readiness
+
+  install_file "$MOVIE_DEMO_ROOT/hermes/SOUL.md" "$PROFILE_DIR/SOUL.md"
+  install_file \
     "$MOVIE_DEMO_ROOT/hermes/skills/movie-ticket-booking/SKILL.md" \
     "$PROFILE_DIR/skills/movie-ticket-booking/SKILL.md"
-  ensure_key
-  [ -f "$COMPLETE_MARKER" ] || mark_complete
+  key_is_valid || write_key
+  artifacts_valid || die "setup artifacts failed validation"
+  write_state "$COMPLETE_MARKER" "$OWNER_TOKEN"
 
   printf 'Movie demo setup is ready at %s\n' "$PROFILE_DIR"
 }
 
+require_complete_profile() {
+  require_owned_profile || die "run '$0 setup' first"
+  [ -e "$COMPLETE_MARKER" ] || die "run '$0 setup' first"
+  validate_profile_config
+  key_is_valid \
+    || die "API key must be exactly 64 lowercase hex characters in a mode-600 file: $KEY_FILE"
+  artifacts_valid || die "run '$0 setup' to restore the validated demo artifacts"
+}
+
 rotate_key() {
   require_command openssl
-  require_complete_profile
+  require_owned_profile || die "run '$0 setup' first"
+  [ -e "$COMPLETE_MARKER" ] || die "run '$0 setup' first"
+  validate_profile_config
   write_key
   printf 'Movie demo API key rotated. Restart Hermes and the app.\n'
 }
 
 run_gateway() {
   require_command hermes
+  require_command node
   require_complete_profile
-  raw_preflight
-  chmod 600 "$KEY_FILE"
-  api_key=$(sed -n '1p' "$KEY_FILE")
-  [ -n "$api_key" ] || die "API key file is empty: $KEY_FILE"
-  trap - EXIT HUP INT TERM
-  exec env \
-    HERMES_MANAGED_DIR="$SAFE_MANAGED_DIR" \
+  prepare_owner_dirs
+  api_key=$(read_key)
+  export \
     API_SERVER_ENABLED=true \
     API_SERVER_KEY="$api_key" \
     API_SERVER_HOST=127.0.0.1 \
     API_SERVER_PORT=8642 \
-    MOVIE_DEMO_ROOT="$MOVIE_DEMO_ROOT" \
-    MOVIE_DEMO_DB_PATH="$DB_PATH" \
-    hermes -p "$PROFILE_NAME" gateway run
+    MOVIE_DEMO_ROOT \
+    MOVIE_DEMO_DB_PATH="$DB_PATH"
+  supervise_hermes 0 -p "$PROFILE_NAME" gateway run
 }
 
 run_app() {
   require_command npm
   require_complete_profile
-  api_key=$(sed -n '1p' "$KEY_FILE")
-  [ -n "$api_key" ] || die "API key file is empty: $KEY_FILE"
-  trap - EXIT HUP INT TERM
-  exec env \
+  api_key=$(read_key)
+  unset HERMES_API_URL API_SERVER_KEY PORT MOVIE_DEMO_DB_PATH
+  export \
     HERMES_API_URL=http://127.0.0.1:8642 \
     API_SERVER_KEY="$api_key" \
     PORT=3000 \
     MOVIE_DEMO_ROOT="$MOVIE_DEMO_ROOT" \
-    MOVIE_DEMO_DB_PATH="$DB_PATH" \
-    npm --prefix "$MOVIE_DEMO_ROOT" run dev
+    MOVIE_DEMO_DB_PATH="$DB_PATH"
+  trap - EXIT HUP INT TERM
+  exec npm --prefix "$MOVIE_DEMO_ROOT" run dev
 }
 
 case "${1-setup}" in

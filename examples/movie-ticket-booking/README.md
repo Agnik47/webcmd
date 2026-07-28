@@ -37,22 +37,23 @@ in this repository, the Hermes skill, or chat.
 examples/movie-ticket-booking/scripts/setup.sh setup
 ```
 
-The helper refuses an unrelated existing `movie-booking` profile. It records
-ownership in a sibling marker, so an interrupted helper-owned setup can resume
-safely; once complete, rerunning skips model setup and its provider request.
+The helper refuses unrelated, mismatched, stale, or symlinked profile state. A
+random versioned owner token is stored privately beside the profile and inside
+it; only matching tokens allow an interrupted setup to resume. Completed setups
+also revalidate the installed files, configuration, and private API key.
 
-Before every Hermes setup or launch, the helper reads the target dotenv, YAML,
-secret-source, and managed-scope configuration through Hermes' own parsing
-rules. This raw preflight does not invoke the Hermes CLI or fetch an external
-secret source. It rejects settings that could override this demo's key, host,
-port, root, or database path.
+Every Hermes command runs from a helper-owned empty directory with inherited
+profile, project, and managed-directory settings cleared. External secret
+sources, custom context-engine configuration, and dotenv overrides for this
+demo's settings are unsupported.
 
-After interactive `hermes setup`, the helper makes one minimal provider request
-to prove that the configured model can answer. This may incur provider usage.
-A cancelled setup or failed readiness request exits nonzero and leaves only a
-marker-owned partial profile for the next run to resume; demo files and the API
-key are installed only after readiness succeeds. Key creation is atomic and
-signal-safe.
+After interactive `hermes setup`, the helper makes one provider request and
+accepts only the exact response `READY`. Hermes has no explicit no-tools flag,
+so the helper uses the narrowest empty built-in `context_engine` toolset with
+plugin discovery disabled. Readiness proves only that the provider answered at
+setup time and may incur provider usage; it does not promise future
+availability. Cancellation and termination reach the supervised child process
+group, and API-key creation and rotation are atomic and private.
 
 Ports 8642 for Hermes and 3000 for the app must be free.
 
@@ -65,9 +66,9 @@ examples/movie-ticket-booking/scripts/setup.sh gateway
 ```
 
 The profile gateway exposes its authenticated Sessions API at
-`http://127.0.0.1:8642`. The helper pins every gateway value after its raw
-preflight, so later Hermes loaders cannot replace them. Keep this foreground
-process running.
+`http://127.0.0.1:8642`. The helper validates the owned profile and pins every
+gateway value in its isolated launch environment. Keep this foreground process
+running.
 
 ## 4. Start the app
 
