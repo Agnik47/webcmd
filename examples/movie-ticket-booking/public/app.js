@@ -11,6 +11,36 @@ export function requiresAuthReset(path, status) {
   return status === 401 && path !== '/api/login' && path !== '/api/register';
 }
 
+export class ApiError extends Error {
+  constructor(status, message) {
+    super(message);
+    this.status = status;
+  }
+}
+
+export function createApi(fetchRequest, isCurrent, onUnauthorized) {
+  return async function api(
+    path,
+    options = {},
+    captured,
+    unauthorizedMessage = 'Your session expired. Please log in again.',
+  ) {
+    const response = await fetchRequest(path, {
+      ...options,
+      headers: options.body ? { 'content-type': 'application/json' } : {},
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const error = new ApiError(response.status, body.error || 'Request failed');
+      if (requiresAuthReset(path, response.status) && isCurrent(captured)) {
+        onUnauthorized(unauthorizedMessage);
+      }
+      throw error;
+    }
+    return body;
+  };
+}
+
 if (typeof document !== 'undefined') startApp();
 
 function startApp() {
@@ -29,27 +59,7 @@ const sendButton = byId('send');
 let conversations = [];
 let activeConversationId = '';
 const requests = createRequestEpoch();
-
-class ApiError extends Error {
-  constructor(status, message) {
-    super(message);
-    this.status = status;
-  }
-}
-
-async function api(path, options = {}) {
-  const response = await fetch(path, {
-    ...options,
-    headers: options.body ? { 'content-type': 'application/json' } : {},
-  });
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const error = new ApiError(response.status, body.error || 'Request failed');
-    if (requiresAuthReset(path, response.status)) resetSession('Your session expired. Please log in again.');
-    throw error;
-  }
-  return body;
-}
+const api = createApi(fetch, requests.isCurrent, resetSession);
 
 function showError(element, error) {
   element.textContent = error instanceof Error ? error.message : 'Request failed';
@@ -162,7 +172,11 @@ async function selectConversation(conversation) {
   sendButton.disabled = true;
   renderConversations();
   try {
-    const messages = await api(`/api/conversations/${encodeURIComponent(conversation.id)}/messages`);
+    const messages = await api(
+      `/api/conversations/${encodeURIComponent(conversation.id)}/messages`,
+      {},
+      captured,
+    );
     if (!requests.isCurrent(captured) || activeConversationId !== conversation.id) return;
     transcript.replaceChildren();
     messages.forEach(appendMessage);
@@ -178,8 +192,11 @@ async function selectConversation(conversation) {
   }
 }
 
-async function loadApp(captured = requests.capture()) {
-  const data = await api('/api/bootstrap');
+async function loadApp(
+  captured = requests.capture(),
+  unauthorizedMessage = 'Your session expired. Please log in again.',
+) {
+  const data = await api('/api/bootstrap', {}, captured, unauthorizedMessage);
   if (!requests.isCurrent(captured)) return;
   byId('user-email').textContent = data.user.email;
   conversations = data.conversations;
@@ -205,7 +222,7 @@ authForm.addEventListener('submit', async (event) => {
         email: byId('email').value,
         password: byId('password').value,
       }),
-    });
+    }, captured);
     if (!requests.isCurrent(captured)) return;
     authForm.reset();
     await loadApp(captured);
@@ -223,7 +240,7 @@ byId('new-chat').addEventListener('click', async () => {
     const conversation = await api('/api/conversations', {
       method: 'POST',
       body: JSON.stringify({}),
-    });
+    }, captured);
     if (!requests.isCurrent(captured)) return;
     conversations.unshift(conversation);
     await selectConversation(conversation);
@@ -246,7 +263,7 @@ chatForm.addEventListener('submit', async (event) => {
     const response = await api(`/api/conversations/${encodeURIComponent(conversationId)}/chat`, {
       method: 'POST',
       body: JSON.stringify({ message }),
-    });
+    }, captured);
     if (requests.isCurrent(captured) && activeConversationId === conversationId) {
       appendMessage(response.message);
     }
@@ -280,7 +297,7 @@ byId('preferences-form').addEventListener('submit', async (event) => {
         seatPosition: byId('seat-position').value,
         budgetPaise: Math.round(Number(byId('budget').value || 0) * 100),
       }),
-    });
+    }, captured);
     if (!requests.isCurrent(captured)) return;
     renderPreferences(preferences);
     status.textContent = 'Preferences saved.';
@@ -295,7 +312,7 @@ byId('logout').addEventListener('click', async () => {
   const captured = resetSession();
   setAuthPending(true);
   try {
-    await api('/api/logout', { method: 'POST' });
+    await api('/api/logout', { method: 'POST' }, captured);
   } catch (error) {
     if (requests.isCurrent(captured)) showError(authError, error);
   } finally {
@@ -304,7 +321,7 @@ byId('logout').addEventListener('click', async () => {
 });
 
 const startup = requests.capture();
-loadApp(startup).catch((error) => {
+loadApp(startup, '').catch((error) => {
   if (requests.isCurrent(startup)) resetSession(error.message);
 });
 }

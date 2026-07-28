@@ -151,7 +151,14 @@ test('resumes the most recently chatted conversation', async () => {
   try {
     const cookie = await register(baseUrl, 'alice@example.com');
     const first = await request(baseUrl, '/api/conversations', { method: 'POST', cookie });
+    await new Promise<void>((resolve) => setTimeout(resolve, 2));
     const second = await request(baseUrl, '/api/conversations', { method: 'POST', cookie });
+
+    const beforeChat = await request(baseUrl, '/api/bootstrap', { cookie });
+    assert.deepEqual(
+      beforeChat.body.conversations.map((conversation: { id: string }) => conversation.id),
+      [second.body.id, first.body.id],
+    );
 
     const chat = await request(baseUrl, `/api/conversations/${first.body.id as string}/chat`, {
       method: 'POST',
