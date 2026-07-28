@@ -20,6 +20,7 @@ import {
   updateConversation,
   updatePreferences,
 } from '../src/db.js';
+import type { BookingAttemptUpdate, NewBookingAttempt } from '../src/db.js';
 
 test('creates conversations and preferences scoped to one user', () => {
   const directory = mkdtempSync(join(tmpdir(), 'movie-demo-db-'));
@@ -60,7 +61,7 @@ test('keeps conversation and booking-attempt CRUD scoped to their owner', () => 
   assert.equal(findConversation(db, bob.id, conversation.id), null);
   assert.equal(deleteConversation(db, bob.id, conversation.id), false);
 
-  const attempt = createBookingAttempt(db, alice.id, {
+  const bookingRequest = {
     conversationId: conversation.id,
     status: 'pending',
     movie: 'Example Movie',
@@ -71,11 +72,20 @@ test('keeps conversation and booking-attempt CRUD scoped to their owner', () => 
     contentId: 'movie-1',
     seats: ['A1', 'A2'],
     amountPaise: 80000,
-  });
+  } satisfies NewBookingAttempt;
+  assert.throws(
+    () => createBookingAttempt(db, bob.id, bookingRequest),
+    /does not belong to user/,
+  );
+  const attempt = createBookingAttempt(db, alice.id, bookingRequest);
   assert.deepEqual(listBookingAttempts(db, alice.id).map((row) => row.id), [attempt.id]);
   assert.equal(findBookingAttempt(db, bob.id, attempt.id), null);
   assert.equal(updateBookingAttempt(db, bob.id, attempt.id, { status: 'failed' }), null);
-  assert.equal(updateBookingAttempt(db, alice.id, attempt.id, { status: 'confirmed', districtBookingId: 'district-1' })?.status, 'confirmed');
+  assert.throws(
+    () => updateBookingAttempt(db, alice.id, attempt.id, { status: 'confirmed' } as unknown as BookingAttemptUpdate),
+    /District provider result/,
+  );
+  assert.equal(updateBookingAttempt(db, alice.id, attempt.id, { status: 'failed' })?.status, 'failed');
   assert.equal(deleteBookingAttempt(db, bob.id, attempt.id), false);
   assert.equal(deleteBookingAttempt(db, alice.id, attempt.id), true);
 

@@ -28,7 +28,7 @@ export interface BookingAttempt {
   id: string;
   userId: string;
   conversationId: string | null;
-  status: string;
+  status: BookingAttemptStatus;
   movie: string;
   cinema: string;
   showTime: string;
@@ -42,12 +42,18 @@ export interface BookingAttempt {
   updatedAt: number;
 }
 
+export type BookingAttemptStatus = 'pending' | 'failed' | 'cancelled' | 'confirmed';
+export type GenericBookingAttemptStatus = Exclude<BookingAttemptStatus, 'confirmed'>;
+
 export type NewBookingAttempt = Omit<
   BookingAttempt,
-  'id' | 'userId' | 'createdAt' | 'updatedAt' | 'districtBookingId'
-> & { districtBookingId?: string };
+  'id' | 'userId' | 'createdAt' | 'updatedAt' | 'districtBookingId' | 'status'
+> & { districtBookingId?: string; status: GenericBookingAttemptStatus };
 
-export type BookingAttemptUpdate = Partial<Pick<BookingAttempt, 'status' | 'districtBookingId'>>;
+export type BookingAttemptUpdate = {
+  status?: GenericBookingAttemptStatus;
+  districtBookingId?: string;
+};
 
 const EMPTY_PREFERENCES: Preferences = {
   city: '',
@@ -262,7 +268,7 @@ function mapBookingAttempt(row: Record<string, unknown>): BookingAttempt {
     id: String(row.id),
     userId: String(row.user_id),
     conversationId: row.conversation_id === null ? null : String(row.conversation_id),
-    status: String(row.status),
+    status: String(row.status) as BookingAttemptStatus,
     movie: String(row.movie),
     cinema: String(row.cinema),
     showTime: String(row.show_time),
@@ -277,11 +283,19 @@ function mapBookingAttempt(row: Record<string, unknown>): BookingAttempt {
   };
 }
 
+function assertGenericStatus(status: string | undefined): void {
+  if (status === 'confirmed') throw new Error('confirmed status requires a District provider result');
+}
+
 export function createBookingAttempt(
   db: DatabaseSync,
   userId: string,
   attempt: NewBookingAttempt,
 ): BookingAttempt {
+  assertGenericStatus(attempt.status);
+  if (attempt.conversationId !== null && !findConversation(db, userId, attempt.conversationId)) {
+    throw new Error('conversation does not belong to user');
+  }
   const now = Date.now();
   const id = randomUUID();
   const districtBookingId = attempt.districtBookingId ?? '';
@@ -327,6 +341,7 @@ export function updateBookingAttempt(
   attemptId: string,
   update: BookingAttemptUpdate,
 ): BookingAttempt | null {
+  assertGenericStatus(update.status);
   db.prepare(`
     update booking_attempts
     set status = coalesce(?, status), district_booking_id = coalesce(?, district_booking_id), updated_at = ?
