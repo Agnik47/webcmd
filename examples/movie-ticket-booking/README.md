@@ -14,7 +14,8 @@ booking.
 ## Prerequisites
 
 - Node.js 22.5 or newer
-- Hermes Agent configured with a working model
+- Hermes Agent installed; the setup below configures a working model in a
+  fresh profile
 - WebCMD installed
 - A WebCMD Cloud account and API key
 - macOS or Linux with `openssl`
@@ -33,33 +34,31 @@ in this repository, the Hermes skill, or chat.
 ## 2. Install the example and Hermes profile
 
 ```bash
-npm --prefix examples/movie-ticket-booking install
-hermes profile create movie-booking --clone
-cp examples/movie-ticket-booking/hermes/SOUL.md ~/.hermes/profiles/movie-booking/SOUL.md
-mkdir -p ~/.hermes/profiles/movie-booking/skills
-cp -R examples/movie-ticket-booking/hermes/skills/movie-ticket-booking ~/.hermes/profiles/movie-booking/skills/
-```
+(
+  set -eu
 
-`--clone` copies the active Hermes profile's model configuration and
-credentials, but starts this profile with fresh sessions and memory.
+  MOVIE_DEMO_ROOT="$(pwd -P)/examples/movie-ticket-booking"
+  MOVIE_DEMO_PROFILE="$HOME/.hermes/profiles/movie-booking"
+  MOVIE_DEMO_API_KEY_FILE="$MOVIE_DEMO_PROFILE/.movie-demo-api-key"
 
-Create one profile-owned API key file, then remove only this demo's variables
-from the cloned `.env`:
+  if [ -e "$MOVIE_DEMO_PROFILE" ] || [ -L "$MOVIE_DEMO_PROFILE" ]; then
+    echo "Profile already exists; refusing to modify it: $MOVIE_DEMO_PROFILE" >&2
+    exit 1
+  fi
 
-```bash
-export MOVIE_DEMO_ROOT="$(pwd -P)/examples/movie-ticket-booking"
-export MOVIE_DEMO_DB_PATH="$MOVIE_DEMO_ROOT/movie-demo.db"
-export MOVIE_DEMO_PROFILE="$HOME/.hermes/profiles/movie-booking"
-export MOVIE_DEMO_API_KEY_FILE="$MOVIE_DEMO_PROFILE/.movie-demo-api-key"
+  npm --prefix "$MOVIE_DEMO_ROOT" install
+  hermes profile create movie-booking
+  hermes -p movie-booking setup
 
-umask 077
-openssl rand -hex 32 > "$MOVIE_DEMO_API_KEY_FILE"
-chmod 600 "$MOVIE_DEMO_API_KEY_FILE"
-
-node <<'NODE'
+  MOVIE_DEMO_SECRETS_JSON="$(hermes -p movie-booking config get secrets --json)"
+  MOVIE_DEMO_MANAGED_DIR="${HERMES_MANAGED_DIR-}"
+  MOVIE_DEMO_PROFILE="$MOVIE_DEMO_PROFILE" \
+  MOVIE_DEMO_MANAGED_DIR="$MOVIE_DEMO_MANAGED_DIR" \
+  MOVIE_DEMO_SECRETS_JSON="$MOVIE_DEMO_SECRETS_JSON" \
+  node <<'NODE'
 const fs = require('node:fs');
-const envPath = `${process.env.MOVIE_DEMO_PROFILE}/.env`;
-const demoKeys = new Set([
+const path = require('node:path');
+const owned = new Set([
   'API_SERVER_ENABLED',
   'API_SERVER_KEY',
   'API_SERVER_HOST',
@@ -67,22 +66,65 @@ const demoKeys = new Set([
   'MOVIE_DEMO_ROOT',
   'MOVIE_DEMO_DB_PATH',
 ]);
-const lines = fs.existsSync(envPath)
-  ? fs.readFileSync(envPath, 'utf8').split(/\r?\n/)
-  : [];
-const kept = lines.filter((line) => {
-  const key = /^\s*(?:export\s+)?([A-Z_][A-Z0-9_]*)\s*=/.exec(line)?.[1];
-  return !key || !demoKeys.has(key);
-});
-fs.writeFileSync(envPath, `${kept.join('\n').replace(/\n+$/, '')}\n`, { mode: 0o600 });
-fs.chmodSync(envPath, 0o600);
+
+function assignedKeys(file) {
+  if (!fs.existsSync(file)) return [];
+  return fs.readFileSync(file, 'utf8').split(/\r?\n/).flatMap((line) => {
+    const match = /^\s*(?:export\s+)?([A-Z_][A-Z0-9_]*)\s*=/.exec(line);
+    return match ? [match[1]] : [];
+  });
+}
+
+const profileEnv = path.join(process.env.MOVIE_DEMO_PROFILE, '.env');
+const managedDir = process.env.MOVIE_DEMO_MANAGED_DIR.trim() || '/etc/hermes';
+const managedEnv = path.join(managedDir, '.env');
+for (const file of [profileEnv, managedEnv]) {
+  const conflicts = assignedKeys(file).filter((key) => owned.has(key));
+  if (conflicts.length) {
+    throw new Error(`${file} owns demo variables: ${conflicts.join(', ')}`);
+  }
+}
+
+const enabled = [];
+function findEnabled(value, prefix = 'secrets') {
+  if (!value || typeof value !== 'object') return;
+  if (value.enabled === true) enabled.push(prefix);
+  for (const [key, child] of Object.entries(value)) {
+    findEnabled(child, `${prefix}.${key}`);
+  }
+}
+findEnabled(JSON.parse(process.env.MOVIE_DEMO_SECRETS_JSON));
+if (enabled.length) {
+  throw new Error(`Disable external secret sources for this profile: ${enabled.join(', ')}`);
+}
 NODE
+
+  cp "$MOVIE_DEMO_ROOT/hermes/SOUL.md" "$MOVIE_DEMO_PROFILE/SOUL.md"
+  mkdir -p "$MOVIE_DEMO_PROFILE/skills"
+  cp -R "$MOVIE_DEMO_ROOT/hermes/skills/movie-ticket-booking" "$MOVIE_DEMO_PROFILE/skills/"
+
+  umask 077
+  MOVIE_DEMO_KEY_TMP="$(mktemp "$MOVIE_DEMO_PROFILE/.movie-demo-api-key.tmp.XXXXXX")"
+  trap '[ ! -e "$MOVIE_DEMO_KEY_TMP" ] || unlink "$MOVIE_DEMO_KEY_TMP"' 0 HUP INT TERM
+  openssl rand -hex 32 > "$MOVIE_DEMO_KEY_TMP"
+  chmod 600 "$MOVIE_DEMO_KEY_TMP"
+  mv -f "$MOVIE_DEMO_KEY_TMP" "$MOVIE_DEMO_API_KEY_FILE"
+  trap - 0 HUP INT TERM
+)
 ```
 
-Hermes intentionally gives its profile `.env` precedence over stale shell
-exports. The scrub prevents inherited demo values from overriding the launch
-command while preserving the cloned model credentials. The generated key stays
-outside the repository with mode 600 and is never printed.
+The existence check runs before this section mutates anything. It will not
+overwrite or delete an existing `movie-booking` profile. The fresh profile has
+no inherited configuration: complete its interactive model setup before the
+demo files are copied. If setup is cancelled, later commands stop and the new
+profile remains for you to inspect; rerunning this block safely refuses to
+modify it.
+
+The read-only preflight rejects any of the six demo variables in the fresh
+profile or machine-managed `.env`, and rejects enabled external secret sources.
+Those are the built-in layers that can override launch values. The key is
+written to a same-directory temporary file and atomically renamed only after
+`openssl` succeeds; the subshell confines `umask 077`.
 
 Ports 8642 for Hermes and 3000 for the app must be free. To change 8642, set
 `API_SERVER_PORT` and `HERMES_API_URL` to the same new port. To change 3000,
@@ -93,9 +135,9 @@ set `PORT` and open that port in the browser.
 In terminal 1:
 
 ```bash
-export MOVIE_DEMO_ROOT="$(pwd -P)/examples/movie-ticket-booking"
-export MOVIE_DEMO_DB_PATH="$MOVIE_DEMO_ROOT/movie-demo.db"
-export MOVIE_DEMO_API_KEY_FILE="$HOME/.hermes/profiles/movie-booking/.movie-demo-api-key"
+MOVIE_DEMO_ROOT="$(pwd -P)/examples/movie-ticket-booking"
+MOVIE_DEMO_DB_PATH="$MOVIE_DEMO_ROOT/movie-demo.db"
+MOVIE_DEMO_API_KEY_FILE="$HOME/.hermes/profiles/movie-booking/.movie-demo-api-key"
 
 API_SERVER_ENABLED=true \
 API_SERVER_KEY="$(cat "$MOVIE_DEMO_API_KEY_FILE")" \
@@ -114,17 +156,20 @@ The profile gateway exposes its authenticated Sessions API at
 In terminal 2, from the repository root:
 
 ```bash
-export MOVIE_DEMO_ROOT="$(pwd -P)/examples/movie-ticket-booking"
-export MOVIE_DEMO_DB_PATH="$MOVIE_DEMO_ROOT/movie-demo.db"
-export MOVIE_DEMO_API_KEY_FILE="$HOME/.hermes/profiles/movie-booking/.movie-demo-api-key"
-export HERMES_API_URL="http://127.0.0.1:8642"
-export API_SERVER_KEY="$(cat "$MOVIE_DEMO_API_KEY_FILE")"
-export PORT=3000
+MOVIE_DEMO_ROOT="$(pwd -P)/examples/movie-ticket-booking"
+MOVIE_DEMO_DB_PATH="$MOVIE_DEMO_ROOT/movie-demo.db"
+MOVIE_DEMO_API_KEY_FILE="$HOME/.hermes/profiles/movie-booking/.movie-demo-api-key"
 
+HERMES_API_URL="http://127.0.0.1:8642" \
+API_SERVER_KEY="$(cat "$MOVIE_DEMO_API_KEY_FILE")" \
+PORT=3000 \
+MOVIE_DEMO_DB_PATH="$MOVIE_DEMO_DB_PATH" \
 npm --prefix "$MOVIE_DEMO_ROOT" run dev
 ```
 
 Open `http://127.0.0.1:3000`, register a local account, and start a chat.
+The bearer key is scoped to each launch command; stopping the processes leaves
+no `API_SERVER_KEY` in either shell environment.
 
 ## Environment
 
@@ -166,18 +211,29 @@ state remains in the derived WebCMD workspace.
 To rotate the local API key, stop both processes and run:
 
 ```bash
-export MOVIE_DEMO_API_KEY_FILE="$HOME/.hermes/profiles/movie-booking/.movie-demo-api-key"
-umask 077
-openssl rand -hex 32 > "$MOVIE_DEMO_API_KEY_FILE"
-chmod 600 "$MOVIE_DEMO_API_KEY_FILE"
+(
+  set -eu
+
+  MOVIE_DEMO_API_KEY_FILE="$HOME/.hermes/profiles/movie-booking/.movie-demo-api-key"
+  MOVIE_DEMO_PROFILE="${MOVIE_DEMO_API_KEY_FILE%/*}"
+  umask 077
+  MOVIE_DEMO_KEY_TMP="$(mktemp "$MOVIE_DEMO_PROFILE/.movie-demo-api-key.tmp.XXXXXX")"
+  trap '[ ! -e "$MOVIE_DEMO_KEY_TMP" ] || unlink "$MOVIE_DEMO_KEY_TMP"' 0 HUP INT TERM
+  openssl rand -hex 32 > "$MOVIE_DEMO_KEY_TMP"
+  chmod 600 "$MOVIE_DEMO_KEY_TMP"
+  mv -f "$MOVIE_DEMO_KEY_TMP" "$MOVIE_DEMO_API_KEY_FILE"
+  trap - 0 HUP INT TERM
+)
 ```
 
 Both start commands read the new value on their next launch. To remove only
-this demo's API key after stopping both processes:
+this demo's API key after stopping both processes, run this in the current
+shell so it also clears any value exported by an older version of this guide:
 
 ```bash
-export MOVIE_DEMO_API_KEY_FILE="$HOME/.hermes/profiles/movie-booking/.movie-demo-api-key"
+MOVIE_DEMO_API_KEY_FILE="$HOME/.hermes/profiles/movie-booking/.movie-demo-api-key"
 rm -f "$MOVIE_DEMO_API_KEY_FILE"
+unset API_SERVER_KEY MOVIE_DEMO_API_KEY_FILE
 ```
 
 ## Verify the package
