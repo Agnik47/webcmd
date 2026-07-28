@@ -43,24 +43,46 @@ cp -R examples/movie-ticket-booking/hermes/skills/movie-ticket-booking ~/.hermes
 `--clone` copies the active Hermes profile's model configuration and
 credentials, but starts this profile with fresh sessions and memory.
 
-Configure the API server and the absolute paths used by both Hermes and the
-app:
+Create one profile-owned API key file, then remove only this demo's variables
+from the cloned `.env`:
 
 ```bash
 export MOVIE_DEMO_ROOT="$(pwd -P)/examples/movie-ticket-booking"
 export MOVIE_DEMO_DB_PATH="$MOVIE_DEMO_ROOT/movie-demo.db"
+export MOVIE_DEMO_PROFILE="$HOME/.hermes/profiles/movie-booking"
+export MOVIE_DEMO_API_KEY_FILE="$MOVIE_DEMO_PROFILE/.movie-demo-api-key"
 
-hermes -p movie-booking config set API_SERVER_ENABLED true
-hermes -p movie-booking config set API_SERVER_KEY "$(openssl rand -hex 32)"
-hermes -p movie-booking config set API_SERVER_HOST 127.0.0.1
-hermes -p movie-booking config set API_SERVER_PORT 8642
-hermes -p movie-booking config set --force MOVIE_DEMO_ROOT "$MOVIE_DEMO_ROOT"
-hermes -p movie-booking config set --force MOVIE_DEMO_DB_PATH "$MOVIE_DEMO_DB_PATH"
+umask 077
+openssl rand -hex 32 > "$MOVIE_DEMO_API_KEY_FILE"
+chmod 600 "$MOVIE_DEMO_API_KEY_FILE"
+
+node <<'NODE'
+const fs = require('node:fs');
+const envPath = `${process.env.MOVIE_DEMO_PROFILE}/.env`;
+const demoKeys = new Set([
+  'API_SERVER_ENABLED',
+  'API_SERVER_KEY',
+  'API_SERVER_HOST',
+  'API_SERVER_PORT',
+  'MOVIE_DEMO_ROOT',
+  'MOVIE_DEMO_DB_PATH',
+]);
+const lines = fs.existsSync(envPath)
+  ? fs.readFileSync(envPath, 'utf8').split(/\r?\n/)
+  : [];
+const kept = lines.filter((line) => {
+  const key = /^\s*(?:export\s+)?([A-Z_][A-Z0-9_]*)\s*=/.exec(line)?.[1];
+  return !key || !demoKeys.has(key);
+});
+fs.writeFileSync(envPath, `${kept.join('\n').replace(/\n+$/, '')}\n`, { mode: 0o600 });
+fs.chmodSync(envPath, 0o600);
+NODE
 ```
 
-Hermes stores the generated bearer key in the profile's private `.env`; the
-command does not print the key. Pinning host and port prevents values inherited
-by `--clone` from sending the gateway somewhere the app does not expect.
+Hermes intentionally gives its profile `.env` precedence over stale shell
+exports. The scrub prevents inherited demo values from overriding the launch
+command while preserving the cloned model credentials. The generated key stays
+outside the repository with mode 600 and is never printed.
 
 Ports 8642 for Hermes and 3000 for the app must be free. To change 8642, set
 `API_SERVER_PORT` and `HERMES_API_URL` to the same new port. To change 3000,
@@ -71,6 +93,16 @@ set `PORT` and open that port in the browser.
 In terminal 1:
 
 ```bash
+export MOVIE_DEMO_ROOT="$(pwd -P)/examples/movie-ticket-booking"
+export MOVIE_DEMO_DB_PATH="$MOVIE_DEMO_ROOT/movie-demo.db"
+export MOVIE_DEMO_API_KEY_FILE="$HOME/.hermes/profiles/movie-booking/.movie-demo-api-key"
+
+API_SERVER_ENABLED=true \
+API_SERVER_KEY="$(cat "$MOVIE_DEMO_API_KEY_FILE")" \
+API_SERVER_HOST=127.0.0.1 \
+API_SERVER_PORT=8642 \
+MOVIE_DEMO_ROOT="$MOVIE_DEMO_ROOT" \
+MOVIE_DEMO_DB_PATH="$MOVIE_DEMO_DB_PATH" \
 hermes -p movie-booking gateway run
 ```
 
@@ -84,8 +116,9 @@ In terminal 2, from the repository root:
 ```bash
 export MOVIE_DEMO_ROOT="$(pwd -P)/examples/movie-ticket-booking"
 export MOVIE_DEMO_DB_PATH="$MOVIE_DEMO_ROOT/movie-demo.db"
+export MOVIE_DEMO_API_KEY_FILE="$HOME/.hermes/profiles/movie-booking/.movie-demo-api-key"
 export HERMES_API_URL="http://127.0.0.1:8642"
-export API_SERVER_KEY="$(hermes -p movie-booking config get API_SERVER_KEY)"
+export API_SERVER_KEY="$(cat "$MOVIE_DEMO_API_KEY_FILE")"
 export PORT=3000
 
 npm --prefix "$MOVIE_DEMO_ROOT" run dev
@@ -105,8 +138,8 @@ Open `http://127.0.0.1:3000`, register a local account, and start a chat.
 | `MOVIE_DEMO_DB_PATH` | Hermes and app | Shared absolute SQLite path |
 | `PORT` | App | Local HTTP port |
 
-Do not expose these values to browser code or commit local `.env` or database
-files.
+Do not expose these values to browser code or commit local key, `.env`, or
+database files.
 
 ## Booking flow
 
@@ -129,6 +162,23 @@ Press `Ctrl-C` in the app terminal, then in the Hermes gateway terminal.
 
 The SQLite database remains at `MOVIE_DEMO_DB_PATH`. Hosted District browser
 state remains in the derived WebCMD workspace.
+
+To rotate the local API key, stop both processes and run:
+
+```bash
+export MOVIE_DEMO_API_KEY_FILE="$HOME/.hermes/profiles/movie-booking/.movie-demo-api-key"
+umask 077
+openssl rand -hex 32 > "$MOVIE_DEMO_API_KEY_FILE"
+chmod 600 "$MOVIE_DEMO_API_KEY_FILE"
+```
+
+Both start commands read the new value on their next launch. To remove only
+this demo's API key after stopping both processes:
+
+```bash
+export MOVIE_DEMO_API_KEY_FILE="$HOME/.hermes/profiles/movie-booking/.movie-demo-api-key"
+rm -f "$MOVIE_DEMO_API_KEY_FILE"
+```
 
 ## Verify the package
 
