@@ -24,6 +24,7 @@ const SELECT_FIELDS = [
 cli({
     site: 'openalex',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search OpenAlex Works (papers, books, preprints) by keyword',
     domain: 'api.openalex.org',

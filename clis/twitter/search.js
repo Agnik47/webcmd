@@ -260,6 +260,7 @@ function parseSearchTimeline(data, seen) {
 cli({
     site: 'twitter',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search Twitter/X for tweets, with optional --from / --has / --exclude / --product filters mapped to X\'s search operators',
     domain: 'x.com',

@@ -264,6 +264,7 @@ cli({
 cli({
     site: 'spotify',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search for tracks',
     strategy: Strategy.LOCAL,

@@ -72,6 +72,7 @@ function buildPaginateJs(limit, keyword, offset, region) {
 const command = cli({
   site: 'duckduckgo',
   name: 'search',
+  tags: ['search'],
   access: 'read',
   description: 'Search DuckDuckGo',
   domain: 'html.duckduckgo.com',

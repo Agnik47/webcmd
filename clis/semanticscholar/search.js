@@ -19,6 +19,7 @@ const FIELDS = ['paperId', 'title', 'year', 'authors', 'citationCount', 'externa
 cli({
     site: 'semanticscholar',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search Semantic Scholar papers by free text',
     domain: 'api.semanticscholar.org',

@@ -2,6 +2,7 @@ import { cli, Strategy } from '@agentrhq/webcmd/registry';
 cli({
     site: 'stackoverflow',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search Stack Overflow questions',
     domain: 'stackoverflow.com',

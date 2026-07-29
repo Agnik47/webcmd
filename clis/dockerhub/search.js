@@ -10,6 +10,7 @@ import { HUB_BASE, hubFetch, requireBoundedInt, requireString } from './utils.js
 cli({
     site: 'dockerhub',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search Docker Hub repositories by keyword',
     domain: 'hub.docker.com',

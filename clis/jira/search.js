@@ -15,6 +15,7 @@ function searchPayload(config, jql, limit) {
 cli({
     site: 'jira',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search Jira issues with JQL',
     domain: 'atlassian.net',

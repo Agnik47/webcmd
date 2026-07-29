@@ -400,6 +400,7 @@ function buildSearchEvaluate(query, limit, pageNumber) {
 cli({
     site: 'coupang',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search Coupang products with logged-in browser session',
     domain: 'www.coupang.com',

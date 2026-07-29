@@ -98,6 +98,7 @@ cli({
 cli({
     site: 'trae-solo',
     name: 'skill-search',
+    tags: ['search'],
     access: 'read',
     description: 'Filter Skills Marketplace by keyword.',
     domain: 'localhost',

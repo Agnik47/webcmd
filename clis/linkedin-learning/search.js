@@ -90,6 +90,7 @@ function parseRow(el, rank) {
 cli({
     site: 'linkedin-learning',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search LinkedIn Learning courses, videos, and learning paths by keyword',
     domain: DOMAIN,

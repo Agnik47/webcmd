@@ -204,6 +204,7 @@ const EXTRACTOR = `
 cli({
   site: 'booking',
   name: 'search',
+  tags: ['search'],
   description: 'Search Booking.com hotels by destination and dates (server-rendered card scrape).',
   access: 'read',
   example: 'webcmd booking search Tokyo --checkin 2026-06-15 --checkout 2026-06-17 -f yaml',

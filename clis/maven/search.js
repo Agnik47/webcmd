@@ -11,6 +11,7 @@ import { MAVEN_BASE, mavenFetch, epochMsToIso, requireBoundedInt, requireString 
 cli({
     site: 'maven',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search Maven Central by keyword (artifact name, groupId, tag)',
     domain: 'search.maven.org',

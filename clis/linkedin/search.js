@@ -396,6 +396,7 @@ async function enrichJobDetails(page, jobs) {
 cli({
     site: 'linkedin',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search LinkedIn jobs',
     domain: 'www.linkedin.com',

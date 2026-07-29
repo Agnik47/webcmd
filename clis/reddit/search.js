@@ -2,6 +2,7 @@ import { cli, Strategy } from '@agentrhq/webcmd/registry';
 cli({
     site: 'reddit',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search Reddit Posts',
     domain: 'reddit.com',

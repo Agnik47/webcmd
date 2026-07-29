@@ -20,6 +20,7 @@ import {
 cli({
     site: 'dblp',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search dblp computer-science bibliography by free-text query',
     domain: 'dblp.org',

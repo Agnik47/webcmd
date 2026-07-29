@@ -5,6 +5,7 @@ import { buildSearchUrl, DOMAIN, normalizeProductRow, parseLimitArg, productCard
 cli({
   site: SITE,
   name: 'search',
+  tags: ['search'],
   access: 'read',
   description: 'Search BigBasket products',
   domain: DOMAIN,

@@ -12,6 +12,7 @@ import { CliError } from '@agentrhq/webcmd/errors';
 cli({
     site: 'google',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search Google',
     domain: 'google.com',

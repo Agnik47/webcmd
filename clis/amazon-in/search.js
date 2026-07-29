@@ -16,6 +16,7 @@ import { argumentValue, gotoAmazon, SITE } from './shared.js';
 cli({
   site: SITE,
   name: 'search',
+  tags: ['search'],
   access: 'read',
   description: 'Search Amazon.in products with inclusive INR price bounds and images',
   domain: 'amazon.in',

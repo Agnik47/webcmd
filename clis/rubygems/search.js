@@ -10,6 +10,7 @@ import { GEMS_BASE, gemsFetch, requireBoundedInt, requireString } from './utils.
 cli({
     site: 'rubygems',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search RubyGems.org gems by keyword',
     domain: 'rubygems.org',

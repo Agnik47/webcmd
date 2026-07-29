@@ -11,6 +11,7 @@ import { buildSearchScript, isAuthStatus, looksAuthWallText, mapSearchArticles, 
 cli({
     site: 'reuters',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Reuters Reuters news search',
     domain: 'www.reuters.com',

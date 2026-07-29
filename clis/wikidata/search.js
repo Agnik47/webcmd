@@ -9,6 +9,7 @@ import { WIKIDATA_BASE, requireBoundedInt, requireLanguage, requireString, wikid
 cli({
     site: 'wikidata',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search Wikidata items by keyword (returns Q-IDs)',
     domain: 'www.wikidata.org',
