@@ -105,8 +105,9 @@ export function applyChatResponse(
   appendMessage,
   renderBookingSnapshot,
   conversations,
+  isCurrentSelection,
 ) {
-  if (!isCurrent()) return null;
+  if (!isCurrent() || !isCurrentSelection()) return null;
   appendMessage(response.message);
   renderBookingSnapshot(response.bookings);
   return [
@@ -133,6 +134,7 @@ const sendButton = byId('send');
 let conversations = [];
 let activeConversationId = '';
 const requests = createRequestEpoch();
+const selections = createRequestEpoch();
 const api = createApi(fetch, requests.isCurrent, resetSession);
 
 function showError(element, error) {
@@ -157,6 +159,7 @@ function setAuthPending(pending) {
 
 function resetSession(message = '') {
   requests.advance();
+  selections.advance();
   conversations = [];
   activeConversationId = '';
   byId('user-email').textContent = '';
@@ -219,6 +222,7 @@ function appendMessage(message) {
 
 async function selectConversation(conversation) {
   const captured = requests.capture();
+  const selected = selections.advance();
   activeConversationId = conversation.id;
   chatTitle.textContent = conversation.title;
   transcript.replaceChildren();
@@ -232,14 +236,22 @@ async function selectConversation(conversation) {
       {},
       captured,
     );
-    if (!requests.isCurrent(captured) || activeConversationId !== conversation.id) return;
+    if (
+      !requests.isCurrent(captured)
+      || !selections.isCurrent(selected)
+      || activeConversationId !== conversation.id
+    ) return;
     transcript.replaceChildren();
     messages.forEach(appendMessage);
     messageInput.disabled = false;
     sendButton.disabled = false;
     messageInput.focus();
   } catch (error) {
-    if (requests.isCurrent(captured) && activeConversationId === conversation.id) {
+    if (
+      requests.isCurrent(captured)
+      && selections.isCurrent(selected)
+      && activeConversationId === conversation.id
+    ) {
       showError(byId('chat-error'), error);
       messageInput.disabled = false;
       sendButton.disabled = false;
@@ -309,6 +321,7 @@ chatForm.addEventListener('submit', async (event) => {
   const message = messageInput.value.trim();
   if (!message || !activeConversationId) return;
   const captured = requests.capture();
+  const selected = selections.capture();
   const conversationId = activeConversationId;
   sendButton.disabled = true;
   byId('chat-error').textContent = '';
@@ -325,6 +338,7 @@ chatForm.addEventListener('submit', async (event) => {
       appendMessage,
       renderBookings,
       conversations,
+      () => selections.isCurrent(selected),
     );
     if (updatedConversations) {
       conversations = updatedConversations;
@@ -332,11 +346,19 @@ chatForm.addEventListener('submit', async (event) => {
       renderConversations();
     }
   } catch (error) {
-    if (requests.isCurrent(captured) && activeConversationId === conversationId) {
+    if (
+      requests.isCurrent(captured)
+      && selections.isCurrent(selected)
+      && activeConversationId === conversationId
+    ) {
       showError(byId('chat-error'), error);
     }
   } finally {
-    if (requests.isCurrent(captured) && activeConversationId === conversationId) {
+    if (
+      requests.isCurrent(captured)
+      && selections.isCurrent(selected)
+      && activeConversationId === conversationId
+    ) {
       sendButton.disabled = false;
       messageInput.focus();
     }

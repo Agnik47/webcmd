@@ -158,6 +158,7 @@ test('applies the updated conversation and bookings while ignoring a stale respo
       { id: 'second', title: 'New chat' },
       { id: 'first', title: 'New chat' },
     ],
+    () => true,
   );
 
   assert.deepEqual(
@@ -174,4 +175,28 @@ test('applies the updated conversation and bookings while ignoring a stale respo
   assert.equal(apply('failed', stale), null);
   assert.doesNotMatch(documentRoot.nodes.get('booking-list')?.textContent ?? '', /failed/);
   assert.match(documentRoot.nodes.get('booking-list')?.textContent ?? '', /confirmed/);
+});
+
+test('ignores a pending A response after switching A to B and back to A', () => {
+  const selections = createRequestEpoch();
+  const pendingA = selections.capture();
+  selections.advance();
+  selections.advance();
+  let appended = 0;
+
+  const result = applyChatResponse(
+    {
+      message: { role: 'assistant', content: 'duplicate reply' },
+      conversation: { id: 'A', title: 'Conversation A' },
+      bookings: [],
+    },
+    () => true,
+    () => { appended += 1; },
+    () => {},
+    [{ id: 'A', title: 'Conversation A' }],
+    () => selections.isCurrent(pendingA),
+  );
+
+  assert.equal(result, null);
+  assert.equal(appended, 0);
 });
