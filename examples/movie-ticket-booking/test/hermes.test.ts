@@ -121,6 +121,30 @@ test('creates app-named sessions and reads their messages', async () => {
   }
 });
 
+test('drops whitespace-only messages without normalizing valid content', async () => {
+  const hermes = await fixture(() => ({
+    body: {
+      object: 'list',
+      data: [
+        { role: 'user', content: ' \n\t' },
+        { role: 'assistant', content: '\u00a0' },
+        { role: 'user', content: '  Find Dune  ' },
+        { role: 'assistant', content: '\nDune is playing.\n' },
+      ],
+    },
+  }));
+
+  try {
+    const client = new HermesClient(hermes.url, 'hermes-secret');
+    assert.deepEqual(await client.getMessages('hermes-1'), [
+      { role: 'user', content: '  Find Dune  ' },
+      { role: 'assistant', content: '\nDune is playing.\n' },
+    ]);
+  } finally {
+    await hermes.close();
+  }
+});
+
 test('turns Hermes failures into safe typed errors', async () => {
   const hermes = await fixture(() => ({
     status: 500,

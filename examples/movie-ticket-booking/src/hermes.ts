@@ -14,7 +14,7 @@ export interface HermesChatResponse {
 function toHermesMessage(value: unknown): HermesMessage | undefined {
   if (!value || typeof value !== 'object') return undefined;
   const { role, content } = value as Record<string, unknown>;
-  if ((role !== 'user' && role !== 'assistant') || typeof content !== 'string' || !content) {
+  if ((role !== 'user' && role !== 'assistant') || typeof content !== 'string' || !content.trim()) {
     return undefined;
   }
   return { role, content };

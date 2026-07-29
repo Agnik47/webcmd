@@ -527,3 +527,69 @@ test('serializes complete Hermes turns for one user', async () => {
     await close(hermesServer);
   }
 });
+
+test('waits for a pending user turn before reading its completed transcript', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'movie-demo-server-'));
+  const db = openDatabase(join(directory, 'app.db'));
+  let transcript: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+  let readStarted = false;
+  let chatArrived!: () => void;
+  let readArrived!: () => void;
+  let releaseChat!: () => void;
+  const arrived = new Promise<void>((resolve) => { chatArrived = resolve; });
+  const readReachedApp = new Promise<void>((resolve) => { readArrived = resolve; });
+  const blocked = new Promise<void>((resolve) => { releaseChat = resolve; });
+  const app = createApp({
+    db,
+    hermes: {
+      createSession: async () => 'movie_fixture',
+      getMessages: async () => {
+        readStarted = true;
+        return transcript;
+      },
+      chat: async () => {
+        chatArrived();
+        await blocked;
+        transcript = [
+          { role: 'user', content: 'Find Dune' },
+          { role: 'assistant', content: 'Dune is playing.' },
+        ];
+        return {
+          object: 'hermes.session.chat.completion',
+          session_id: 'movie_fixture',
+          message: transcript[1],
+        };
+      },
+    },
+  });
+  app.prependListener('request', (incoming) => {
+    if (incoming.url?.endsWith('/messages')) readArrived();
+  });
+  const baseUrl = await listen(app);
+
+  try {
+    const cookie = await register(baseUrl, 'alice@example.com');
+    const created = await request(baseUrl, '/api/conversations', { method: 'POST', cookie });
+    const conversationPath = `/api/conversations/${created.body.id as string}`;
+    const chat = request(baseUrl, `${conversationPath}/chat`, {
+      method: 'POST',
+      cookie,
+      body: { message: 'Find Dune' },
+    });
+    await arrived;
+
+    const messages = request(baseUrl, `${conversationPath}/messages`, { cookie });
+    await readReachedApp;
+    assert.equal(readStarted, false);
+
+    releaseChat();
+    const [chatResponse, messagesResponse] = await Promise.all([chat, messages]);
+    assert.equal(chatResponse.response.status, 200);
+    assert.equal(messagesResponse.response.status, 200);
+    assert.deepEqual(messagesResponse.body, transcript);
+  } finally {
+    releaseChat();
+    await close(app);
+    db.close();
+  }
+});

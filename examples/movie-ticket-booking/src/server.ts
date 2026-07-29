@@ -238,7 +238,10 @@ export function createApp({ db, hermes, userQueue = new PerUserQueue() }: AppOpt
         if (!conversation) throw new HttpError(404, 'not found');
 
         if (method === 'GET' && conversationRoute[2] === 'messages') {
-          send(response, 200, await hermes.getMessages(conversation.hermesSessionId));
+          send(response, 200, await userQueue.run(
+            user.id,
+            () => hermes.getMessages(conversation.hermesSessionId),
+          ));
           return;
         }
 
