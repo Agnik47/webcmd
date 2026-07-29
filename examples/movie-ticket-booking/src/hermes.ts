@@ -1,25 +1,23 @@
 import { randomUUID } from 'node:crypto';
 
 export interface HermesMessage {
-  role: string;
+  role: 'user' | 'assistant';
   content: string;
-  [key: string]: unknown;
 }
 
 export interface HermesChatResponse {
   object: string;
   session_id: string;
   message: HermesMessage;
-  [key: string]: unknown;
 }
 
-function isHermesMessage(value: unknown): value is HermesMessage {
-  return Boolean(
-    value
-    && typeof value === 'object'
-    && typeof (value as Record<string, unknown>).role === 'string'
-    && typeof (value as Record<string, unknown>).content === 'string',
-  );
+function toHermesMessage(value: unknown): HermesMessage | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const { role, content } = value as Record<string, unknown>;
+  if ((role !== 'user' && role !== 'assistant') || typeof content !== 'string' || !content) {
+    return undefined;
+  }
+  return { role, content };
 }
 
 export class HermesHttpError extends Error {
@@ -64,10 +62,13 @@ export class HermesClient {
 
   async getMessages(sessionId: string): Promise<HermesMessage[]> {
     const response = await this.#request(`/api/sessions/${encodeURIComponent(sessionId)}/messages`);
-    if (!Array.isArray(response.data) || !response.data.every(isHermesMessage)) {
+    if (!Array.isArray(response.data)) {
       throw new HermesHttpError(502);
     }
-    return response.data;
+    return response.data.flatMap((message) => {
+      const safeMessage = toHermesMessage(message);
+      return safeMessage ? [safeMessage] : [];
+    });
   }
 
   async chat(sessionId: string, sessionKey: string, message: string): Promise<HermesChatResponse> {
@@ -76,14 +77,15 @@ export class HermesClient {
       headers: { 'X-Hermes-Session-Key': sessionKey },
       body: JSON.stringify({ input: message }),
     });
+    const reply = toHermesMessage(response.message);
     if (
       typeof response.object !== 'string'
       || typeof response.session_id !== 'string'
-      || !isHermesMessage(response.message)
+      || reply?.role !== 'assistant'
     ) {
       throw new HermesHttpError(502);
     }
-    return response as unknown as HermesChatResponse;
+    return { object: response.object, session_id: response.session_id, message: reply };
   }
 
   async #request(path: string, init: RequestInit = {}): Promise<Record<string, unknown>> {

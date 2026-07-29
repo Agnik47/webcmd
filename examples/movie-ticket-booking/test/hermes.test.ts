@@ -52,7 +52,12 @@ test('sends backend authentication and the stable user key on chat', async () =>
       body: {
         object: 'hermes.session.chat.completion',
         session_id: 'hermes-1',
-        message: { role: 'assistant', content: 'Dune is playing.' },
+        message: {
+          role: 'assistant',
+          content: 'Dune is playing.',
+          tool_calls: [{ id: 'internal-tool-call' }],
+        },
+        metadata: { internal: true },
       },
     };
   });
@@ -65,7 +70,11 @@ test('sends backend authentication and the stable user key on chat', async () =>
     assert.equal(seen.sessionKey, 'movie-demo:user:user-1');
     assert.equal(seen.path, '/api/sessions/hermes-1/chat');
     assert.deepEqual(seen.body, { input: 'Find Dune' });
-    assert.equal(response.message.content, 'Dune is playing.');
+    assert.deepEqual(response, {
+      object: 'hermes.session.chat.completion',
+      session_id: 'hermes-1',
+      message: { role: 'assistant', content: 'Dune is playing.' },
+    });
   } finally {
     await hermes.close();
   }
@@ -83,7 +92,12 @@ test('creates app-named sessions and reads their messages', async () => {
       body: {
         object: 'list',
         session_id: 'movie_session',
-        data: [{ role: 'assistant', content: 'Hello' }],
+        data: [
+          { role: 'user', content: 'Find Dune', metadata: { internal: true } },
+          { role: 'assistant', content: 'Dune is playing.', tool_calls: [{ id: 'internal-tool-call' }] },
+          { role: 'assistant', content: '' },
+          { role: 'tool', content: 'Internal tool result' },
+        ],
       },
     };
   });
@@ -98,7 +112,10 @@ test('creates app-named sessions and reads their messages', async () => {
       { path: '/api/sessions', method: 'POST', body: { id: sessionId } },
       { path: `/api/sessions/${sessionId}/messages`, method: 'GET', body: undefined },
     ]);
-    assert.deepEqual(messages, [{ role: 'assistant', content: 'Hello' }]);
+    assert.deepEqual(messages, [
+      { role: 'user', content: 'Find Dune' },
+      { role: 'assistant', content: 'Dune is playing.' },
+    ]);
   } finally {
     await hermes.close();
   }
@@ -134,7 +151,7 @@ test('rejects malformed successful Hermes responses', async () => {
       : {
           object: 'hermes.session.chat.completion',
           session_id: 'hermes-1',
-          message: { role: 'assistant' },
+          message: { role: 'user', content: 'Not an assistant reply' },
         },
   }));
 
