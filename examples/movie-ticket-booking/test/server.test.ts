@@ -170,12 +170,136 @@ test('resumes the most recently chatted conversation', async () => {
       body: { message: 'Resume this chat' },
     });
     assert.equal(chat.response.status, 200);
+    assert.equal(chat.body.conversation.title, 'Resume this chat');
 
     const bootstrap = await request(baseUrl, '/api/bootstrap', { cookie });
     assert.deepEqual(
-      bootstrap.body.conversations.map((conversation: { id: string }) => conversation.id),
-      [first.body.id, second.body.id],
+      bootstrap.body.conversations.map((conversation: { id: string; title: string }) => ({
+        id: conversation.id,
+        title: conversation.title,
+      })),
+      [
+        { id: first.body.id, title: 'Resume this chat' },
+        { id: second.body.id, title: 'New chat' },
+      ],
     );
+  } finally {
+    await close(app);
+    db.close();
+  }
+});
+
+test('normalizes and caps the generated conversation title', async () => {
+  const { db, app } = testApp();
+  const baseUrl = await listen(app);
+
+  try {
+    const cookie = await register(baseUrl, 'alice@example.com');
+    const conversation = await request(baseUrl, '/api/conversations', { method: 'POST', cookie });
+    const chat = await request(
+      baseUrl,
+      `/api/conversations/${conversation.body.id as string}/chat`,
+      {
+        method: 'POST',
+        cookie,
+        body: {
+          message: '  Find   tickets\nfor Dune Part Two at PVR Phoenix this Saturday evening please  ',
+        },
+      },
+    );
+
+    assert.equal(
+      chat.body.conversation.title,
+      'Find tickets for Dune Part Two at PVR Phoenix this Saturday',
+    );
+  } finally {
+    await close(app);
+    db.close();
+  }
+});
+
+test('does not split the final character when capping a conversation title', async () => {
+  const { db, app } = testApp();
+  const baseUrl = await listen(app);
+
+  try {
+    const cookie = await register(baseUrl, 'alice@example.com');
+    const conversation = await request(baseUrl, '/api/conversations', { method: 'POST', cookie });
+    const prefix = 'A'.repeat(59);
+    const chat = await request(
+      baseUrl,
+      `/api/conversations/${conversation.body.id as string}/chat`,
+      {
+        method: 'POST',
+        cookie,
+        body: { message: `${prefix}😀😀` },
+      },
+    );
+
+    assert.equal(chat.body.conversation.title, `${prefix}😀`);
+  } finally {
+    await close(app);
+    db.close();
+  }
+});
+
+test('preserves a non-default conversation title after chat', async () => {
+  const { db, app } = testApp();
+  const baseUrl = await listen(app);
+
+  try {
+    const cookie = await register(baseUrl, 'alice@example.com');
+    const conversation = await request(baseUrl, '/api/conversations', {
+      method: 'POST',
+      cookie,
+      body: { title: 'Pinned plan' },
+    });
+    const chat = await request(
+      baseUrl,
+      `/api/conversations/${conversation.body.id as string}/chat`,
+      {
+        method: 'POST',
+        cookie,
+        body: { message: 'Replace this title' },
+      },
+    );
+
+    assert.equal(chat.body.conversation.title, 'Pinned plan');
+  } finally {
+    await close(app);
+    db.close();
+  }
+});
+
+test('keeps the default title when chat fails', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'movie-demo-server-'));
+  const db = openDatabase(join(directory, 'app.db'));
+  const app = createApp({
+    db,
+    hermes: {
+      createSession: async () => 'movie_fixture',
+      getMessages: async () => [],
+      chat: async () => { throw new Error('Hermes unavailable'); },
+    },
+  });
+  const baseUrl = await listen(app);
+
+  try {
+    const cookie = await register(baseUrl, 'alice@example.com');
+    const conversation = await request(baseUrl, '/api/conversations', { method: 'POST', cookie });
+    const chat = await request(
+      baseUrl,
+      `/api/conversations/${conversation.body.id as string}/chat`,
+      {
+        method: 'POST',
+        cookie,
+        body: { message: 'Do not use this title yet' },
+      },
+    );
+    assert.equal(chat.response.status, 500);
+
+    const bootstrap = await request(baseUrl, '/api/bootstrap', { cookie });
+    assert.equal(bootstrap.body.conversations[0].title, 'New chat');
   } finally {
     await close(app);
     db.close();

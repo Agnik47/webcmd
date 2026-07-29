@@ -17,6 +17,7 @@ import {
   listConversations,
   openDatabase,
   touchConversation,
+  updateConversation,
   updatePreferences,
   type Preferences,
   type UserRecord,
@@ -252,8 +253,21 @@ export function createApp({ db, hermes, userQueue = new PerUserQueue() }: AppOpt
               `movie-demo:user:${user.id}`,
               body.message as string,
             );
-            touchConversation(db, user.id, conversation.id);
-            return { ...chat, bookings: listBookingAttempts(db, user.id) };
+            if (findConversation(db, user.id, conversation.id)?.title === 'New chat') {
+              const title = (body.message as string).replace(/\s+/gu, ' ').trim();
+              updateConversation(
+                db,
+                user.id,
+                conversation.id,
+                [...title].slice(0, 60).join('').trimEnd(),
+              );
+            }
+            const updatedConversation = touchConversation(db, user.id, conversation.id);
+            return {
+              ...chat,
+              conversation: updatedConversation,
+              bookings: listBookingAttempts(db, user.id),
+            };
           });
           send(response, 200, result);
           return;

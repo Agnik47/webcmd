@@ -99,11 +99,20 @@ export function renderBookings(bookings, documentRoot = document) {
   }
 }
 
-export function applyChatResponse(response, isCurrent, appendMessage, renderBookingSnapshot) {
-  if (!isCurrent()) return false;
+export function applyChatResponse(
+  response,
+  isCurrent,
+  appendMessage,
+  renderBookingSnapshot,
+  conversations,
+) {
+  if (!isCurrent()) return null;
   appendMessage(response.message);
   renderBookingSnapshot(response.bookings);
-  return true;
+  return [
+    response.conversation,
+    ...conversations.filter((conversation) => conversation.id !== response.conversation.id),
+  ];
 }
 
 if (typeof document !== 'undefined') startApp();
@@ -310,12 +319,18 @@ chatForm.addEventListener('submit', async (event) => {
       method: 'POST',
       body: JSON.stringify({ message }),
     }, captured);
-    applyChatResponse(
+    const updatedConversations = applyChatResponse(
       response,
       () => requests.isCurrent(captured) && activeConversationId === conversationId,
       appendMessage,
       renderBookings,
+      conversations,
     );
+    if (updatedConversations) {
+      conversations = updatedConversations;
+      chatTitle.textContent = response.conversation.title;
+      renderConversations();
+    }
   } catch (error) {
     if (requests.isCurrent(captured) && activeConversationId === conversationId) {
       showError(byId('chat-error'), error);

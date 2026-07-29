@@ -133,12 +133,16 @@ test('renders only validated HTTPS transcript URLs as safe anchors', () => {
   assert.match(content.textContent, /javascript:alert/);
 });
 
-test('applies confirmed bookings immediately and ignores a stale session response', () => {
+test('applies the updated conversation and bookings while ignoring a stale response', () => {
   const requests = createRequestEpoch();
   const documentRoot = fakeDocument();
   const apply = (status: string, captured: number) => applyChatResponse(
     {
       message: { role: 'assistant', content: status },
+      conversation: {
+        id: 'first',
+        title: status === 'confirmed' ? 'Resume this chat' : 'Stale title',
+      },
       bookings: [{
         movie: 'Dune',
         cinema: 'PVR Phoenix',
@@ -150,14 +154,24 @@ test('applies confirmed bookings immediately and ignores a stale session respons
     () => requests.isCurrent(captured),
     () => {},
     (bookings: unknown[]) => renderBookings(bookings, documentRoot),
+    [
+      { id: 'second', title: 'New chat' },
+      { id: 'first', title: 'New chat' },
+    ],
   );
 
-  assert.equal(apply('confirmed', requests.capture()), true);
+  assert.deepEqual(
+    apply('confirmed', requests.capture()),
+    [
+      { id: 'first', title: 'Resume this chat' },
+      { id: 'second', title: 'New chat' },
+    ],
+  );
   assert.match(documentRoot.nodes.get('booking-list')?.textContent ?? '', /confirmed/);
 
   const stale = requests.capture();
   requests.advance();
-  assert.equal(apply('failed', stale), false);
+  assert.equal(apply('failed', stale), null);
   assert.doesNotMatch(documentRoot.nodes.get('booking-list')?.textContent ?? '', /failed/);
   assert.match(documentRoot.nodes.get('booking-list')?.textContent ?? '', /confirmed/);
 });
