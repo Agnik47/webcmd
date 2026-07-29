@@ -43,14 +43,30 @@ https://github.com/user-attachments/assets/04eceadc-d398-4303-984d-ae3197bfa664
 
 ## Quick Start
 
+### Codex
+
+In Codex, open **Plugins**, choose **Add plugin marketplace**, and enter either
+`agentrhq/webcmd` or `https://github.com/agentrhq/webcmd`. Install **Webcmd**
+from that marketplace, then start a new task. On first use, the plugin installs
+the npm CLI automatically if `webcmd` is missing.
+
+The plugin includes all seven bundled Webcmd skills. Do not also add those
+skills with `webcmd skills add` in Codex.
+
+### Other agents or plugin-free setup
+
 Webcmd requires Node.js 20+.
 
 ```bash
 npm install -g @agentrhq/webcmd
+```
+
+```bash
 webcmd skills add
 ```
 
-When prompted, choose a supported harness such as Codex or Claude, or enter a custom skills path.
+When prompted, choose Claude, Codex, another supported harness, or a custom
+skills path.
 
 In your agent harness, load or tag `webcmd-usage`, then describe the outcome you want.
 
