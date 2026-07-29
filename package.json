@@ -46,6 +46,7 @@
     "build": "npm run clean-dist && npm run copy-yaml && npm run compile && npm run build-manifest",
     "compile": "tsc --build && node -e \"require('fs').chmodSync('dist/src/main.js', 0o755)\"",
     "build-manifest": "tsx src/build-manifest.ts",
+    "check:codex-plugin": "node scripts/check-codex-plugin.mjs",
     "check:hosted-contract": "node scripts/check-hosted-contract.mjs",
     "clean-dist": "node scripts/clean-dist.cjs",
     "copy-yaml": "node scripts/copy-yaml.cjs",

@@ -40,6 +40,10 @@ jobs:
         if: runner.os == 'Linux'
         run: npm run check-community-plugins
 
+      - name: Check Codex plugin metadata
+        if: runner.os == 'Linux'
+        run: npm run check:codex-plugin
+
       - name: Build
         run: npm run build
 

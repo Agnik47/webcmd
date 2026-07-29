@@ -1,0 +1,40 @@
+{
+  "name": "webcmd",
+  "version": "0.4.3",
+  "description": "Turn websites, browser sessions, desktop apps, and local tools into deterministic CLI surfaces for humans and AI agents.",
+  "author": {
+    "name": "AgentR",
+    "url": "https://github.com/agentrhq"
+  },
+  "homepage": "https://webcmd.dev/docs",
+  "repository": "https://github.com/agentrhq/webcmd",
+  "license": "Apache-2.0",
+  "keywords": [
+    "webcmd",
+    "browser-automation",
+    "cli",
+    "agent-skills"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Webcmd",
+    "shortDescription": "Agent-native CLIs for websites, apps, and local tools",
+    "longDescription": "Use Webcmd's reusable CLI, browser, search, authoring, sitemap, and repair workflows from Codex. Requires the @agentrhq/webcmd npm CLI.",
+    "developerName": "AgentR",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Instructions",
+      "Browser automation",
+      "CLI workflows"
+    ],
+    "websiteURL": "https://webcmd.dev/",
+    "defaultPrompt": [
+      "Use Webcmd to complete this task with an existing command.",
+      "Use Webcmd to research this topic and return source links.",
+      "Use Webcmd to turn this browser workflow into a reusable CLI."
+    ],
+    "brandColor": "#56C5FF",
+    "composerIcon": "./docs/webcmd.svg",
+    "logo": "./docs/webcmd.svg"
+  }
+}
