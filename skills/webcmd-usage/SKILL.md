@@ -1,12 +1,33 @@
 ---
 name: webcmd-usage
 description: Use at the start of any Webcmd session. This is the top-level map of what `webcmd` can do, how to discover adapters, what flags and output formats are universal, and which specialized skill to load next. Point here when an agent asks "what can webcmd do?" or "how do I find the right command?".
-allowed-tools: Bash(webcmd:*), Read
+allowed-tools: Bash(webcmd:*), Bash(npm:*), Read
 ---
 
 # webcmd-usage
 
 Webcmd turns websites, Electron desktop apps, and external CLIs into a uniform `webcmd <site> <command>` surface that agents can drive without screen scraping. This skill is the orientation layer. Once you know the task, load the specialized skill that fits it.
+
+## CLI Preflight
+
+Before the first Webcmd command in a session, run:
+
+```bash
+webcmd --version
+```
+
+If it succeeds, continue without reinstalling or updating Webcmd.
+
+If the shell reports that `webcmd` is missing, tell the user that the Codex
+plugin includes the skills but needs the Webcmd CLI, then install and verify it:
+
+```bash
+npm install -g @agentrhq/webcmd
+webcmd --version
+```
+
+If `npm` is unavailable or installation fails, stop and report the exact error.
+Do not install Node.js or silently fall back to `npx`.
 
 ## The Three Pillars
 

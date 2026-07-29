@@ -4,8 +4,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const readText = (relativePath) =>
+  fs.readFileSync(path.join(root, relativePath), 'utf8');
 const readJson = (relativePath) =>
-  JSON.parse(fs.readFileSync(path.join(root, relativePath), 'utf8'));
+  JSON.parse(readText(relativePath));
 
 const packageJson = readJson('package.json');
 const manifest = readJson('.codex-plugin/plugin.json');
@@ -45,4 +47,11 @@ const actualSkills = fs
   .sort();
 
 assert.deepEqual(actualSkills, expectedSkills);
+
+const usageSkill = readText('skills/webcmd-usage/SKILL.md');
+assert.match(usageSkill, /Bash\(npm:\*\)/);
+assert.match(usageSkill, /## CLI Preflight/);
+assert.match(usageSkill, /webcmd --version/);
+assert.match(usageSkill, /npm install -g @agentrhq\/webcmd/);
+
 console.log(`Codex plugin metadata valid: ${actualSkills.length} skills`);

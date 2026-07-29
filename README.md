@@ -43,22 +43,23 @@ https://github.com/user-attachments/assets/04eceadc-d398-4303-984d-ae3197bfa664
 
 ## Quick Start
 
-Webcmd requires Node.js 20+.
-
-```bash
-npm install -g @agentrhq/webcmd
-```
-
 ### Codex
 
 In Codex, open **Plugins**, choose **Add plugin marketplace**, and enter either
 `agentrhq/webcmd` or `https://github.com/agentrhq/webcmd`. Install **Webcmd**
-from that marketplace, then start a new task.
+from that marketplace, then start a new task. On first use, the plugin installs
+the npm CLI automatically if `webcmd` is missing.
 
 The plugin includes all seven bundled Webcmd skills. Do not also add those
 skills with `webcmd skills add` in Codex.
 
 ### Other agents or plugin-free setup
+
+Webcmd requires Node.js 20+.
+
+```bash
+npm install -g @agentrhq/webcmd
+```
 
 ```bash
 webcmd skills add
