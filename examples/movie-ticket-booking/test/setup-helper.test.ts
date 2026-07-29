@@ -103,6 +103,9 @@ case " $* " in
     exit "\${FAKE_READY_STATUS:-0}"
     ;;
   *" gateway run "*)
+    if [ -n "\${FAKE_GATEWAY_SIGNAL-}" ]; then
+      kill -"$FAKE_GATEWAY_SIGNAL" "$$"
+    fi
     key_kind=invalid
     case "$API_SERVER_KEY" in
       *[!0-9a-f]*|'') ;;
@@ -577,6 +580,49 @@ test('relative deployment database paths are rejected before either child launch
   assert.equal(calls(fixture), '');
 });
 
+test('an empty deployment database path is rejected before either child launches', () => {
+  const fixture = makeFixture();
+  completeSetup(fixture);
+
+  for (const command of ['gateway', 'app']) {
+    clearCalls(fixture);
+    const result = run(fixture, command, { MOVIE_DEMO_DB_PATH: '' });
+
+    assert.notEqual(result.status, 0, command);
+    assert.match(result.stderr, /database path.*absolute/i, command);
+    assert.equal(calls(fixture), '', command);
+  }
+});
+
+test('empty deployment settings reach the app unchanged', () => {
+  const fixture = makeFixture();
+  completeSetup(fixture);
+  clearCalls(fixture);
+
+  const result = run(fixture, 'app', {
+    HOST: '',
+    PORT: '',
+    COOKIE_SECURE: '',
+    MOVIE_DEMO_DB_PATH: '/var/lib/movie-booking/movie-demo.db',
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(
+    calls(fixture),
+    /app-env:http:\/\/127\.0\.0\.1:8642\|valid\|\|\|\|\/var\/lib\/movie-booking\/movie-demo\.db/,
+  );
+});
+
+test('an unmapped fatal Hermes signal returns a nonzero status', () => {
+  const fixture = makeFixture();
+  completeSetup(fixture);
+  clearCalls(fixture);
+
+  const result = run(fixture, 'gateway', { FAKE_GATEWAY_SIGNAL: 'USR1' });
+
+  assert.notEqual(result.status, 0);
+});
+
 test('HUP, INT, and TERM reach signal-resistant descendants under bash and zsh', async () => {
   for (const shell of ['/bin/bash', 'zsh']) {
     for (const [signal, expectedCode] of [
@@ -655,6 +701,7 @@ test('the README and guide describe the narrow helper contract without parser cl
     join(demoRoot, '..', '..', 'docs', 'guides', 'movie-ticket-booking.mdx'),
   ]) {
     const content = readFileSync(path, 'utf8');
+    const helperInstructions = content.split('## Deploy on an Ubuntu 24.04 Compute Engine VM')[0];
     assert.match(content, /scripts\/setup\.sh setup/);
     assert.match(content, /scripts\/setup\.sh gateway/);
     assert.match(content, /scripts\/setup\.sh app/);
@@ -663,6 +710,6 @@ test('the README and guide describe the narrow helper contract without parser cl
     assert.match(content, /resume/i);
     assert.match(content, /no explicit no-tools|narrowest.*toolset/i);
     assert.doesNotMatch(content, /raw preflight|Hermes' own parsing rules/i);
-    assert.doesNotMatch(content, /mktemp|openssl rand|node <<'NODE'/);
+    assert.doesNotMatch(helperInstructions, /mktemp|openssl rand|node <<'NODE'/);
   }
 });

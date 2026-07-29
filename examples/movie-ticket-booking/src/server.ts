@@ -135,7 +135,7 @@ function preferencesInput(body: Record<string, unknown>): Preferences {
 }
 
 export function createApp({ db, hermes, userQueue = new PerUserQueue(), secureCookies = false }: AppOptions) {
-  return createServer(async (request, response) => {
+  return createServer({ keepAliveTimeout: 620_000 }, async (request, response) => {
     try {
       const method = request.method ?? 'GET';
       const rawUrl = request.url ?? '/';

@@ -133,6 +133,21 @@ test('validates deployment server configuration', () => {
   assert.throws(() => readServerConfig({ COOKIE_SECURE: 'yes' }), /COOKIE_SECURE/);
 });
 
+test('rejects explicitly empty deployment server settings', () => {
+  assert.throws(() => readServerConfig({ HOST: '' }), /HOST/);
+  assert.throws(() => readServerConfig({ PORT: '' }), /PORT/);
+  assert.throws(() => readServerConfig({ COOKIE_SECURE: '' }), /COOKIE_SECURE/);
+});
+
+test('keeps HTTP connections alive beyond the GCP backend timeout', () => {
+  const { db, app } = testApp();
+  try {
+    assert.equal(app.keepAliveTimeout, 620_000);
+  } finally {
+    db.close();
+  }
+});
+
 test('serves only the three public assets with their correct content types', async () => {
   const { db, app } = testApp();
   const baseUrl = await listen(app);

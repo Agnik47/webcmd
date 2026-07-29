@@ -269,6 +269,11 @@ Create a global external HTTPS Application Load Balancer with:
 The corresponding resource setup is:
 
 ```bash
+read -r -p 'Google Cloud project ID: ' PROJECT_ID
+test -n "$PROJECT_ID"
+gcloud config set project "$PROJECT_ID"
+test "$(gcloud config get-value project 2>/dev/null)" = "$PROJECT_ID"
+
 ZONE=us-central1-a
 VM=movie-booking-vm
 DOMAIN=demo.example.com
@@ -279,22 +284,23 @@ gcloud compute instance-groups unmanaged add-instances movie-booking-ig \
 gcloud compute instance-groups unmanaged set-named-ports movie-booking-ig \
   --zone="$ZONE" --named-ports=http:3000
 gcloud compute health-checks create http movie-booking-health \
-  --port=3000 --request-path=/healthz
+  --global --port=3000 --request-path=/healthz
 gcloud compute backend-services create movie-booking-backend \
   --global --load-balancing-scheme=EXTERNAL_MANAGED \
-  --protocol=HTTP --port-name=http \
-  --health-checks=movie-booking-health
+  --protocol=HTTP --port-name=http --timeout=300s \
+  --global-health-checks --health-checks=movie-booking-health
 gcloud compute backend-services add-backend movie-booking-backend \
   --global --instance-group=movie-booking-ig \
   --instance-group-zone="$ZONE"
 gcloud compute url-maps create movie-booking-map \
-  --default-service=movie-booking-backend
+  --global --default-service=movie-booking-backend
 gcloud compute addresses create movie-booking-ip \
   --global --ip-version=IPV4 --network-tier=PREMIUM
 gcloud compute ssl-certificates create movie-booking-cert \
   --global --domains="$DOMAIN"
 gcloud compute target-https-proxies create movie-booking-https-proxy \
-  --url-map=movie-booking-map --ssl-certificates=movie-booking-cert
+  --global --global-url-map --url-map=movie-booking-map \
+  --global-ssl-certificates --ssl-certificates=movie-booking-cert
 gcloud compute forwarding-rules create movie-booking-https \
   --global --load-balancing-scheme=EXTERNAL_MANAGED \
   --network-tier=PREMIUM --address=movie-booking-ip \
@@ -399,19 +405,145 @@ curl --connect-timeout 5 http://VM_EXTERNAL_IP:3000/healthz
 The first two commands must succeed with a valid certificate. The direct VM
 request must time out or be refused.
 
-Verify reboot persistence:
+Prove the deployed product and its persistent state from an operator
+workstation. This acceptance block requires Bash, `curl`, `jq`, and an
+authenticated Google Cloud CLI. Keep `PROJECT_ID`, `ZONE`, `VM`, and `DOMAIN`
+set to the values used above. It prompts for the new account password without
+putting the password or session cookie in a process argument, and its trap
+removes every temporary credential, header, and body file:
 
 ```bash
-sudo systemctl is-enabled movie-booking.target
-sudo reboot
-```
+set -euo pipefail
+: "${PROJECT_ID:?Set PROJECT_ID to the deployed Google Cloud project}"
+: "${ZONE:?Set ZONE to the VM zone}"
+: "${VM:?Set VM to the deployed instance name}"
+: "${DOMAIN:?Set DOMAIN to the public HTTPS domain}"
 
-After reconnecting:
+ACCEPTANCE_DIR=$(mktemp -d)
+trap 'rm -rf -- "$ACCEPTANCE_DIR"' EXIT HUP INT TERM
+umask 077
 
-```bash
-systemctl is-active movie-booking-hermes.service
-systemctl is-active movie-booking-app.service
-curl --fail --show-error http://127.0.0.1:3000/healthz
+BASE_URL="https://$DOMAIN"
+COOKIE_JAR="$ACCEPTANCE_DIR/cookies"
+EMAIL="movie-demo-$(date +%s)-$$@example.com"
+MARKER="deployment-persistence-$(date +%s)-$$"
+
+printf 'New demo password (at least 8 characters): ' >&2
+IFS= read -r -s ACCOUNT_PASSWORD
+printf '\n' >&2
+test "${#ACCOUNT_PASSWORD}" -ge 8
+printf '%s' "$ACCOUNT_PASSWORD" >"$ACCEPTANCE_DIR/password"
+unset ACCOUNT_PASSWORD
+
+jq -n \
+  --arg email "$EMAIL" \
+  --rawfile password "$ACCEPTANCE_DIR/password" \
+  '{email: $email, password: $password}' \
+  >"$ACCEPTANCE_DIR/register.json"
+curl --fail --silent --show-error \
+  --request POST \
+  --header 'content-type: application/json' \
+  --data-binary "@$ACCEPTANCE_DIR/register.json" \
+  --dump-header "$ACCEPTANCE_DIR/register.headers" \
+  --cookie-jar "$COOKIE_JAR" \
+  "$BASE_URL/api/register" \
+  >"$ACCEPTANCE_DIR/register.body"
+jq -e --arg email "$EMAIL" '.user.email == $email' \
+  "$ACCEPTANCE_DIR/register.body" >/dev/null
+
+grep -i '^set-cookie: movie_demo_session=' \
+  "$ACCEPTANCE_DIR/register.headers" \
+  >"$ACCEPTANCE_DIR/session-cookie.headers"
+test -s "$ACCEPTANCE_DIR/session-cookie.headers"
+grep -Eiq '(^|;)[[:space:]]*Secure([;[:space:]]|$)' \
+  "$ACCEPTANCE_DIR/session-cookie.headers"
+grep -Eiq '(^|;)[[:space:]]*HttpOnly([;[:space:]]|$)' \
+  "$ACCEPTANCE_DIR/session-cookie.headers"
+grep -Eiq '(^|;)[[:space:]]*SameSite=Lax([;[:space:]]|$)' \
+  "$ACCEPTANCE_DIR/session-cookie.headers"
+
+jq -n --arg marker "$MARKER" '{
+  city: "Mumbai",
+  languages: ["English"],
+  formats: ["2D"],
+  seatPosition: $marker,
+  budgetPaise: 150000
+}' >"$ACCEPTANCE_DIR/preferences.json"
+curl --fail --silent --show-error \
+  --request PUT \
+  --header 'content-type: application/json' \
+  --data-binary "@$ACCEPTANCE_DIR/preferences.json" \
+  --cookie "$COOKIE_JAR" \
+  "$BASE_URL/api/preferences" \
+  >"$ACCEPTANCE_DIR/preferences.body"
+jq -e --arg marker "$MARKER" '.seatPosition == $marker' \
+  "$ACCEPTANCE_DIR/preferences.body" >/dev/null
+
+printf '{}\n' >"$ACCEPTANCE_DIR/conversation.json"
+curl --fail --silent --show-error \
+  --request POST \
+  --header 'content-type: application/json' \
+  --data-binary "@$ACCEPTANCE_DIR/conversation.json" \
+  --cookie "$COOKIE_JAR" \
+  "$BASE_URL/api/conversations" \
+  >"$ACCEPTANCE_DIR/conversation.body"
+CONVERSATION_ID=$(jq -er '.id | select(type == "string" and length > 0)' \
+  "$ACCEPTANCE_DIR/conversation.body")
+
+jq -n --arg marker "$MARKER" '{
+  message: ("Deployment acceptance " + $marker
+    + ": reply with one short confirmation and do not start a booking.")
+}' >"$ACCEPTANCE_DIR/chat.json"
+curl --fail --silent --show-error \
+  --max-time 310 \
+  --request POST \
+  --header 'content-type: application/json' \
+  --data-binary "@$ACCEPTANCE_DIR/chat.json" \
+  --cookie "$COOKIE_JAR" \
+  "$BASE_URL/api/conversations/$CONVERSATION_ID/chat" \
+  >"$ACCEPTANCE_DIR/chat.body"
+jq -e '.message.content | type == "string" and length > 0' \
+  "$ACCEPTANCE_DIR/chat.body" >/dev/null
+
+wait_for_https() {
+  local attempt=0
+  until curl --fail --silent --show-error \
+    --connect-timeout 5 --max-time 10 \
+    "$BASE_URL/healthz" >/dev/null; do
+    attempt=$((attempt + 1))
+    test "$attempt" -lt 60
+    sleep 5
+  done
+}
+
+verify_state() {
+  local output=$1
+  curl --fail --silent --show-error \
+    --cookie "$COOKIE_JAR" \
+    "$BASE_URL/api/bootstrap" >"$output"
+  jq -e \
+    --arg marker "$MARKER" \
+    --arg conversation "$CONVERSATION_ID" \
+    '.preferences.seatPosition == $marker
+      and any(.conversations[]; .id == $conversation)' \
+    "$output" >/dev/null
+}
+
+verify_state "$ACCEPTANCE_DIR/bootstrap-before-restart.json"
+
+gcloud compute ssh "$VM" \
+  --project="$PROJECT_ID" --zone="$ZONE" \
+  --command='sudo systemctl restart movie-booking.target'
+wait_for_https
+verify_state "$ACCEPTANCE_DIR/bootstrap-after-service-restart.json"
+
+gcloud compute instances reset "$VM" \
+  --project="$PROJECT_ID" --zone="$ZONE" --quiet
+wait_for_https
+verify_state "$ACCEPTANCE_DIR/bootstrap-after-vm-reset.json"
+
+printf 'Deployment acceptance passed for %s with marker %s\n' \
+  "$EMAIL" "$MARKER"
 ```
 
 Finally, run a read-only hosted WebCMD command as the service user. This proves

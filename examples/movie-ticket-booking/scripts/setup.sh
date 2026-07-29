@@ -16,10 +16,10 @@ SAFE_MANAGED_DIR="$OWNER_DIR/managed"
 CLEAN_CWD="$OWNER_DIR/work"
 OWNER_ENV="$OWNER_DIR/.env"
 KEY_FILE="$PROFILE_DIR/.movie-demo-api-key"
-DB_PATH=${MOVIE_DEMO_DB_PATH:-"$MOVIE_DEMO_ROOT/movie-demo.db"}
-APP_HOST=${HOST:-127.0.0.1}
-APP_PORT=${PORT:-3000}
-APP_COOKIE_SECURE=${COOKIE_SECURE:-false}
+DB_PATH=${MOVIE_DEMO_DB_PATH-"$MOVIE_DEMO_ROOT/movie-demo.db"}
+APP_HOST=${HOST-127.0.0.1}
+APP_PORT=${PORT-3000}
+APP_COOKIE_SECURE=${COOKIE_SECURE-false}
 case "$DB_PATH" in
   /*) ;;
   *)
@@ -287,7 +287,7 @@ child.on("error", (error) => {
   process.exit(1);
 });
 child.on("exit", (code, signal) => {
-  if (!requested) process.exit(code || statuses[signal] || 0);
+  if (!requested) process.exit(code ?? statuses[signal] ?? 1);
 });
 ' -- "$@" &
   CHILD_PID=$!
