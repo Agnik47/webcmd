@@ -20,6 +20,13 @@ DB_PATH=${MOVIE_DEMO_DB_PATH:-"$MOVIE_DEMO_ROOT/movie-demo.db"}
 APP_HOST=${HOST:-127.0.0.1}
 APP_PORT=${PORT:-3000}
 APP_COOKIE_SECURE=${COOKIE_SECURE:-false}
+case "$DB_PATH" in
+  /*) ;;
+  *)
+    printf 'movie demo: database path must be absolute\n' >&2
+    exit 1
+    ;;
+esac
 STATE_VERSION='webcmd movie-ticket-booking setup v2'
 TEMP_PATH=
 READY_PATH=

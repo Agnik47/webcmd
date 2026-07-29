@@ -565,6 +565,18 @@ test('deployment settings reach only the app without putting the API key in argv
   assert.doesNotMatch(`${calls(fixture)}${gateway.stdout}${gateway.stderr}${app.stdout}${app.stderr}`, new RegExp(initialKey));
 });
 
+test('relative deployment database paths are rejected before either child launches', () => {
+  const fixture = makeFixture();
+  completeSetup(fixture);
+  clearCalls(fixture);
+
+  const result = run(fixture, 'gateway', { MOVIE_DEMO_DB_PATH: 'relative.db' });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /database path.*absolute/i);
+  assert.equal(calls(fixture), '');
+});
+
 test('HUP, INT, and TERM reach signal-resistant descendants under bash and zsh', async () => {
   for (const shell of ['/bin/bash', 'zsh']) {
     for (const [signal, expectedCode] of [
