@@ -270,13 +270,15 @@ The corresponding resource setup is:
 
 ```bash
 read -r -p 'Google Cloud project ID: ' PROJECT_ID
-test -n "$PROJECT_ID"
-gcloud config set project "$PROJECT_ID"
-test "$(gcloud config get-value project 2>/dev/null)" = "$PROJECT_ID"
-
 ZONE=us-central1-a
 VM=movie-booking-vm
 DOMAIN=demo.example.com
+
+(
+set -euo pipefail
+: "${PROJECT_ID:?Google Cloud project ID is required}"
+gcloud config set project "$PROJECT_ID"
+test "$(gcloud config get-value project 2>/dev/null)" = "$PROJECT_ID"
 
 gcloud compute instance-groups unmanaged create movie-booking-ig --zone="$ZONE"
 gcloud compute instance-groups unmanaged add-instances movie-booking-ig \
@@ -307,6 +309,7 @@ gcloud compute forwarding-rules create movie-booking-https \
   --target-https-proxy=movie-booking-https-proxy --ports=443
 gcloud compute addresses describe movie-booking-ip \
   --global --format='value(address)'
+)
 ```
 
 Point the domain's A record at the printed IP and wait for the managed
@@ -413,6 +416,7 @@ putting the password or session cookie in a process argument, and its trap
 removes every temporary credential, header, and body file:
 
 ```bash
+(
 set -euo pipefail
 : "${PROJECT_ID:?Set PROJECT_ID to the deployed Google Cloud project}"
 : "${ZONE:?Set ZONE to the VM zone}"
@@ -544,6 +548,7 @@ verify_state "$ACCEPTANCE_DIR/bootstrap-after-vm-reset.json"
 
 printf 'Deployment acceptance passed for %s with marker %s\n' \
   "$EMAIL" "$MARKER"
+)
 ```
 
 Finally, run a read-only hosted WebCMD command as the service user. This proves
