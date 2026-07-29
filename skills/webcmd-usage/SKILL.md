@@ -233,7 +233,7 @@ Do not invoke these removed commands:
 
 - `webcmd explore <url>`: use `webcmd browser network` and `webcmd browser find`, or the `webcmd-adapter-author` workflow.
 - `webcmd record <url>`: manual capture now lives in `webcmd browser network --detail`.
-- Top-level `webcmd web read` / `webcmd desktop *` groups: use their adapters instead.
+- Top-level `webcmd web fetch-browser` / `webcmd desktop *` groups: use their adapters instead.
 
 ## Do Not
 
