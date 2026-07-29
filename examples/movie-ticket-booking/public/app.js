@@ -131,6 +131,7 @@ const chatTitle = byId('chat-title');
 const chatForm = byId('chat-form');
 const messageInput = byId('message');
 const sendButton = byId('send');
+const newChatButton = byId('new-chat');
 let conversations = [];
 let activeConversationId = '';
 const requests = createRequestEpoch();
@@ -174,6 +175,7 @@ function resetSession(message = '') {
   messageInput.value = '';
   messageInput.disabled = true;
   sendButton.disabled = true;
+  newChatButton.disabled = false;
   byId('preferences-form').querySelector('button').disabled = false;
   setAuthPending(false);
   authForm.reset();
@@ -218,6 +220,7 @@ function appendMessage(message) {
   appendTranscriptContent(content, message.content);
   item.append(role, content);
   transcript.append(item);
+  transcript.scrollTop = transcript.scrollHeight;
 }
 
 async function selectConversation(conversation) {
@@ -272,7 +275,7 @@ async function loadApp(
   renderConversations();
   showApp();
   if (conversations[0]) await selectConversation(conversations[0]);
-  else byId('new-chat').focus();
+  else newChatButton.focus();
 }
 
 authForm.addEventListener('submit', async (event) => {
@@ -300,8 +303,9 @@ authForm.addEventListener('submit', async (event) => {
   }
 });
 
-byId('new-chat').addEventListener('click', async () => {
+newChatButton.addEventListener('click', async () => {
   const captured = requests.capture();
+  newChatButton.disabled = true;
   appError.textContent = '';
   try {
     const conversation = await api('/api/conversations', {
@@ -313,6 +317,8 @@ byId('new-chat').addEventListener('click', async () => {
     await selectConversation(conversation);
   } catch (error) {
     if (requests.isCurrent(captured)) showError(appError, error);
+  } finally {
+    if (requests.isCurrent(captured)) newChatButton.disabled = false;
   }
 });
 

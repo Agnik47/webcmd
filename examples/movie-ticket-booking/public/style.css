@@ -159,6 +159,24 @@ textarea {
   gap: 1rem;
 }
 
+#preferences-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.preference-field {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.preference-field label {
+  margin-top: 0;
+}
+
+#preferences-status,
+#preferences-form > button {
+  grid-column: 1 / -1;
+}
+
 .plain-list,
 .transcript {
   margin: 0;
@@ -182,13 +200,9 @@ textarea {
   background: #3657d6;
 }
 
-.chat {
-  min-height: 36rem;
-}
-
 .transcript {
   display: flex;
-  min-height: 22rem;
+  min-height: 8rem;
   max-height: 55vh;
   margin-bottom: 1rem;
   flex-direction: column;
@@ -196,10 +210,18 @@ textarea {
   overflow-y: auto;
 }
 
+.transcript:empty::before {
+  margin: auto;
+  color: #65708a;
+  text-align: center;
+  content: attr(data-empty-message);
+}
+
 .message {
   max-width: 85%;
   padding: 0.7rem 0.85rem;
   border-radius: 0.75rem;
+  overflow-wrap: anywhere;
   background: #eef1f8;
 }
 
@@ -250,7 +272,7 @@ textarea {
     grid-template-columns: 1fr;
   }
 
-  .chat {
-    min-height: auto;
+  #preferences-form {
+    grid-template-columns: 1fr;
   }
 }
