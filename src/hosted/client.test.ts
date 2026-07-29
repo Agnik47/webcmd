@@ -215,6 +215,68 @@ describe('HostedClient', () => {
     });
   });
 
+  it('accepts string-array search metadata in hosted manifest commands', async () => {
+    const client = new HostedClient({
+      apiBaseUrl: 'https://api.example.com',
+      apiKey: 'key',
+      fetchImpl: async () => new Response(JSON.stringify({
+        ok: true,
+        manifest: {
+          userId: 'user_demo',
+          metadata: {
+            contractSchemaVersion: 1,
+            webcmdPackageVersion: '0.3.0',
+            generatedAt: 'now',
+          },
+          commands: [{
+            site: 'metadata',
+            name: 'search',
+            command: 'metadata/search',
+            description: 'Search metadata',
+            access: 'read',
+            strategy: 'PUBLIC',
+            browser: false,
+            args: [],
+            columns: ['title'],
+            tags: ['search'],
+            keywords: ['lookup', 'discovery'],
+          }],
+        },
+      }), { status: 200 }),
+    });
+
+    await expect(client.getManifest()).resolves.toMatchObject({
+      commands: [expect.objectContaining({
+        tags: ['search'],
+        keywords: ['lookup', 'discovery'],
+      })],
+    });
+  });
+
+  it('rejects non-string search metadata in hosted manifest commands', async () => {
+    const client = new HostedClient({
+      apiBaseUrl: 'https://api.example.com',
+      apiKey: 'key',
+      fetchImpl: async () => new Response(JSON.stringify({
+        ok: true,
+        manifest: {
+          userId: 'user_demo',
+          metadata: {
+            contractSchemaVersion: 1,
+            webcmdPackageVersion: '0.3.0',
+            generatedAt: 'now',
+          },
+          commands: [{
+            site: 'metadata', name: 'search', command: 'metadata/search', description: 'Search metadata',
+            access: 'read', strategy: 'PUBLIC', browser: false, args: [], columns: [], tags: ['search', 42],
+          }],
+        },
+      }), { status: 200 }),
+    });
+
+    await expect(client.getManifest()).rejects.toMatchObject({ code: 'HOSTED_PROTOCOL' });
+  });
+
   it('rejects non-boolean freshPage command metadata', async () => {
     const client = new HostedClient({
       apiBaseUrl: 'https://api.example.com',

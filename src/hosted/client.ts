@@ -476,7 +476,7 @@ function isHostedPublicProfile(value: unknown): boolean {
 function isHostedManifestCommand(value: unknown): boolean {
   if (!hasOnlyKeys(value, [
     'site', 'name', 'aliases', 'command', 'description', 'access', 'example', 'domain', 'strategy', 'browser',
-    'args', 'columns', 'pipeline', 'defaultFormat', 'type', 'modulePath', 'sourceFile', 'navigateBefore',
+    'args', 'columns', 'tags', 'keywords', 'pipeline', 'defaultFormat', 'type', 'modulePath', 'sourceFile', 'navigateBefore',
     'siteSession', 'freshPage', 'adapterPackageId', 'adapterPackageName', 'adapterPackageVersion',
   ])) return false;
   if (typeof value.site !== 'string' || typeof value.name !== 'string' || typeof value.command !== 'string') return false;
@@ -484,6 +484,8 @@ function isHostedManifestCommand(value: unknown): boolean {
   if (typeof value.browser !== 'boolean' || !Array.isArray(value.args) || !value.args.every(isHostedManifestArg)) return false;
   if (value.aliases !== undefined && (!Array.isArray(value.aliases) || !value.aliases.every(item => typeof item === 'string'))) return false;
   if (!Array.isArray(value.columns) || !value.columns.every(item => typeof item === 'string')) return false;
+  if (value.tags !== undefined && (!Array.isArray(value.tags) || !value.tags.every(item => typeof item === 'string'))) return false;
+  if (value.keywords !== undefined && (!Array.isArray(value.keywords) || !value.keywords.every(item => typeof item === 'string'))) return false;
   if (value.domain !== undefined && value.domain !== null && typeof value.domain !== 'string') return false;
   if (value.defaultFormat !== undefined && value.defaultFormat !== null && typeof value.defaultFormat !== 'string') return false;
   if (value.example !== undefined && typeof value.example !== 'string') return false;
