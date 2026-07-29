@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { Command, Option } from 'commander';
 import { findPackageRoot, getBuiltEntryCandidates } from './package-paths.js';
 import { type CliCommand, getRegistry } from './registry.js';
-import { commandListPresentation, toPresentableCommand } from './command-presentation.js';
+import { commandListPresentation, filterCommandsByTag, toPresentableCommand } from './command-presentation.js';
 import { configureCompletionCommandSurface, configureListCommandSurface, configurePluginInstallSurface, configurePluginSearchSurface } from './builtin-command-surface.js';
 import { render as renderOutput } from './output.js';
 import { PKG_VERSION } from './version.js';
@@ -795,7 +795,7 @@ export function createProgram(BUILTIN_CLIS: string, USER_CLIS: string): Command 
     .action((opts) => {
       const externalClis = opts.format === 'table' ? loadExternalClis() : [];
       const presentation = commandListPresentation(
-        [...new Set(getRegistry().values())].map(toPresentableCommand),
+        filterCommandsByTag([...new Set(getRegistry().values())].map(toPresentableCommand), opts.tag),
         opts.format,
         {
           externalClis: externalClis.map((external) => ({

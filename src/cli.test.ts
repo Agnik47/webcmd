@@ -324,6 +324,48 @@ name: 'search',
     }
   });
 
+  it('filters local structured list rows by an exact case-insensitive tag', async () => {
+    const registry = getRegistry();
+    const snapshot = new Map(registry);
+    const outputSpy = vi.mocked(console.log);
+    registry.clear();
+    try {
+      cli({
+        site: 'searchable',
+        name: 'find',
+        access: 'read',
+        description: 'Find records',
+        strategy: Strategy.PUBLIC,
+        browser: false,
+        tags: ['search'],
+        keywords: ['lookup'],
+      });
+      cli({
+        site: 'other',
+        name: 'write',
+        access: 'write',
+        description: 'Write records',
+        strategy: Strategy.PUBLIC,
+        browser: false,
+        tags: ['write'],
+      });
+
+      outputSpy.mockClear();
+      await createProgram('', '').parseAsync(['node', 'webcmd', 'list', '--tag', 'SEARCH', '-f', 'json']);
+      const rows = JSON.parse(outputSpy.mock.calls.flat().join('\n'));
+
+      expect(rows).toEqual([expect.objectContaining({
+        command: 'searchable/find',
+        tags: ['search'],
+        keywords: ['lookup'],
+      })]);
+    } finally {
+      outputSpy.mockClear();
+      registry.clear();
+      for (const [key, value] of snapshot) registry.set(key, value);
+    }
+  });
+
   it.each(['json', 'yaml', 'yml'])(
     'renders local list %s through the shared list presentation',
     async (format) => {

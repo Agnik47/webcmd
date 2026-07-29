@@ -36,6 +36,8 @@ const manifest = {
       browser: true,
       args: [],
       columns: ['username'],
+      tags: ['search'],
+      keywords: ['identity'],
       domain: 'github.com',
     },
     {
@@ -1003,6 +1005,23 @@ describe('runHostedCli', () => {
     expect(result).toEqual({ handled: true, exitCode: 0 });
     expect(stdout.text()).toContain('github/whoami');
     expect(stdout.text()).not.toContain('docker/ps');
+  });
+
+  it('filters hosted structured list rows by an exact case-insensitive tag', async () => {
+    const stdout = sink();
+
+    const result = await runHostedCli(['list', '--tag', 'SEARCH', '-f', 'json'], {
+      config: makeHostedConfig({ apiBaseUrl: 'https://api.example.com', apiKey: 'key' }),
+      stdout: stdout.stream,
+      fetchImpl: async () => manifestResponse(),
+    });
+
+    expect(result).toEqual({ handled: true, exitCode: 0 });
+    expect(JSON.parse(stdout.text())).toEqual([expect.objectContaining({
+      command: 'github/whoami',
+      tags: ['search'],
+      keywords: ['identity'],
+    })]);
   });
 
   it('dispatches hosted commands to /v1/execute', async () => {

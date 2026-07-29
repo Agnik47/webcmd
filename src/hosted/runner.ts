@@ -5,7 +5,7 @@ import { Command, CommanderError } from 'commander';
 import { configureCompletionCommandSurface, configureListCommandSurface, configurePluginInstallSurface, configurePluginSearchSurface } from '../builtin-command-surface.js';
 import { BrowserSessionArgvError, rewriteBrowserArgv } from '../cli-argv-preprocess.js';
 import { CommanderStructuralError, MissingRequiredPositionalError } from '../command-surface.js';
-import { formatRootHelp, getCommandCompletionCandidates } from '../command-presentation.js';
+import { filterCommandsByTag, formatRootHelp, getCommandCompletionCandidates } from '../command-presentation.js';
 import {
   HOSTED_BUILTIN_COMMANDS,
   HOSTED_ROOT_HELP,
@@ -190,7 +190,7 @@ async function dispatchHosted(
     }
     const manifest = await client.getManifest();
     validateManifestContractIdentity(manifest);
-    await renderHostedList(manifest, parsed.format, parsed.formatExplicit, stdout);
+    await renderHostedList(manifest, parsed.format, parsed.formatExplicit, stdout, parsed.tag);
     return;
   }
 
@@ -689,8 +689,9 @@ async function renderHostedList(
   fmt: string,
   explicit: boolean,
   stdout: NodeJS.WritableStream,
+  tag?: string,
 ): Promise<void> {
-  const presentation = hostedListPresentation(manifest, fmt);
+  const presentation = hostedListPresentation({ ...manifest, commands: filterCommandsByTag(manifest.commands, tag) }, fmt);
   if (presentation.displayLines) {
     for (const line of presentation.displayLines) await writeToStream(stdout, `${line}\n`);
     return;
@@ -715,12 +716,13 @@ async function writeHostedHelp(
 
 type ParsedHostedListSurface =
   | { kind: 'help'; output: string }
-  | { kind: 'run'; format: string; formatExplicit: boolean };
+  | { kind: 'run'; format: string; formatExplicit: boolean; tag?: string };
 
 function parseHostedListSurface(argv: readonly string[], literal: boolean): ParsedHostedListSurface {
   let stdout = '';
   let stderr = '';
   let parsedFormat = 'table';
+  let parsedTag: string | undefined;
   let formatExplicit = false;
   let actionRan = false;
   const root = new Command('webcmd');
@@ -730,9 +732,10 @@ function parseHostedListSurface(argv: readonly string[], literal: boolean): Pars
     writeErr: (value: string) => { stderr += value; },
   };
   root.exitOverride().configureOutput(output);
-  list.exitOverride().configureOutput(output).action((options: { format: string }) => {
+  list.exitOverride().configureOutput(output).action((options: { format: string; tag?: string }) => {
     actionRan = true;
     parsedFormat = options.format;
+    parsedTag = options.tag;
     formatExplicit = list.getOptionValueSource('format') === 'cli';
   });
 
@@ -744,7 +747,7 @@ function parseHostedListSurface(argv: readonly string[], literal: boolean): Pars
     throw new CommanderStructuralError(stderr || `${error.message}\n`, error.exitCode);
   }
   if (!actionRan) throw new CommanderStructuralError("error: command 'list' did not run\n", 1);
-  return { kind: 'run', format: parsedFormat, formatExplicit };
+  return { kind: 'run', format: parsedFormat, formatExplicit, ...(parsedTag !== undefined ? { tag: parsedTag } : {}) };
 }
 
 type HostedProfileCommand = 'list' | 'delete';

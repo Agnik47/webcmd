@@ -9,7 +9,8 @@ export const COMPLETION_SHELL_DESCRIPTION = 'Shell type: bash, zsh, or fish';
 export function configureListCommandSurface(command: Command): Command {
   return command
     .description(LIST_COMMAND_DESCRIPTION)
-    .option('-f, --format <fmt>', LIST_FORMAT_DESCRIPTION, 'table');
+    .option('-f, --format <fmt>', LIST_FORMAT_DESCRIPTION, 'table')
+    .option('--tag <tag>', 'Filter commands by exact tag');
 }
 
 /** Configure completion grammar shared by the local and hosted runtimes. */

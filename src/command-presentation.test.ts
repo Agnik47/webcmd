@@ -3,6 +3,7 @@ import { Strategy, type CliCommand } from './registry.js';
 import {
   commandListPresentation,
   commandListRows,
+  filterCommandsByTag,
   formatCommandHelp,
   formatRootHelp,
   formatSiteHelp,
@@ -47,6 +48,17 @@ const hostedCommand = {
 } satisfies HostedCommand;
 
 describe('shared command presentation', () => {
+  it('filters commands by one exact case-insensitive tag', () => {
+    const commands = [
+      { name: 'a', tags: ['search'] },
+      { name: 'b', tags: ['write'] },
+    ];
+
+    expect(filterCommandsByTag(commands, 'SEARCH').map((command) => command.name)).toEqual(['a']);
+    expect(filterCommandsByTag(commands)).toEqual(commands);
+    expect(filterCommandsByTag(commands, 'searches')).toEqual([]);
+  });
+
   it('renders byte-identical root help for equal local and hosted surfaces', () => {
     const local: RootHelpPresentation = {
       description: 'Make any website your CLI. Zero setup. AI-powered.',

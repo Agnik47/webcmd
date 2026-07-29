@@ -240,6 +240,16 @@ export function commandListRows(
   });
 }
 
+export function filterCommandsByTag<T extends { tags?: readonly string[] }>(
+  commands: readonly T[],
+  tag?: string,
+): T[] {
+  const wanted = tag?.trim().toLowerCase();
+  if (!wanted) return [...commands];
+  return commands.filter((command) =>
+    command.tags?.some((value) => value.toLowerCase() === wanted));
+}
+
 export function commandListPresentation(
   commands: readonly PresentableCommand[],
   format: string,
