@@ -108,26 +108,62 @@ settings; deployment environment files do not replace that boundary.
 
 ## Deploy on an Ubuntu 24.04 Compute Engine VM
 
-Use one Ubuntu 24.04 VM with a persistent boot disk. Install Node.js 22.5 or
-newer, Hermes Agent, WebCMD, Git, and `openssl` system-wide so `node`, `npm`,
-`hermes`, and `webcmd` are available outside an interactive login shell.
+Use one Ubuntu 24.04 VM with a persistent boot disk. Install the base packages,
+Node.js 22 from NodeSource, and WebCMD:
+
+```bash
+sudo apt-get update
+sudo apt-get install --yes ca-certificates curl git openssl
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt-get install --yes nodejs
+sudo npm install --global @agentrhq/webcmd
+```
 
 ### Provision the service account and checkout
 
 Create a system user whose persistent home is `/var/lib/movie-booking`, then
-place the checkout at `/opt/webcmd`:
+install Hermes as that user. Its installer places the executable under the
+user's home, so expose that fixed path to systemd:
 
 ```bash
 sudo useradd --system --create-home \
   --home-dir /var/lib/movie-booking \
   --shell /usr/sbin/nologin \
   movie-booking
-sudo git clone https://github.com/agentrhq/webcmd.git /opt/webcmd
+sudo -u movie-booking -H bash -lc \
+  'curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash'
+sudo ln -sfn /var/lib/movie-booking/.local/bin/hermes \
+  /usr/local/bin/hermes
+```
+
+Set `WEBCMD_REF` to a reviewed branch, tag, or full commit that is already
+available from the remote. This feature branch is not assumed to be published:
+
+```bash
+read -r -p 'Reviewed remote WebCMD branch, tag, or commit: ' WEBCMD_REF
+test -n "$WEBCMD_REF"
+sudo git clone --no-checkout https://github.com/agentrhq/webcmd.git /opt/webcmd
+sudo git -C /opt/webcmd fetch origin "$WEBCMD_REF"
+sudo git -C /opt/webcmd checkout --detach FETCH_HEAD
+sudo git -C /opt/webcmd rev-parse HEAD
 sudo chown -R movie-booking:movie-booking \
   /opt/webcmd /var/lib/movie-booking
 ```
 
-Check out the reviewed release or commit before continuing. The service user's
+Confirm that the printed commit is the reviewed revision before continuing.
+Verify every runtime command through the same service-user context that
+systemd will use:
+
+```bash
+sudo -u movie-booking -H bash -lc '
+  node --version
+  npm --version
+  webcmd --version
+  hermes --version
+'
+```
+
+The service user's
 `/var/lib/movie-booking/.hermes` and `/var/lib/movie-booking/.webcmd`
 directories persist Hermes and hosted WebCMD configuration. The database,
 `movie-demo.db-wal`, and `movie-demo.db-shm` also persist beside
@@ -211,7 +247,10 @@ sudo systemctl enable --now movie-booking.target
 sudo systemctl restart movie-booking.target
 sudo systemctl stop movie-booking.target
 sudo systemctl start movie-booking.target
-sudo systemctl status movie-booking.target
+sudo systemctl status \
+  movie-booking.target \
+  movie-booking-app.service \
+  movie-booking-hermes.service
 sudo journalctl -u movie-booking-app.service
 sudo journalctl -u movie-booking-hermes.service
 ```
@@ -276,8 +315,13 @@ ranges](https://cloud.google.com/load-balancing/docs/firewall-rules):
 ```bash
 gcloud compute instances add-tags "$VM" \
   --zone="$ZONE" --tags=movie-booking-backend
+NETWORK_URL=$(gcloud compute instances describe "$VM" \
+  --zone="$ZONE" --format='value(networkInterfaces[0].network)')
+NETWORK=${NETWORK_URL##*/}
+test -n "$NETWORK"
 gcloud compute firewall-rules create movie-booking-allow-gfe \
   --direction=INGRESS --action=ALLOW \
+  --network="$NETWORK" \
   --target-tags=movie-booking-backend \
   --source-ranges=35.191.0.0/16,130.211.0.0/22 \
   --rules=tcp:3000
@@ -303,7 +347,7 @@ gcloud compute security-policies rules create 1000 \
   --rate-limit-threshold-interval-sec=60 \
   --conform-action=allow \
   --exceed-action=deny-429 \
-  --enforce-on-key=IP
+  --enforce-on-key=ip
 gcloud compute backend-services update movie-booking-backend \
   --global --security-policy=movie-booking-demo
 ```
