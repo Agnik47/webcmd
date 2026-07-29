@@ -1,0 +1,16 @@
+[Unit]
+Description=Movie booking web app
+After=network-online.target movie-booking-hermes.service
+Wants=network-online.target
+PartOf=movie-booking.target
+
+[Service]
+Type=simple
+User=movie-booking
+Group=movie-booking
+Environment=HOME=/var/lib/movie-booking
+EnvironmentFile=/etc/movie-booking.env
+WorkingDirectory=/opt/webcmd
+ExecStart=/opt/webcmd/examples/movie-ticket-booking/scripts/setup.sh app
+Restart=on-failure
+RestartSec=5s

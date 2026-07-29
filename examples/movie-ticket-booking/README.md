@@ -97,10 +97,291 @@ the key or leaves `API_SERVER_KEY` in either shell environment.
 | `HERMES_API_URL` | App | Hermes API base URL |
 | `MOVIE_DEMO_ROOT` | Hermes skill | Absolute example package path |
 | `MOVIE_DEMO_DB_PATH` | Hermes and app | Shared absolute SQLite path |
-| `PORT` | App | Local HTTP port |
+| `HOST` | App | HTTP bind address; defaults to `127.0.0.1`, use `0.0.0.0` behind the load balancer |
+| `PORT` | App | HTTP port; defaults to `3000` |
+| `COOKIE_SECURE` | App | Set to `true` when the browser reaches the app through HTTPS |
 
 Do not expose these values to browser code or commit local key, `.env`, or
-database files.
+database files. The setup helper still owns and pins the private
+`API_SERVER_*`, `HERMES_API_URL`, `MOVIE_DEMO_ROOT`, and generated bearer-key
+settings; deployment environment files do not replace that boundary.
+
+## Deploy on an Ubuntu 24.04 Compute Engine VM
+
+Use one Ubuntu 24.04 VM with a persistent boot disk. Install Node.js 22.5 or
+newer, Hermes Agent, WebCMD, Git, and `openssl` system-wide so `node`, `npm`,
+`hermes`, and `webcmd` are available outside an interactive login shell.
+
+### Provision the service account and checkout
+
+Create a system user whose persistent home is `/var/lib/movie-booking`, then
+place the checkout at `/opt/webcmd`:
+
+```bash
+sudo useradd --system --create-home \
+  --home-dir /var/lib/movie-booking \
+  --shell /usr/sbin/nologin \
+  movie-booking
+sudo git clone https://github.com/agentrhq/webcmd.git /opt/webcmd
+sudo chown -R movie-booking:movie-booking \
+  /opt/webcmd /var/lib/movie-booking
+```
+
+Check out the reviewed release or commit before continuing. The service user's
+`/var/lib/movie-booking/.hermes` and `/var/lib/movie-booking/.webcmd`
+directories persist Hermes and hosted WebCMD configuration. The database,
+`movie-demo.db-wal`, and `movie-demo.db-shm` also persist beside
+`/var/lib/movie-booking/movie-demo.db`. Persistent disks survive process and
+VM restarts, but still require regular Compute Engine disk snapshots.
+
+Create the shared runtime file:
+
+```bash
+sudo install -o root -g movie-booking -m 0640 /dev/null \
+  /etc/movie-booking.env
+sudo tee /etc/movie-booking.env >/dev/null <<'EOF'
+HOST=0.0.0.0
+PORT=3000
+COOKIE_SECURE=true
+MOVIE_DEMO_DB_PATH=/var/lib/movie-booking/movie-demo.db
+EOF
+```
+
+Create the Hermes-only environment file without printing secrets to the
+terminal:
+
+```bash
+sudo install -o root -g movie-booking -m 0640 /dev/null \
+  /etc/movie-booking-hermes.env
+sudoedit /etc/movie-booking-hermes.env
+```
+
+Put only the variables required by the selected Hermes provider and hosted
+WebCMD deployment in that file. For example, an API-key provider may require
+`OPENAI_API_KEY=...`; a non-default WebCMD endpoint may require
+`WEBCMD_CLOUD_API_URL=...`. Do not invent or duplicate credentials that the
+interactive setup commands persist under `.hermes` and `.webcmd`. Reassert the
+required access after editing:
+
+```bash
+sudo chown root:movie-booking \
+  /etc/movie-booking.env /etc/movie-booking-hermes.env
+sudo chmod 0640 \
+  /etc/movie-booking.env /etc/movie-booking-hermes.env
+```
+
+Run both interactive setup commands as the service user. Loading the
+Hermes-only file into this shell makes the selected provider and hosted WebCMD
+overrides available without exposing them to the app service:
+
+```bash
+sudo -u movie-booking -H bash -lc '
+  set -a
+  . /etc/movie-booking.env
+  . /etc/movie-booking-hermes.env
+  set +a
+  cd /opt/webcmd
+  webcmd setup
+  examples/movie-ticket-booking/scripts/setup.sh setup
+'
+```
+
+Choose hosted mode in `webcmd setup`. The setup helper remains responsible for
+the private Hermes API settings and generated bearer key.
+
+### Install and operate the systemd units
+
+Copy and verify the units on the Ubuntu VM:
+
+```bash
+sudo install -o root -g root -m 0644 \
+  /opt/webcmd/examples/movie-ticket-booking/deploy/systemd/* \
+  /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemd-analyze verify \
+  /etc/systemd/system/movie-booking-hermes.service \
+  /etc/systemd/system/movie-booking-app.service \
+  /etc/systemd/system/movie-booking.target
+sudo systemctl enable --now movie-booking.target
+```
+
+`movie-booking.target` is the single lifecycle interface:
+
+```bash
+sudo systemctl restart movie-booking.target
+sudo systemctl stop movie-booking.target
+sudo systemctl start movie-booking.target
+sudo systemctl status movie-booking.target
+sudo journalctl -u movie-booking-app.service
+sudo journalctl -u movie-booking-hermes.service
+```
+
+### Put the GCP HTTPS load balancer in front
+
+Create a global external HTTPS Application Load Balancer with:
+
+- the VM as the only member of one zonal unmanaged instance group;
+- the instance group's named port `http:3000`;
+- an HTTP health check on port `3000` and path `/healthz`;
+- one global backend service and URL map sending all paths to that backend;
+- a global static IP, target HTTPS proxy, and Google-managed certificate for
+  the custom domain.
+
+The corresponding resource setup is:
+
+```bash
+ZONE=us-central1-a
+VM=movie-booking-vm
+DOMAIN=demo.example.com
+
+gcloud compute instance-groups unmanaged create movie-booking-ig --zone="$ZONE"
+gcloud compute instance-groups unmanaged add-instances movie-booking-ig \
+  --zone="$ZONE" --instances="$VM"
+gcloud compute instance-groups unmanaged set-named-ports movie-booking-ig \
+  --zone="$ZONE" --named-ports=http:3000
+gcloud compute health-checks create http movie-booking-health \
+  --port=3000 --request-path=/healthz
+gcloud compute backend-services create movie-booking-backend \
+  --global --load-balancing-scheme=EXTERNAL_MANAGED \
+  --protocol=HTTP --port-name=http \
+  --health-checks=movie-booking-health
+gcloud compute backend-services add-backend movie-booking-backend \
+  --global --instance-group=movie-booking-ig \
+  --instance-group-zone="$ZONE"
+gcloud compute url-maps create movie-booking-map \
+  --default-service=movie-booking-backend
+gcloud compute addresses create movie-booking-ip \
+  --global --ip-version=IPV4 --network-tier=PREMIUM
+gcloud compute ssl-certificates create movie-booking-cert \
+  --global --domains="$DOMAIN"
+gcloud compute target-https-proxies create movie-booking-https-proxy \
+  --url-map=movie-booking-map --ssl-certificates=movie-booking-cert
+gcloud compute forwarding-rules create movie-booking-https \
+  --global --load-balancing-scheme=EXTERNAL_MANAGED \
+  --network-tier=PREMIUM --address=movie-booking-ip \
+  --target-https-proxy=movie-booking-https-proxy --ports=443
+gcloud compute addresses describe movie-booking-ip \
+  --global --format='value(address)'
+```
+
+Point the domain's A record at the printed IP and wait for the managed
+certificate to become active. Do not create an HTTP frontend. If one is
+required, configure its URL map to redirect every request to HTTPS; never
+forward cleartext login or registration traffic.
+
+Tag the VM and permit backend port 3000 only from the current documented IPv4
+[Google Front End and health-check
+ranges](https://cloud.google.com/load-balancing/docs/firewall-rules):
+
+```bash
+gcloud compute instances add-tags "$VM" \
+  --zone="$ZONE" --tags=movie-booking-backend
+gcloud compute firewall-rules create movie-booking-allow-gfe \
+  --direction=INGRESS --action=ALLOW \
+  --target-tags=movie-booking-backend \
+  --source-ranges=35.191.0.0/16,130.211.0.0/22 \
+  --rules=tcp:3000
+```
+
+Do not add public VM ingress for 3000 or 8642, and do not run public listeners
+on VM ports 80 or 443. The app listens on `0.0.0.0:3000`; Hermes must remain on
+`127.0.0.1:8642`. The VM also needs outbound HTTPS access, through its external
+IP or Cloud NAT.
+
+Before publishing DNS, attach a [Cloud Armor rate-limit
+policy](https://cloud.google.com/armor/docs/configure-rate-limiting) to
+`movie-booking-backend` for an open demo. Start with a measured per-IP limit,
+then tune it from load-balancer logs:
+
+```bash
+gcloud compute security-policies create movie-booking-demo
+gcloud compute security-policies rules create 1000 \
+  --security-policy=movie-booking-demo \
+  --src-ip-ranges='*' \
+  --action=throttle \
+  --rate-limit-threshold-count=60 \
+  --rate-limit-threshold-interval-sec=60 \
+  --conform-action=allow \
+  --exceed-action=deny-429 \
+  --enforce-on-key=IP
+gcloud compute backend-services update movie-booking-backend \
+  --global --security-policy=movie-booking-demo
+```
+
+For a private demo, use approved identities or a source-range allowlist with a
+default deny policy instead. The app does not add another in-process
+abuse-control layer.
+
+The deployment also depends on an external release gate: the WebCMD package
+containing `district booking-status` must be published and WebCMD Cloud must
+deploy it. Search and payment handoff may be demonstrated before that gate,
+but provider-verified booking confirmation may not.
+
+### Verify the deployment
+
+Run the repository checks and unit validation on the Ubuntu VM:
+
+```bash
+sudo -u movie-booking -H bash -lc '
+  cd /opt/webcmd
+  npm --prefix examples/movie-ticket-booking test
+  npm --prefix examples/movie-ticket-booking run typecheck
+'
+sudo systemd-analyze verify \
+  /etc/systemd/system/movie-booking-hermes.service \
+  /etc/systemd/system/movie-booking-app.service \
+  /etc/systemd/system/movie-booking.target
+```
+
+Verify the running services, local health check, and sockets:
+
+```bash
+systemctl is-active movie-booking-hermes.service
+systemctl is-active movie-booking-app.service
+curl --fail --show-error http://127.0.0.1:3000/healthz
+sudo ss -lntp
+```
+
+`ss` must show `0.0.0.0:3000` and `127.0.0.1:8642`, with no VM listeners on
+ports 80 or 443. From a machine outside the VPC, verify HTTPS and confirm that
+direct VM access is blocked:
+
+```bash
+curl --fail --show-error https://demo.example.com/healthz
+curl --fail --show-error https://demo.example.com/
+curl --connect-timeout 5 http://VM_EXTERNAL_IP:3000/healthz
+```
+
+The first two commands must succeed with a valid certificate. The direct VM
+request must time out or be refused.
+
+Verify reboot persistence:
+
+```bash
+sudo systemctl is-enabled movie-booking.target
+sudo reboot
+```
+
+After reconnecting:
+
+```bash
+systemctl is-active movie-booking-hermes.service
+systemctl is-active movie-booking-app.service
+curl --fail --show-error http://127.0.0.1:3000/healthz
+```
+
+Finally, run a read-only hosted WebCMD command as the service user. This proves
+that hosted configuration survived without starting checkout or changing
+District state:
+
+```bash
+sudo -u movie-booking -H bash -lc '
+  set -a
+  . /etc/movie-booking-hermes.env
+  set +a
+  webcmd district search movie --tab movies --limit 1 -f json
+'
+```
 
 ## Booking flow
 

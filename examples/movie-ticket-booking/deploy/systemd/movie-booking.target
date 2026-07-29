@@ -1,0 +1,7 @@
+[Unit]
+Description=Movie booking demo
+Wants=movie-booking-hermes.service movie-booking-app.service
+After=network-online.target
+
+[Install]
+WantedBy=multi-user.target

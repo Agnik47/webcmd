@@ -1,0 +1,17 @@
+[Unit]
+Description=Hermes gateway for the movie booking demo
+After=network-online.target
+Wants=network-online.target
+PartOf=movie-booking.target
+
+[Service]
+Type=simple
+User=movie-booking
+Group=movie-booking
+Environment=HOME=/var/lib/movie-booking
+EnvironmentFile=/etc/movie-booking.env
+EnvironmentFile=/etc/movie-booking-hermes.env
+WorkingDirectory=/opt/webcmd
+ExecStart=/opt/webcmd/examples/movie-ticket-booking/scripts/setup.sh gateway
+Restart=on-failure
+RestartSec=5s
