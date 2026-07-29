@@ -43,6 +43,7 @@ export interface AppOptions {
   db: DatabaseSync;
   hermes: Pick<HermesClient, 'createSession' | 'getMessages' | 'chat'>;
   userQueue?: PerUserQueue;
+  secureCookies?: boolean;
 }
 
 function send(response: ServerResponse, status: number, body: unknown, headers: Record<string, string> = {}): void {
@@ -98,14 +99,18 @@ function loginInput(body: Record<string, unknown>): { email: string; password: s
   return { email, password };
 }
 
-function loginResponse(db: DatabaseSync, user: UserRecord): {
+function sessionCookieAttributes(secureCookies: boolean): string {
+  return `Path=/; HttpOnly; SameSite=Lax${secureCookies ? '; Secure' : ''}`;
+}
+
+function loginResponse(db: DatabaseSync, user: UserRecord, secureCookies: boolean): {
   body: { user: { id: string; email: string } };
   cookie: string;
 } {
   const { token } = createLoginSession(db, user.id);
   return {
     body: { user: { id: user.id, email: user.email } },
-    cookie: `${COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800`,
+    cookie: `${COOKIE}=${encodeURIComponent(token)}; ${sessionCookieAttributes(secureCookies)}; Max-Age=604800`,
   };
 }
 
@@ -129,7 +134,7 @@ function preferencesInput(body: Record<string, unknown>): Preferences {
   };
 }
 
-export function createApp({ db, hermes, userQueue = new PerUserQueue() }: AppOptions) {
+export function createApp({ db, hermes, userQueue = new PerUserQueue(), secureCookies = false }: AppOptions) {
   return createServer(async (request, response) => {
     try {
       const method = request.method ?? 'GET';
@@ -145,6 +150,10 @@ export function createApp({ db, hermes, userQueue = new PerUserQueue() }: AppOpt
       }
 
       const path = new URL(rawUrl, 'http://localhost').pathname;
+      if (method === 'GET' && path === '/healthz') {
+        send(response, 200, { ok: true });
+        return;
+      }
       if (method === 'GET') {
         if (!path.startsWith('/api/')) throw new HttpError(404, 'not found');
       }
@@ -160,7 +169,7 @@ export function createApp({ db, hermes, userQueue = new PerUserQueue() }: AppOpt
           }
           throw error;
         }
-        const login = loginResponse(db, user);
+        const login = loginResponse(db, user, secureCookies);
         send(response, 201, login.body, { 'set-cookie': login.cookie });
         return;
       }
@@ -169,7 +178,7 @@ export function createApp({ db, hermes, userQueue = new PerUserQueue() }: AppOpt
         const input = loginInput(await readJson(request));
         const user = verifyCredentials(db, input.email, input.password);
         if (!user) throw new HttpError(401, 'invalid email or password');
-        const login = loginResponse(db, user);
+        const login = loginResponse(db, user, secureCookies);
         send(response, 200, login.body, { 'set-cookie': login.cookie });
         return;
       }
@@ -178,7 +187,7 @@ export function createApp({ db, hermes, userQueue = new PerUserQueue() }: AppOpt
         const token = cookieToken(request);
         if (token) deleteLoginSession(db, token);
         send(response, 200, { ok: true }, {
-          'set-cookie': `${COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`,
+          'set-cookie': `${COOKIE}=; ${sessionCookieAttributes(secureCookies)}; Max-Age=0`,
         });
         return;
       }
@@ -289,8 +298,35 @@ export function createApp({ db, hermes, userQueue = new PerUserQueue() }: AppOpt
   });
 }
 
+export function readServerConfig(env: NodeJS.ProcessEnv = process.env): {
+  host: string;
+  port: number;
+  secureCookies: boolean;
+  dbPath: string;
+} {
+  const host = env.HOST ?? '127.0.0.1';
+  if (!host.trim()) throw new Error('HOST must not be blank');
+
+  const port = Number(env.PORT ?? '3000');
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error('PORT must be an integer between 1 and 65535');
+  }
+
+  if (env.COOKIE_SECURE !== undefined && env.COOKIE_SECURE !== 'true' && env.COOKIE_SECURE !== 'false') {
+    throw new Error('COOKIE_SECURE must be true or false');
+  }
+
+  return {
+    host,
+    port,
+    secureCookies: env.COOKIE_SECURE === 'true',
+    dbPath: env.MOVIE_DEMO_DB_PATH ?? 'movie-demo.db',
+  };
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const db = openDatabase(process.env.MOVIE_DEMO_DB_PATH ?? 'movie-demo.db');
-  const app = createApp({ db, hermes: new HermesClient() });
-  app.listen(Number(process.env.PORT ?? 3000), '127.0.0.1');
+  const config = readServerConfig();
+  const db = openDatabase(config.dbPath);
+  const app = createApp({ db, hermes: new HermesClient(), secureCookies: config.secureCookies });
+  app.listen(config.port, config.host);
 }

@@ -10,7 +10,7 @@ import {
   recordDistrictBookingResult,
 } from '../src/db.js';
 import { HermesClient } from '../src/hermes.js';
-import { createApp } from '../src/server.js';
+import { createApp, readServerConfig } from '../src/server.js';
 
 async function listen(server: ReturnType<typeof createServer>): Promise<string> {
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -52,12 +52,13 @@ async function register(baseUrl: string, email: string): Promise<string> {
   return cookie;
 }
 
-function testApp() {
+function testApp(secureCookies = false) {
   const directory = mkdtempSync(join(tmpdir(), 'movie-demo-server-'));
   const db = openDatabase(join(directory, 'app.db'));
   let sessionNumber = 0;
   const app = createApp({
     db,
+    secureCookies,
     hermes: {
       createSession: async () => `movie_fixture_${++sessionNumber}`,
       getMessages: async () => [],
@@ -70,6 +71,67 @@ function testApp() {
   });
   return { db, app };
 }
+
+test('serves a minimal unauthenticated health check', async () => {
+  const { db, app } = testApp();
+  const baseUrl = await listen(app);
+  try {
+    const { response, body } = await request(baseUrl, '/healthz');
+    assert.equal(response.status, 200);
+    assert.deepEqual(body, { ok: true });
+  } finally {
+    await close(app);
+    db.close();
+  }
+});
+
+test('adds Secure only to deployment session cookies', async () => {
+  for (const [secureCookies, expected] of [[false, false], [true, true]] as const) {
+    const { db, app } = testApp(secureCookies);
+    const baseUrl = await listen(app);
+    try {
+      const { response } = await request(baseUrl, '/api/register', {
+        method: 'POST',
+        body: {
+          email: `${secureCookies ? 'secure' : 'local'}@example.com`,
+          password: 'correct horse battery staple',
+        },
+      });
+      const cookie = response.headers.getSetCookie()[0] ?? '';
+      assert.equal(/;\s*Secure(?:;|$)/i.test(cookie), expected);
+      assert.match(cookie, /;\s*HttpOnly(?:;|$)/i);
+      assert.match(cookie, /;\s*SameSite=Lax(?:;|$)/i);
+    } finally {
+      await close(app);
+      db.close();
+    }
+  }
+});
+
+test('validates deployment server configuration', () => {
+  assert.deepEqual(readServerConfig({}), {
+    host: '127.0.0.1',
+    port: 3000,
+    secureCookies: false,
+    dbPath: 'movie-demo.db',
+  });
+  assert.deepEqual(readServerConfig({
+    HOST: '0.0.0.0',
+    PORT: '8080',
+    COOKIE_SECURE: 'true',
+    MOVIE_DEMO_DB_PATH: '/var/lib/movie-booking/movie-demo.db',
+  }), {
+    host: '0.0.0.0',
+    port: 8080,
+    secureCookies: true,
+    dbPath: '/var/lib/movie-booking/movie-demo.db',
+  });
+  assert.throws(() => readServerConfig({ HOST: ' ' }), /HOST/);
+  assert.throws(() => readServerConfig({ PORT: '0' }), /PORT/);
+  assert.throws(() => readServerConfig({ PORT: '65536' }), /PORT/);
+  assert.throws(() => readServerConfig({ PORT: 'abc' }), /PORT/);
+  assert.throws(() => readServerConfig({ COOKIE_SECURE: 'yes' }), /COOKIE_SECURE/);
+});
 
 test('serves only the three public assets with their correct content types', async () => {
   const { db, app } = testApp();
