@@ -47,6 +47,8 @@ import { CLI_COMMAND } from './brand.js';
 import type { BrowserDownloadWaitResult, IPage, ScreenshotOptions } from './types.js';
 import type { BrowserWindowMode } from './runtime.js';
 import { configureRootCommandSurface } from './root-command-surface.js';
+import { loadBrowserRunSource } from './browser/run/input.js';
+import { BrowserRunError } from './browser/run/types.js';
 
 const CLI_FILE = fileURLToPath(import.meta.url);
 const BROWSER_TAB_OPTION_DESCRIPTION = 'Target tab/page identity returned by "browser open", "browser tab new", or "browser tab list"';
@@ -1157,6 +1159,62 @@ Examples:
       await sendCommand('close-window', { session, surface: 'browser', ...routing });
       saveBrowserTargetState(undefined, getBrowserScope(session, contextId));
       console.log(JSON.stringify({ unbound: true, session }, null, 2));
+    }));
+
+  browser.command('run')
+    .description('Run a sandboxed Playwright-style program against the browser session')
+    .option('--stdin', 'Read the browser-run program from stdin', false)
+    .option('--file <path>', 'Read the browser-run program from a local file')
+    .option('--timeout <seconds>', 'Maximum run time in seconds', '30')
+    .option('--max-output <characters>', 'Maximum returned result and log characters', '65536')
+    .addOption(new Option('--observe <mode>', 'Final semantic observation: diff, full, or none').choices(['diff', 'full', 'none']).default('diff'))
+    .option('--tab <page-id>', BROWSER_TAB_OPTION_DESCRIPTION)
+    .action(browserSessionCommandAction(async ({ session, routing, windowMode }, opts) => {
+      const positiveInteger = (value: unknown, flag: string): number => {
+        const raw = String(value);
+        const parsed = Number.parseInt(raw, 10);
+        if (
+          !/^\d+$/.test(raw)
+          || !Number.isSafeInteger(parsed)
+          || parsed <= 0
+          || (flag === '--timeout' && parsed > Math.floor(Number.MAX_SAFE_INTEGER / 1000))
+        ) {
+          throw new BrowserCommandError(
+            `${flag} must be a positive integer.`,
+            'BROWSER_RUN_INVALID_INPUT',
+          );
+        }
+        return parsed;
+      };
+      let source: string;
+      try {
+        source = await loadBrowserRunSource({
+          stdin: opts.stdin === true,
+          file: typeof opts.file === 'string' ? opts.file : undefined,
+        });
+      } catch (error) {
+        if (error instanceof BrowserRunError) {
+          throw new BrowserCommandError(error.message, error.code, error.hint);
+        }
+        throw error;
+      }
+      const timeoutSeconds = positiveInteger(opts.timeout, '--timeout');
+      const maxOutputChars = positiveInteger(opts.maxOutput, '--max-output');
+      const data = await sendCommand('run', {
+        session,
+        surface: 'browser',
+        ...routing,
+        windowMode,
+        source,
+        timeoutMs: timeoutSeconds * 1000,
+        timeout: timeoutSeconds + 5,
+        maxOutputChars,
+        observe: opts.observe as 'diff' | 'full' | 'none',
+        ...(typeof opts.tab === 'string' && opts.tab.trim()
+          ? { page: opts.tab.trim() }
+          : {}),
+      });
+      console.log(JSON.stringify(data, null, 2));
     }));
 
   const browserTab = browser

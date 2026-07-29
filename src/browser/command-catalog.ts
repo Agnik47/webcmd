@@ -66,6 +66,7 @@ const BROWSER_OPTION_VALUE_NAMES: Readonly<Record<string, string>> = {
   depth: 'n',
   detail: 'key',
   filter: 'fields',
+  file: 'path',
   frame: 'index',
   fromLabel: 'text',
   fromName: 'text',
@@ -80,8 +81,10 @@ const BROWSER_OPTION_VALUE_NAMES: Readonly<Record<string, string>> = {
   limit: 'n',
   max: 'n',
   maxBody: 'chars',
+  maxOutput: 'characters',
   name: 'text',
   nth: 'n',
+  observe: 'mode',
   page: 'id',
   role: 'role',
   seedArgs: 'value',
@@ -107,10 +110,17 @@ const BROWSER_OPTION_VALUE_NAMES: Readonly<Record<string, string>> = {
 };
 
 /** Exact local Commander flags for every catalogued browser option. */
-export function browserOptionFlags(option: HostedArgumentContract): string {
+export function browserOptionFlags(
+  option: HostedArgumentContract,
+  commandPath?: string,
+): string {
   const longName = option.name.replace(/[A-Z]/g, character => `-${character.toLowerCase()}`);
   if (option.type === 'boolean') return option.name === 'fixture' ? '--no-fixture' : `--${longName}`;
-  const valueName = BROWSER_OPTION_VALUE_NAMES[option.name];
+  const valueName = commandPath === 'run' && option.name === 'timeout'
+    ? 'seconds'
+    : commandPath === 'run' && option.name === 'tab'
+      ? 'page-id'
+      : BROWSER_OPTION_VALUE_NAMES[option.name];
   if (!valueName) throw new Error(`Browser option --${longName} is missing its Commander value name`);
   return `--${longName} <${valueName}>`;
 }
@@ -400,6 +410,24 @@ export const browserCommandCatalog: readonly HostedBrowserCommandContract[] = [
     [positional('url', '', { required: true })],
     [tabOption],
     'create-or-reuse',
+  ),
+  command(
+    'run',
+    'Run a sandboxed Playwright-style program against the browser session',
+    undefined,
+    [],
+    [
+      flag('stdin', 'Read the browser-run program from stdin', false),
+      option('file', 'Read the browser-run program from a local file'),
+      option('timeout', 'Maximum run time in seconds', { default: '30' }),
+      option('maxOutput', 'Maximum returned result and log characters', { default: '65536' }),
+      option('observe', 'Final semantic observation: diff, full, or none', {
+        default: 'diff',
+        choices: ['diff', 'full', 'none'],
+      }),
+      tabOption,
+    ],
+    'local-only',
   ),
   command(
     'screenshot',

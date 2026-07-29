@@ -174,6 +174,8 @@ describe('hosted availability', () => {
       .toEqual({ mode: 'hosted' });
     expect(deriveBrowserAvailability('bind'))
       .toEqual({ mode: 'local-only', reason: 'browser-bind' });
+    expect(deriveBrowserAvailability('run'))
+      .toEqual({ mode: 'local-only', reason: 'local-tool' });
     expect(deriveBrowserAvailability('open')).toEqual({ mode: 'hosted' });
   });
 

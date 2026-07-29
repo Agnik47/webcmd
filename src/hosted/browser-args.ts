@@ -81,7 +81,7 @@ Examples:
       leaf.argument(positional.required ? `<${positional.name}${suffix}>` : `[${positional.name}${suffix}]`, positional.description);
     }
     for (const option of contract.options) {
-      const flags = browserOptionFlags(option);
+      const flags = browserOptionFlags(option, contract.command);
       if (option.type === 'boolean') {
         leaf.option(flags, option.description, option.default as boolean | undefined);
         continue;

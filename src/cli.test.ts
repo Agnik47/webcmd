@@ -1327,6 +1327,54 @@ describe('browser tab targeting commands', () => {
     expect(browserState.page?.snapshot).toHaveBeenCalled();
   });
 
+  it('reads browser-run --file locally and sends source rather than the path', async () => {
+    const sourcePath = path.join(
+      String(process.env.WEBCMD_CACHE_DIR),
+      'browser-run-task.js',
+    );
+    fs.writeFileSync(sourcePath, 'return 42;', 'utf8');
+    mockSendCommand.mockResolvedValueOnce({
+      ok: true,
+      result: 42,
+      logs: [],
+      observation: { mode: 'none' },
+    });
+    const program = createProgram('', '');
+
+    await program.parseAsync([
+      'node',
+      'webcmd',
+      'browser',
+      '--session',
+      'test',
+      'run',
+      '--file',
+      sourcePath,
+      '--timeout',
+      '12',
+      '--max-output',
+      '1000',
+      '--observe',
+      'none',
+      '--tab',
+      'tab-2',
+    ]);
+
+    expect(mockSendCommand).toHaveBeenCalledWith('run', {
+      session: 'test',
+      surface: 'browser',
+      windowMode: 'background',
+      source: 'return 42;',
+      timeoutMs: 12_000,
+      timeout: 17,
+      maxOutputChars: 1000,
+      observe: 'none',
+      page: 'tab-2',
+    });
+    expect(mockSendCommand.mock.calls[0]?.[1]).not.toHaveProperty('file');
+    expect(lastJsonLog()).toMatchObject({ ok: true, result: 42 });
+  });
+
   it('uses WEBCMD_WINDOW as an explicit direct-browser override', async () => {
     process.env.WEBCMD_WINDOW = 'foreground';
     const program = createProgram('', '');

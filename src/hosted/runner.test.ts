@@ -1437,12 +1437,14 @@ describe('runHostedCli', () => {
     }
   });
 
-  it('dispatches every catalogued hosted browser command except bind to the cloud command endpoint', async () => {
+  it('dispatches every catalogued hosted browser command to the cloud command endpoint', async () => {
     const uploadDir = await mkdtemp(path.join(tmpdir(), 'webcmd-hosted-browser-upload-'));
     const uploadFile = path.join(uploadDir, 'sample-upload.txt');
     await writeFile(uploadFile, 'hello browser upload');
     try {
-      for (const contract of browserCommandCatalog.filter(command => command.command !== 'bind')) {
+      for (const contract of browserCommandCatalog.filter(command => (
+        command.sessionPolicy !== 'local-only'
+      ))) {
         const requests: Array<{ pathname: string; body?: Record<string, unknown> }> = [];
         const positionals = contract.command === 'upload'
           ? ['input[type=file]', uploadFile]
@@ -1843,6 +1845,27 @@ describe('runHostedCli', () => {
 
     expect(result).toEqual({ handled: true, exitCode: 78 });
     expect(stderr.text()).toMatch(/browser bind is not supported in hosted mode/i);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('rejects browser run as local-only before making a hosted request', async () => {
+    const stderr = sink();
+    const fetchImpl = vi.fn<typeof fetch>();
+
+    const result = await runHostedCli(
+      ['browser', 'work', 'run', '--stdin'],
+      {
+        config: makeHostedConfig({
+          apiBaseUrl: 'https://api.example.com',
+          apiKey: 'key',
+        }),
+        stderr: stderr.stream,
+        fetchImpl,
+      },
+    );
+
+    expect(result).toEqual({ handled: true, exitCode: 78 });
+    expect(stderr.text()).toMatch(/browser run is local-only/i);
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 });

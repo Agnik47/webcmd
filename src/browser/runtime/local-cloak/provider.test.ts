@@ -19,6 +19,7 @@ function fakePage(url: string, initialViewport: { width: number; height: number 
       viewportSize = size;
     }),
     locator: vi.fn(),
+    waitForEvent: vi.fn(),
     bringToFront: vi.fn().mockResolvedValue(undefined),
     close: vi.fn().mockImplementation(async () => {
       closed = true;
@@ -93,6 +94,328 @@ describe('LocalCloakRuntimeProvider', () => {
     const nav = await provider.dispatch({ id: 'nav', action: 'navigate', session: 'work', surface: 'browser', url: 'https://example.com/', profileId: 'default' });
     await expect(provider.dispatch({ id: 'exec', action: 'exec', session: 'work', surface: 'browser', page: nav.page, code: '1 + 1', profileId: 'default' }))
       .resolves.toMatchObject({ id: 'exec', ok: true, data: { ok: true }, page: nav.page });
+  });
+
+  it('runs Playwright-style source against the selected Cloak page', async () => {
+    const { provider } = makeProviderWithFakePage();
+
+    await expect(provider.dispatch({
+      id: 'run',
+      action: 'run',
+      session: 'work',
+      surface: 'browser',
+      source: `
+        const page = await browser.currentPage();
+        return page.url();
+      `,
+      observe: 'none',
+      profileId: 'default',
+    })).resolves.toMatchObject({
+      id: 'run',
+      ok: true,
+      page: expect.any(String),
+      data: {
+        ok: true,
+        result: 'https://example.com/',
+        observation: { mode: 'none' },
+      },
+    });
+  });
+
+  it('rejects oversized run source even when the daemon is called directly', async () => {
+    const { provider } = makeProviderWithFakePage();
+
+    await expect(provider.dispatch({
+      id: 'run-large',
+      action: 'run',
+      session: 'work',
+      surface: 'browser',
+      source: 'x'.repeat(256 * 1024 + 1),
+      profileId: 'default',
+    })).resolves.toMatchObject({
+      id: 'run-large',
+      ok: false,
+      errorCode: 'BROWSER_RUN_SOURCE_LIMIT',
+    });
+  });
+
+  it('does not route existing exec commands through the QuickJS runner', async () => {
+    const { provider, page } = makeProviderWithFakePage();
+
+    await provider.dispatch({
+      id: 'exec',
+      action: 'exec',
+      session: 'work',
+      surface: 'browser',
+      code: 'document.title',
+      profileId: 'default',
+    });
+
+    expect(page.evaluate).toHaveBeenCalledWith('document.title');
+  });
+
+  it('serializes run and primitive commands for the same local session', async () => {
+    const { provider, page } = makeProviderWithFakePage();
+    const first = provider.dispatch({
+      id: 'run',
+      action: 'run',
+      session: 'work',
+      surface: 'browser',
+      source: 'await new Promise(resolve => setTimeout(resolve, 30)); return 1;',
+      observe: 'none',
+      profileId: 'default',
+    });
+    const second = provider.dispatch({
+      id: 'exec',
+      action: 'exec',
+      session: 'work',
+      surface: 'browser',
+      code: 'document.title',
+      profileId: 'default',
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    expect(page.evaluate).not.toHaveBeenCalled();
+    await Promise.all([first, second]);
+    expect(page.evaluate).toHaveBeenCalledTimes(1);
+  });
+
+  it('serializes commands by the resolved page lease when explicit page metadata differs', async () => {
+    const { provider, page } = makeProviderWithFakePage();
+    const nav = await provider.dispatch({
+      id: 'nav',
+      action: 'navigate',
+      session: 'work',
+      surface: 'browser',
+      url: 'https://example.com/',
+      profileId: 'default',
+    });
+    page.evaluate.mockClear();
+
+    const first = provider.dispatch({
+      id: 'run',
+      action: 'run',
+      page: nav.page,
+      session: 'misleading-session',
+      surface: 'adapter',
+      source: 'await new Promise(resolve => setTimeout(resolve, 30)); return 1;',
+      observe: 'none',
+      profileId: 'misleading-profile',
+    });
+    const second = provider.dispatch({
+      id: 'exec',
+      action: 'exec',
+      page: nav.page,
+      session: 'different-session',
+      surface: 'adapter',
+      code: 'document.title',
+      profileId: 'different-profile',
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    expect(page.evaluate).not.toHaveBeenCalled();
+    await Promise.all([first, second]);
+    expect(page.evaluate).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps popup pages under the originating session queue lock', async () => {
+    const { provider, page, pages } = makeProviderWithFakePage();
+    const popup = fakePage('https://popup.example/');
+    pages.push(popup);
+    page.waitForEvent.mockResolvedValue(popup);
+    const nav = await provider.dispatch({
+      id: 'nav',
+      action: 'navigate',
+      session: 'work',
+      surface: 'browser',
+      url: 'https://example.com/',
+      profileId: 'default',
+    });
+    const manager = (
+      provider as unknown as {
+        manager: { pageIdFor(target: unknown): string | undefined };
+      }
+    ).manager;
+
+    const first = provider.dispatch({
+      id: 'run',
+      action: 'run',
+      page: nav.page,
+      session: 'misleading-session',
+      surface: 'adapter',
+      source: `
+        const page = await browser.currentPage();
+        await page.waitForEvent("popup");
+        await new Promise(resolve => setTimeout(resolve, 30));
+        return null;
+      `,
+      observe: 'none',
+      profileId: 'misleading-profile',
+    });
+    await vi.waitFor(() => {
+      expect(manager.pageIdFor(popup)).toEqual(expect.any(String));
+    }, { interval: 1, timeout: 100 });
+    const popupPageId = manager.pageIdFor(popup)!;
+    popup.evaluate.mockClear();
+
+    const second = provider.dispatch({
+      id: 'exec',
+      action: 'exec',
+      page: popupPageId,
+      session: 'different-session',
+      surface: 'adapter',
+      code: 'document.title',
+      profileId: 'different-profile',
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    expect(popup.evaluate).not.toHaveBeenCalled();
+    await Promise.all([first, second]);
+    expect(popup.evaluate).toHaveBeenCalledTimes(1);
+  });
+
+  it('holds the original page queue lock throughout a bind transition', async () => {
+    const { provider, page } = makeProviderWithFakePage();
+    const nav = await provider.dispatch({
+      id: 'nav',
+      action: 'navigate',
+      session: 'before-bind',
+      surface: 'browser',
+      url: 'https://example.com/',
+      profileId: 'default',
+    });
+    let markBindStarted!: () => void;
+    let finishBind!: () => void;
+    const bindStarted = new Promise<void>((resolve) => {
+      markBindStarted = resolve;
+    });
+    page.bringToFront.mockImplementation(() => {
+      markBindStarted();
+      return new Promise<void>((resolve) => {
+        finishBind = resolve;
+      });
+    });
+    page.evaluate.mockClear();
+
+    const bind = provider.dispatch({
+      id: 'bind',
+      action: 'bind',
+      page: nav.page,
+      session: 'after-bind',
+      surface: 'browser',
+      profileId: 'default',
+    });
+    await bindStarted;
+    const exec = provider.dispatch({
+      id: 'exec',
+      action: 'exec',
+      page: nav.page,
+      session: 'after-bind',
+      surface: 'browser',
+      code: 'document.title',
+      profileId: 'default',
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    expect(page.evaluate).not.toHaveBeenCalled();
+    finishBind();
+    await Promise.all([bind, exec]);
+    expect(page.evaluate).toHaveBeenCalledTimes(1);
+  });
+
+  it('joins target commands queued on opposite sides of a bind transition', async () => {
+    const { provider, page, pages, context } = makeProviderWithFakePage();
+    const nav = await provider.dispatch({
+      id: 'nav',
+      action: 'navigate',
+      session: 'source',
+      surface: 'browser',
+      url: 'https://example.com/',
+      profileId: 'default',
+    });
+
+    const priorTargetPage = fakePage('https://prior-target.example/');
+    pages.push(priorTargetPage);
+    context.newPage.mockResolvedValueOnce(priorTargetPage);
+    let releaseBlocker!: () => void;
+    let markBlockerStarted!: () => void;
+    const blockerStarted = new Promise<void>((resolve) => {
+      markBlockerStarted = resolve;
+    });
+    priorTargetPage.evaluate.mockImplementationOnce(() => {
+      markBlockerStarted();
+      return new Promise((resolve) => {
+        releaseBlocker = () => resolve({ ok: true });
+      });
+    });
+    const blocker = provider.dispatch({
+      id: 'blocker',
+      action: 'exec',
+      session: 'target',
+      surface: 'browser',
+      code: 'document.title',
+      profileId: 'default',
+    });
+    await blockerStarted;
+
+    let finishBind!: () => void;
+    let markBindStarted!: () => void;
+    const bindStarted = new Promise<void>((resolve) => {
+      markBindStarted = resolve;
+    });
+    page.bringToFront.mockImplementation(() => {
+      markBindStarted();
+      return new Promise<void>((resolve) => {
+        finishBind = resolve;
+      });
+    });
+    const bind = provider.dispatch({
+      id: 'bind',
+      action: 'bind',
+      page: nav.page,
+      session: 'target',
+      surface: 'browser',
+      profileId: 'default',
+    });
+    const beforeMapping = provider.dispatch({
+      id: 'before-mapping',
+      action: 'exec',
+      page: nav.page,
+      session: 'target',
+      surface: 'browser',
+      code: 'document.title',
+      profileId: 'default',
+    });
+
+    releaseBlocker();
+    await blocker;
+    await bindStarted;
+
+    let finishFirstTargetExec!: () => void;
+    page.evaluate.mockImplementationOnce(() => (
+      new Promise((resolve) => {
+        finishFirstTargetExec = () => resolve({ ok: true });
+      })
+    ));
+    const afterMapping = provider.dispatch({
+      id: 'after-mapping',
+      action: 'exec',
+      session: 'target',
+      surface: 'browser',
+      code: 'document.title',
+      profileId: 'default',
+    });
+
+    finishBind();
+    await vi.waitFor(() => {
+      expect(page.evaluate).toHaveBeenCalledTimes(1);
+    }, { interval: 1, timeout: 100 });
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    expect(page.evaluate).toHaveBeenCalledTimes(1);
+
+    finishFirstTargetExec();
+    await Promise.all([bind, beforeMapping, afterMapping]);
+    expect(page.evaluate).toHaveBeenCalledTimes(2);
   });
 
   it('evaluates JavaScript in the requested iframe', async () => {

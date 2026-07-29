@@ -488,10 +488,16 @@ function parseBrowserLeaf(
 } {
   const contract = hostedBrowserCommandsByPath.get(leaf);
   if (!contract || !contract.action) {
-    if (leaf === 'bind' || contract?.sessionPolicy === 'local-only') {
+    if (leaf === 'bind') {
       throw new ConfigError(
         'Browser bind is not supported in hosted mode.',
         'Use browser state or browser tabs to inspect the active hosted page.',
+      );
+    }
+    if (contract?.sessionPolicy === 'local-only') {
+      throw new ConfigError(
+        `Browser ${leaf} is local-only and is not available in hosted mode.`,
+        'Switch Webcmd to local mode to use this command.',
       );
     }
     throw new ConfigError(`Hosted browser command is not supported yet: ${leaf}`);

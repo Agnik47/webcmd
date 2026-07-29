@@ -15,6 +15,7 @@ export type BrowserRuntimeAction =
   | 'wait-download'
   | 'cdp'
   | 'frames'
+  | 'run'
   | 'lease-release';
 
 export type BrowserSurface = 'browser' | 'adapter';
@@ -56,6 +57,11 @@ export interface BrowserRuntimeCommand {
   windowMode?: BrowserWindowMode;
   idleTimeout?: number;
   frameIndex?: number;
+  /** Agent-authored JavaScript executed by the browser-run QuickJS sandbox. */
+  source?: string;
+  observe?: 'diff' | 'full' | 'none';
+  maxOutputChars?: number;
+  memoryLimitBytes?: number;
   contextId?: string;
   preferredContextId?: string;
   profileId?: string;

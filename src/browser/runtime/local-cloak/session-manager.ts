@@ -9,6 +9,7 @@ import { activateDarwinBackgroundContext, launchDarwinBackgroundPersistentContex
 import { normalizeProfileId, resolveCloakProfileDir } from './profiles.js';
 import { CloakNetworkCapture } from './network.js';
 import { findPackageRoot } from '../../../package-paths.js';
+import { BrowserRunObservationStore } from '../../run/observation.js';
 
 /** Installed `cloakbrowser` npm package version, for doctor/status display. */
 export function resolveCloakBrowserVersion(): string | undefined {
@@ -101,6 +102,7 @@ function isClosedContextError(error: unknown): boolean {
 
 export class CloakSessionManager {
   readonly networkCapture = new CloakNetworkCapture();
+  readonly browserRunObservations = new BrowserRunObservationStore();
 
   private readonly launchPersistentContext: LaunchPersistentContext;
   private readonly launchBackgroundPersistentContext: LaunchPersistentContext;
@@ -182,6 +184,17 @@ export class CloakSessionManager {
           entry.idleTimeout = opts.idleTimeout;
           this.refreshIdleTimer(runtime, leaseKey, entry);
           return { profileId, leaseKey, context: runtime.context, page: entry.page, pageId: entry.pageId };
+        }
+      }
+    }
+    return null;
+  }
+
+  profileIdForPage(pageId: string): string | null {
+    for (const [profileId, runtime] of this.profiles.entries()) {
+      for (const entry of runtime.pages.values()) {
+        if (entry.pageId === pageId && !pageIsClosed(entry.page)) {
+          return profileId;
         }
       }
     }
@@ -362,6 +375,7 @@ export class CloakSessionManager {
       await runtime.context.close().catch(() => {});
     }
     this.profiles.clear();
+    this.browserRunObservations.clear();
   }
 
   private async getProfileRuntime(profileId: string, windowMode?: BrowserWindowMode): Promise<ProfileRuntime> {

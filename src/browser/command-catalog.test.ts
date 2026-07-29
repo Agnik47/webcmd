@@ -87,15 +87,16 @@ describe('browserCommandCatalog', () => {
 
     expect(Object.fromEntries(browserCommandCatalog.map(command => [
       command.command,
-      command.options.map(browserOptionFlags),
+      command.options.map(option => browserOptionFlags(option, command.command)),
     ]))).toEqual(Object.fromEntries(local));
   });
 
-  it('marks bind as the only local-only command and gives every hosted command an action', () => {
+  it('marks bind and run as local-only and gives every hosted command an action', () => {
     expect(browserCommandCatalog.filter(command => command.sessionPolicy === 'local-only').map(command => command.command))
-      .toEqual(['bind']);
+      .toEqual(['bind', 'run']);
     expect(browserCommandCatalog.find(command => command.command === 'bind')).not.toHaveProperty('action');
-    expect(browserCommandCatalog.filter(command => command.command !== 'bind').every(command => command.action))
+    expect(browserCommandCatalog.find(command => command.command === 'run')).not.toHaveProperty('action');
+    expect(browserCommandCatalog.filter(command => !['bind', 'run'].includes(command.command)).every(command => command.action))
       .toBe(true);
   });
 
@@ -113,6 +114,6 @@ describe('browserCommandCatalog', () => {
 
     expect(contract.browserCommands).toEqual(browserCommandCatalog);
     expect(contract.browserCommands.filter(command => !command.action).map(command => command.command))
-      .toEqual(['bind']);
+      .toEqual(['bind', 'run']);
   });
 });
