@@ -131,7 +131,7 @@ sudo useradd --system --create-home \
   --shell /usr/sbin/nologin \
   movie-booking
 sudo -u movie-booking -H bash -lc \
-  'curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash'
+  'curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --skip-setup'
 sudo ln -sfn /var/lib/movie-booking/.local/bin/hermes \
   /usr/local/bin/hermes
 ```
