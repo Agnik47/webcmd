@@ -8,8 +8,7 @@
       "name": "webcmd",
       "source": {
         "source": "url",
-        "url": "https://github.com/agentrhq/webcmd.git",
-        "ref": "main"
+        "url": "./"
       },
       "policy": {
         "installation": "AVAILABLE",

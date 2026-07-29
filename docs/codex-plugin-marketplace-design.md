@@ -53,8 +53,8 @@ their existing missing-command guidance.
 ## Marketplace
 
 `.agents/plugins/marketplace.json` defines one marketplace named `webcmd` and
-one available plugin named `webcmd`. The entry points to the root of
-`https://github.com/agentrhq/webcmd.git` on `main`.
+one available plugin named `webcmd`. The entry points to `./`, the root of the
+marketplace's checked-out repository snapshot.
 
 Users can configure the marketplace with either the GitHub repository URL or
 the `agentrhq/webcmd` shorthand. After configuration, Webcmd appears in that

@@ -20,8 +20,7 @@ assert.equal(marketplace.plugins?.length, 1);
 assert.equal(marketplacePlugin?.name, 'webcmd');
 assert.deepEqual(marketplacePlugin?.source, {
   source: 'url',
-  url: 'https://github.com/agentrhq/webcmd.git',
-  ref: 'main',
+  url: './',
 });
 
 const expectedSkills = [
