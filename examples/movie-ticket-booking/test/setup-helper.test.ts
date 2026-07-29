@@ -112,6 +112,9 @@ case " $* " in
       "$API_SERVER_ENABLED" "$key_kind" "$API_SERVER_HOST" \\
       "$API_SERVER_PORT" "$MOVIE_DEMO_ROOT" "$MOVIE_DEMO_DB_PATH" \\
       >> "$MOVIE_TEST_CALL_LOG"
+    printf 'gateway-deployment:%s|%s|%s\\n' \\
+      "\${HOST-unset}" "\${PORT-unset}" "\${COOKIE_SECURE-unset}" \\
+      >> "$MOVIE_TEST_CALL_LOG"
     exit 0
     ;;
 esac
@@ -121,14 +124,14 @@ exit 0
   executable(join(bin, 'npm'), `#!/bin/sh
 printf 'npm-argv:%s\\n' "$*" >> "$MOVIE_TEST_CALL_LOG"
 case " $* " in
-  *" run dev "*)
+  *" run start "*)
     key_kind=invalid
     case "$API_SERVER_KEY" in
       *[!0-9a-f]*|'') ;;
       *) [ "\${#API_SERVER_KEY}" -eq 64 ] && key_kind=valid ;;
     esac
-    printf 'app-env:%s|%s|%s|%s\\n' \\
-      "$HERMES_API_URL" "$key_kind" "$PORT" "$MOVIE_DEMO_DB_PATH" \\
+    printf 'app-env:%s|%s|%s|%s|%s|%s\\n' \\
+      "$HERMES_API_URL" "$key_kind" "$HOST" "$PORT" "$COOKIE_SECURE" "$MOVIE_DEMO_DB_PATH" \\
       >> "$MOVIE_TEST_CALL_LOG"
     ;;
 esac
@@ -514,24 +517,29 @@ printf '%s\\n' '${'c'.repeat(64)}'
   assert.equal(statSync(keyPath).mode & 0o777, 0o600);
 });
 
-test('gateway and app keep values authoritative without putting the API key in argv', () => {
+test('deployment settings reach only the app without putting the API key in argv', () => {
   const fixture = makeFixture();
   completeSetup(fixture);
   clearCalls(fixture);
+  const deployment = {
+    HOST: '0.0.0.0',
+    PORT: '8080',
+    COOKIE_SECURE: 'true',
+    MOVIE_DEMO_DB_PATH: '/var/lib/movie-booking/movie-demo.db',
+  };
 
   const gateway = run(fixture, 'gateway', {
+    ...deployment,
     API_SERVER_ENABLED: 'wrong',
     API_SERVER_KEY: 'wrong',
     API_SERVER_HOST: '0.0.0.0',
     API_SERVER_PORT: '9999',
     MOVIE_DEMO_ROOT: '/wrong',
-    MOVIE_DEMO_DB_PATH: '/wrong.db',
   });
   const app = run(fixture, 'app', {
+    ...deployment,
     HERMES_API_URL: 'http://wrong',
     API_SERVER_KEY: 'wrong',
-    PORT: '9999',
-    MOVIE_DEMO_DB_PATH: '/wrong.db',
   });
 
   assert.equal(gateway.status, 0, gateway.stderr);
@@ -541,16 +549,18 @@ test('gateway and app keep values authoritative without putting the API key in a
     new RegExp(
       `gateway-env:true\\|valid\\|127\\.0\\.0\\.1\\|8642\\|`
       + `${demoRoot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\|`
-      + `${join(demoRoot, 'movie-demo.db').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`,
+      + '/var/lib/movie-booking/movie-demo\\.db',
     ),
   );
+  assert.match(calls(fixture), /gateway-deployment:unset\\|unset\\|unset/);
   assert.match(
     calls(fixture),
     new RegExp(
-      `app-env:http://127\\.0\\.0\\.1:8642\\|valid\\|3000\\|`
-      + `${join(demoRoot, 'movie-demo.db').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`,
+      'app-env:http://127\\.0\\.0\\.1:8642\\|valid\\|0\\.0\\.0\\.0\\|8080\\|true\\|'
+      + '/var/lib/movie-booking/movie-demo\\.db',
     ),
   );
+  assert.match(calls(fixture), /npm-argv:--prefix .* run start/);
   assert.doesNotMatch(calls(fixture), /env-argv:/);
   assert.doesNotMatch(`${calls(fixture)}${gateway.stdout}${gateway.stderr}${app.stdout}${app.stderr}`, new RegExp(initialKey));
 });

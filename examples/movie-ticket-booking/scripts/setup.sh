@@ -16,7 +16,10 @@ SAFE_MANAGED_DIR="$OWNER_DIR/managed"
 CLEAN_CWD="$OWNER_DIR/work"
 OWNER_ENV="$OWNER_DIR/.env"
 KEY_FILE="$PROFILE_DIR/.movie-demo-api-key"
-DB_PATH="$MOVIE_DEMO_ROOT/movie-demo.db"
+DB_PATH=${MOVIE_DEMO_DB_PATH:-"$MOVIE_DEMO_ROOT/movie-demo.db"}
+APP_HOST=${HOST:-127.0.0.1}
+APP_PORT=${PORT:-3000}
+APP_COOKIE_SECURE=${COOKIE_SECURE:-false}
 STATE_VERSION='webcmd movie-ticket-booking setup v2'
 TEMP_PATH=
 READY_PATH=
@@ -418,7 +421,7 @@ setup_demo() {
   [ -f "$PROFILE_DIR/.no-bundled-skills" ] \
     || die "Hermes profile is missing its no-bundled-skills marker"
 
-  npm --prefix "$MOVIE_DEMO_ROOT" install
+  npm --prefix "$MOVIE_DEMO_ROOT" ci
 
   if [ -e "$COMPLETE_MARKER" ]; then
     validate_profile_config
@@ -468,6 +471,7 @@ run_gateway() {
   require_complete_profile
   prepare_owner_dirs
   api_key=$(read_key)
+  unset HOST PORT COOKIE_SECURE MOVIE_DEMO_DB_PATH
   export \
     API_SERVER_ENABLED=true \
     API_SERVER_KEY="$api_key" \
@@ -482,15 +486,17 @@ run_app() {
   require_command npm
   require_complete_profile
   api_key=$(read_key)
-  unset HERMES_API_URL API_SERVER_KEY PORT MOVIE_DEMO_DB_PATH
+  unset HERMES_API_URL API_SERVER_KEY HOST PORT COOKIE_SECURE MOVIE_DEMO_DB_PATH
   export \
     HERMES_API_URL=http://127.0.0.1:8642 \
     API_SERVER_KEY="$api_key" \
-    PORT=3000 \
+    HOST="$APP_HOST" \
+    PORT="$APP_PORT" \
+    COOKIE_SECURE="$APP_COOKIE_SECURE" \
     MOVIE_DEMO_ROOT="$MOVIE_DEMO_ROOT" \
     MOVIE_DEMO_DB_PATH="$DB_PATH"
   trap - EXIT HUP INT TERM
-  exec npm --prefix "$MOVIE_DEMO_ROOT" run dev
+  exec npm --prefix "$MOVIE_DEMO_ROOT" run start
 }
 
 case "${1-setup}" in
