@@ -60,6 +60,33 @@ export interface HostedProfilesResponse {
   profiles: HostedPublicProfile[];
 }
 
+export interface HostedMarketplacePlugin {
+  name: string;
+  description?: string;
+  version?: string;
+  sourceId: string;
+  installSource: string;
+  webcmd?: string;
+}
+
+export interface HostedMarketplaceSearchError {
+  sourceId: string;
+  manifestUrl: string;
+  message: string;
+}
+
+export interface HostedMarketplaceSearchResult {
+  plugins: HostedMarketplacePlugin[];
+  errors: HostedMarketplaceSearchError[];
+}
+
+export interface HostedMarketplaceInstallation {
+  installationId: string;
+  name: string;
+  version: string;
+  installSource: string;
+}
+
 export interface HostedExecution {
   id: string;
   command: string;

@@ -259,6 +259,102 @@ describe('runHostedCli', () => {
     lastUsedAt: '2026-07-24T00:00:00.000Z',
   };
 
+  it('searches hosted marketplace plugins without fetching the manifest', async () => {
+    const requests: string[] = [];
+    const stdout = sink();
+    const stderr = sink();
+    const result = await runHostedCli(['plugin', 'search', 'acme', '-f', 'json'], {
+      config: makeHostedConfig({ apiBaseUrl: 'https://api.example.com', apiKey: 'key' }),
+      stdout: stdout.stream,
+      stderr: stderr.stream,
+      fetchImpl: async (url) => {
+        requests.push(String(url));
+        return new Response(JSON.stringify({
+          ok: true,
+          result: {
+            plugins: [{
+              name: 'acme',
+              description: 'Search Acme',
+              version: '1.0.0',
+              sourceId: 'agentrhq/webcmd',
+              installSource: 'github:agentrhq/webcmd/acme',
+              webcmd: '>=0.4.3',
+            }],
+            errors: [],
+          },
+        }));
+      },
+    });
+
+    expect(result).toEqual({ handled: true, exitCode: 0 });
+    expect(stderr.text()).toBe('');
+    expect(JSON.parse(stdout.text())).toEqual({
+      plugins: [expect.objectContaining({ name: 'acme', installSource: 'github:agentrhq/webcmd/acme' })],
+      errors: [],
+    });
+    expect(requests).toEqual(['https://api.example.com/v1/marketplace/plugins?query=acme']);
+  });
+
+  it('installs hosted marketplace plugins without fetching the manifest', async () => {
+    const requests: string[] = [];
+    const stdout = sink();
+    const stderr = sink();
+    const result = await runHostedCli(['plugin', 'install', 'github:agentrhq/webcmd/acme'], {
+      config: makeHostedConfig({ apiBaseUrl: 'https://api.example.com', apiKey: 'key' }),
+      stdout: stdout.stream,
+      stderr: stderr.stream,
+      fetchImpl: async (url) => {
+        requests.push(String(url));
+        return new Response(JSON.stringify({
+          ok: true,
+          result: {
+            installationId: 'install_acme',
+            name: 'acme',
+            version: '1.0.0',
+            installSource: 'github:agentrhq/webcmd/acme',
+          },
+        }));
+      },
+    });
+
+    expect(result).toEqual({ handled: true, exitCode: 0 });
+    expect(stderr.text()).toBe('');
+    expect(stdout.text()).toBe('✅ Plugin "acme" installed successfully. Commands are ready to use.\n');
+    expect(requests).toEqual(['https://api.example.com/v1/marketplace/installations']);
+  });
+
+  it.each(['catalog', 'create', 'update', 'list', 'uninstall'])('rejects unsupported hosted plugin %s without an API call', async (subcommand) => {
+    const stderr = sink();
+    const fetchImpl = vi.fn<typeof fetch>();
+    const result = await runHostedCli(['plugin', subcommand], {
+      config: makeHostedConfig({ apiBaseUrl: 'https://api.example.com', apiKey: 'key' }),
+      stderr: stderr.stream,
+      fetchImpl,
+    });
+
+    expect(result).toEqual({ handled: true, exitCode: 78 });
+    expect(stderr.text()).toContain(`webcmd plugin ${subcommand} is not available in hosted mode.`);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('shows hosted plugin search and install help without an API call', async () => {
+    const stdout = sink();
+    const stderr = sink();
+    const fetchImpl = vi.fn<typeof fetch>();
+    const result = await runHostedCli(['plugin', '--help'], {
+      config: makeHostedConfig({ apiBaseUrl: 'https://api.example.com', apiKey: 'key' }),
+      stdout: stdout.stream,
+      stderr: stderr.stream,
+      fetchImpl,
+    });
+
+    expect(result).toEqual({ handled: true, exitCode: 0 });
+    expect(stderr.text()).toBe('');
+    expect(stdout.text()).toContain('search');
+    expect(stdout.text()).toContain('install');
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
   it('lists and deletes hosted profiles without fetching the manifest', async () => {
     const requests: Array<{ url: string; method: string; body?: unknown }> = [];
     const fetchImpl = vi.fn<typeof fetch>(async (url, init) => {

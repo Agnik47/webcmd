@@ -16,6 +16,8 @@ import type {
   HostedProfilesResponse,
   HostedUploadArtifactResponse,
   HostedManifest,
+  HostedMarketplaceInstallation,
+  HostedMarketplaceSearchResult,
   HostedTraceReceipt,
 } from './types.js';
 
@@ -98,6 +100,27 @@ export class HostedClient {
       throw protocolError('Webcmd Cloud returned an invalid profile deletion response.');
     }
     return { ok: true, deleted: true };
+  }
+
+  async searchMarketplacePlugins(query?: string): Promise<HostedMarketplaceSearchResult> {
+    const params = new URLSearchParams();
+    if (query !== undefined) params.set('query', query);
+    const body = await this.request(`/v1/marketplace/plugins${params.size ? `?${params}` : ''}`);
+    if (!hasExactKeys(body, ['ok', 'result']) || body.ok !== true || !isHostedMarketplaceSearchResult(body.result)) {
+      throw protocolError('Webcmd Cloud returned an invalid marketplace search response.');
+    }
+    return body.result;
+  }
+
+  async installMarketplacePlugin(installSource: string): Promise<HostedMarketplaceInstallation> {
+    const body = await this.request('/v1/marketplace/installations', {
+      method: 'POST',
+      body: JSON.stringify({ installSource }),
+    });
+    if (!hasExactKeys(body, ['ok', 'result']) || body.ok !== true || !isHostedMarketplaceInstallation(body.result)) {
+      throw protocolError('Webcmd Cloud returned an invalid marketplace installation response.');
+    }
+    return body.result;
   }
 
   async execute(input: {
@@ -400,6 +423,39 @@ function isHostedProfilesResponse(value: unknown): value is HostedProfilesRespon
     && value.ok === true
     && Array.isArray(value.profiles)
     && value.profiles.every(isHostedPublicProfile);
+}
+
+function isHostedMarketplaceSearchResult(value: unknown): value is HostedMarketplaceSearchResult {
+  return hasExactKeys(value, ['plugins', 'errors'])
+    && Array.isArray(value.plugins)
+    && value.plugins.every(isHostedMarketplacePlugin)
+    && Array.isArray(value.errors)
+    && value.errors.every(isHostedMarketplaceSearchError);
+}
+
+function isHostedMarketplacePlugin(value: unknown): boolean {
+  return hasOnlyKeys(value, ['name', 'description', 'version', 'sourceId', 'installSource', 'webcmd'])
+    && typeof value.name === 'string'
+    && typeof value.sourceId === 'string'
+    && typeof value.installSource === 'string'
+    && (value.description === undefined || typeof value.description === 'string')
+    && (value.version === undefined || typeof value.version === 'string')
+    && (value.webcmd === undefined || typeof value.webcmd === 'string');
+}
+
+function isHostedMarketplaceSearchError(value: unknown): boolean {
+  return hasExactKeys(value, ['sourceId', 'manifestUrl', 'message'])
+    && typeof value.sourceId === 'string'
+    && typeof value.manifestUrl === 'string'
+    && typeof value.message === 'string';
+}
+
+function isHostedMarketplaceInstallation(value: unknown): value is HostedMarketplaceInstallation {
+  return hasExactKeys(value, ['installationId', 'name', 'version', 'installSource'])
+    && typeof value.installationId === 'string'
+    && typeof value.name === 'string'
+    && typeof value.version === 'string'
+    && typeof value.installSource === 'string';
 }
 
 function isHostedPublicProfile(value: unknown): boolean {

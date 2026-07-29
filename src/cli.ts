@@ -14,7 +14,7 @@ import { Command, Option } from 'commander';
 import { findPackageRoot, getBuiltEntryCandidates } from './package-paths.js';
 import { type CliCommand, getRegistry } from './registry.js';
 import { commandListPresentation, toPresentableCommand } from './command-presentation.js';
-import { configureCompletionCommandSurface, configureListCommandSurface } from './builtin-command-surface.js';
+import { configureCompletionCommandSurface, configureListCommandSurface, configurePluginInstallSurface, configurePluginSearchSurface } from './builtin-command-surface.js';
 import { render as renderOutput } from './output.js';
 import { PKG_VERSION } from './version.js';
 import { printCompletionScript } from './completion.js';
@@ -3064,10 +3064,7 @@ cli({
   // Snapshot before applyRootSubcommandSummaries() rewrites .description() to a child-name listing.
   const originalPluginDescription = pluginCmd.description();
 
-  pluginCmd
-    .command('install')
-    .description('Install a plugin from a git repository')
-    .argument('<source>', 'Plugin source (e.g. github:user/repo)')
+  configurePluginInstallSurface(pluginCmd.command('install'))
     .action(async (source: string) => {
       const { installPlugin } = await import('./plugin.js');
       const { discoverPlugins } = await import('./discovery.js');
@@ -3290,11 +3287,7 @@ cli({
       }
     });
 
-  pluginCmd
-    .command('search')
-    .description('Search installable marketplace plugins')
-    .argument('[query]', 'Search query matched against plugin name and description')
-    .option('-f, --format <fmt>', 'Output format: table, json', 'table')
+  configurePluginSearchSurface(pluginCmd.command('search'))
     .action(async (query: string | undefined, opts: { format?: string }) => {
       const { readCatalog, searchCatalogPlugins } = await import('./plugin-catalog.js');
       try {

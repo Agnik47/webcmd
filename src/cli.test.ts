@@ -774,6 +774,18 @@ name: 'search',
     }
   });
 
+  it('uses the shared plugin search and install grammar', () => {
+    const program = createProgram('', '');
+    const plugin = program.commands.find(cmd => cmd.name() === 'plugin')!;
+    const search = plugin.commands.find(cmd => cmd.name() === 'search')!;
+    const install = plugin.commands.find(cmd => cmd.name() === 'install')!;
+
+    expect(search.usage()).toBe('[options] [query]');
+    expect(search.options.map(option => option.flags)).toContain('-f, --format <fmt>');
+    expect(install.usage()).toBe('[options] <source>');
+    expect(install.description()).toBe('Install a plugin from a git repository');
+  });
+
   it('renders adapter namespace structured help preserving original description after applyRootSubcommandSummaries', () => {
     const argv = process.argv;
     try {
