@@ -79,6 +79,8 @@ export interface HostedContractCommand {
   positionals: HostedArgumentContract[];
   options: HostedArgumentContract[];
   columns: string[];
+  tags?: string[];
+  keywords?: string[];
   aliases: string[];
   defaultFormat: string;
   example?: string;
@@ -109,6 +111,8 @@ export interface HostedContractCommandInput {
   browser?: boolean;
   args: Arg[];
   columns?: string[];
+  tags?: string[];
+  keywords?: string[];
   defaultFormat?: CliCommand['defaultFormat'];
 }
 
@@ -320,6 +324,8 @@ export function buildHostedContract(
       positionals: command.args.filter(arg => arg.positional).map(normalizeArgument),
       options: command.args.filter(arg => !arg.positional).map(normalizeArgument),
       columns: [...(command.columns ?? [])],
+      ...(command.tags?.length ? { tags: [...command.tags] } : {}),
+      ...(command.keywords?.length ? { keywords: [...command.keywords] } : {}),
       aliases: [...(command.aliases ?? [])],
       defaultFormat: normalizeDefaultFormat(command.defaultFormat),
       ...(command.example !== undefined ? { example: command.example } : {}),

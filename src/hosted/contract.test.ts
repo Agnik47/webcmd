@@ -332,6 +332,21 @@ describe('buildHostedContract', () => {
       .toThrow('Duplicate command alias: web/me');
   });
 
+  it('preserves independent search metadata in hosted commands', () => {
+    const tags = ['search'];
+    const keywords = ['lookup', 'discovery'];
+    const [command] = buildHostedContract([
+      { ...commands[0], tags, keywords },
+    ], [], '1.0.0').commands;
+
+    tags.push('changed');
+    keywords.push('changed');
+    expect(command.tags).toEqual(['search']);
+    expect(command.keywords).toEqual(['lookup', 'discovery']);
+    expect(command.tags).not.toBe(tags);
+    expect(command.keywords).not.toBe(keywords);
+  });
+
   it('rejects incomplete file and browser session metadata', () => {
     const missingDirection = {
       ...commands[2],

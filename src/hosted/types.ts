@@ -29,6 +29,8 @@ export interface HostedCommand extends CommandSurfaceMetadata {
   browser: boolean;
   args: HostedCommandArg[];
   columns: string[];
+  tags?: string[];
+  keywords?: string[];
   domain?: string | null;
   defaultFormat?: string | null;
   freshPage?: boolean;

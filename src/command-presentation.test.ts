@@ -86,6 +86,21 @@ describe('shared command presentation', () => {
     expect(commandListRows([hosted], false)).toEqual(commandListRows([local], false));
   });
 
+  it('preserves independent search metadata in presentable structured rows', () => {
+    const tags = ['search'];
+    const keywords = ['lookup', 'discovery'];
+    const presentable = toPresentableCommand({ ...localCommand, tags, keywords });
+    tags.push('changed');
+    keywords.push('changed');
+    const [row] = commandListRows([presentable], true);
+
+    expect(presentable.tags).toEqual(['search']);
+    expect(presentable.keywords).toEqual(['lookup', 'discovery']);
+    expect(row).toMatchObject({ tags: ['search'], keywords: ['lookup', 'discovery'] });
+    expect(row.tags).not.toBe(presentable.tags);
+    expect(row.keywords).not.toBe(presentable.keywords);
+  });
+
   it('builds byte-identical canonical grouped list displays', () => {
     const local = toPresentableCommand(localCommand);
     const hosted = toPresentableCommand(hostedCommand);

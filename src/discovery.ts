@@ -211,6 +211,8 @@ async function loadFromManifest(manifestPath: string, clisDir: string): Promise<
         browser: entry.browser,
         args: entry.args ?? [],
         columns: entry.columns,
+        ...(entry.tags?.length ? { tags: [...entry.tags] } : {}),
+        ...(entry.keywords?.length ? { keywords: [...entry.keywords] } : {}),
         defaultFormat: entry.defaultFormat,
         pipeline: entry.pipeline,
         source: entry.sourceFile ? path.resolve(clisDir, entry.sourceFile) : modulePath,
