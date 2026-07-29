@@ -74,7 +74,7 @@ A small repository check verifies:
 - the plugin name and skills path;
 - plugin and npm versions match;
 - the marketplace exposes the expected Webcmd plugin;
-- the marketplace source is the Webcmd repository root on `main`;
+- the marketplace source is its checked-out repository root;
 - all seven bundled skill manifests remain present.
 
 ## Documentation

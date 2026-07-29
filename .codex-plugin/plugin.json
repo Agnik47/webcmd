@@ -3,7 +3,7 @@
   "version": "0.4.3",
   "description": "Turn websites, browser sessions, desktop apps, and local tools into deterministic CLI surfaces for humans and AI agents.",
   "author": {
-    "name": "AgentR",
+    "name": "AgentRHQ",
     "url": "https://github.com/agentrhq"
   },
   "homepage": "https://webcmd.dev/docs",
@@ -20,7 +20,7 @@
     "displayName": "Webcmd",
     "shortDescription": "Agent-native CLIs for websites, apps, and local tools",
     "longDescription": "Use Webcmd's reusable CLI, browser, search, authoring, sitemap, and repair workflows from Codex. Requires the @agentrhq/webcmd npm CLI.",
-    "developerName": "AgentR",
+    "developerName": "AgentRHQ",
     "category": "Developer Tools",
     "capabilities": [
       "Instructions",

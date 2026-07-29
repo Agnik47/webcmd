@@ -15,6 +15,8 @@ const marketplacePlugin = marketplace.plugins?.[0];
 assert.equal(manifest.name, 'webcmd');
 assert.equal(manifest.version, packageJson.version);
 assert.equal(manifest.skills, './skills/');
+assert.equal(manifest.author?.name, 'AgentRHQ');
+assert.equal(manifest.interface?.developerName, 'AgentRHQ');
 assert.equal(marketplace.name, 'webcmd');
 assert.equal(marketplace.plugins?.length, 1);
 assert.equal(marketplacePlugin?.name, 'webcmd');
