@@ -6,12 +6,23 @@ import {
   bookingDetails,
   bookingStatusLabel,
   createApi,
+  createChatStream,
   createRequestEpoch,
   preferencePayload,
   requiresAuthReset,
   safeTranscriptUrl,
+  shouldSubmitComposer,
   transcriptParts,
 } from '../frontend/src/client.js';
+
+function streamResponse(chunks: Uint8Array[], contentType = 'text/event-stream; charset=utf-8'): Response {
+  return new Response(new ReadableStream({
+    start(controller) {
+      for (const chunk of chunks) controller.enqueue(chunk);
+      controller.close();
+    },
+  }), { headers: { 'content-type': contentType } });
+}
 
 test('exposes a status only while Hermes is thinking', () => {
   assert.equal(client.thinkingStatus?.(true), 'Hermes is thinking');
@@ -75,6 +86,143 @@ test('resets a current unauthorized request and keeps initial bootstrap neutral'
   assert.deepEqual(resets, ['Your session expired. Please log in again.', '']);
 });
 
+test('decodes fragmented chat SSE events while ignoring comments and unknown events', async () => {
+  const source = [
+    ': connected\r\n\r\n',
+    'event: assistant.delta\r\ndata: {"delta":"Du"}\r\n\r\n',
+    'event: ignored\ndata: {"ignored":true}\n\n',
+    'event: activity\ndata: {"active":true}\n\n',
+    ': keepalive\n\n',
+    'event: assistant.delta\ndata: {"delta":"ne 😀"}\n\n',
+    'event: activity\ndata: {"active":false}\n\n',
+    'event: chat.completed\ndata: {"message":{"role":"assistant","content":"Dune 😀 is playing."},"conversation":{"id":"first","title":"Find Dune"},"bookings":[{"cinema":"PVR","showTime":"7 PM","seats":["A1"],"status":"pending"}]}\n\n',
+  ].join('');
+  const bytes = new TextEncoder().encode(source);
+  const emoji = new TextEncoder().encode('😀');
+  const emojiOffset = bytes.findIndex((_, index) => emoji.every((byte, offset) => bytes[index + offset] === byte));
+  assert.notEqual(emojiOffset, -1);
+  let request: { path: string; init?: RequestInit } | undefined;
+  const stream = createChatStream(
+    async (path, init) => {
+      request = { path: String(path), init };
+      return streamResponse([
+        bytes.slice(0, emojiOffset + 2),
+        bytes.slice(emojiOffset + 2, emojiOffset + emoji.length),
+        bytes.slice(emojiOffset + emoji.length),
+      ]);
+    },
+    () => true,
+    () => assert.fail('unexpected authorization reset'),
+  );
+  const events: client.ChatStreamEvent[] = [];
+
+  await stream('/api/conversations/first/chat/stream', 'Find Dune', 1, (event) => events.push(event));
+
+  assert.equal(request?.path, '/api/conversations/first/chat/stream');
+  assert.equal(request?.init?.method, 'POST');
+  assert.equal(request?.init?.headers && new Headers(request.init.headers).get('content-type'), 'application/json');
+  assert.deepEqual(JSON.parse(String(request?.init?.body)), { message: 'Find Dune' });
+  assert.deepEqual(events, [
+    { type: 'assistant.delta', delta: 'Du' },
+    { type: 'activity', active: true },
+    { type: 'assistant.delta', delta: 'ne 😀' },
+    { type: 'activity', active: false },
+    {
+      type: 'chat.completed',
+      response: {
+        message: { role: 'assistant', content: 'Dune 😀 is playing.' },
+        conversation: { id: 'first', title: 'Find Dune' },
+        bookings: [{ cinema: 'PVR', showTime: '7 PM', seats: ['A1'], status: 'pending' }],
+      },
+    },
+  ]);
+});
+
+test('requires exactly one chat completion event', async () => {
+  const encode = (source: string) => [new TextEncoder().encode(source)];
+  const stream = createChatStream(
+    async () => streamResponse(encode('event: assistant.delta\ndata: {"delta":"Dune"}\n\n')),
+    () => true,
+    () => assert.fail('unexpected authorization reset'),
+  );
+
+  await assert.rejects(
+    () => stream('/api/conversations/first/chat/stream', 'Find Dune', 1, () => {}),
+    /chat completion/i,
+  );
+
+  const duplicated = createChatStream(
+    async () => streamResponse(encode([
+      'event: chat.completed\ndata: {"message":{"role":"assistant","content":"Dune"},"conversation":{"id":"first","title":"Find Dune"},"bookings":[]}\n\n',
+      'event: chat.completed\ndata: {"message":{"role":"assistant","content":"Dune"},"conversation":{"id":"first","title":"Find Dune"},"bookings":[]}\n\n',
+    ].join(''))),
+    () => true,
+    () => assert.fail('unexpected authorization reset'),
+  );
+  await assert.rejects(
+    () => duplicated('/api/conversations/first/chat/stream', 'Find Dune', 1, () => {}),
+    /duplicate chat completion/i,
+  );
+});
+
+test('rejects an SSE error with its safe public message only', async () => {
+  const stream = createChatStream(
+    async () => streamResponse([new TextEncoder().encode(
+      'event: error\ndata: {"error":"Hermes request failed","message":"internal upstream details"}\n\n',
+    )]),
+    () => true,
+    () => assert.fail('unexpected authorization reset'),
+  );
+
+  await assert.rejects(
+    () => stream('/api/conversations/first/chat/stream', 'Find Dune', 1, () => {}),
+    (error: unknown) => {
+      assert(error instanceof Error);
+      assert.equal(error.message, 'Hermes request failed');
+      return true;
+    },
+  );
+});
+
+test('uses existing JSON errors and only resets current stream requests on 401', async () => {
+  const requests = createRequestEpoch();
+  const resets: string[] = [];
+  const failing = createChatStream(
+    async () => Response.json({ error: 'message is required' }, { status: 400 }),
+    requests.isCurrent,
+    (message) => resets.push(message),
+  );
+  await assert.rejects(
+    () => failing('/api/conversations/first/chat/stream', '', requests.capture(), () => {}),
+    /message is required/,
+  );
+
+  const unauthorized = createChatStream(
+    async () => Response.json({ error: 'authentication required' }, { status: 401 }),
+    requests.isCurrent,
+    (message) => resets.push(message),
+  );
+  await assert.rejects(
+    () => unauthorized('/api/conversations/first/chat/stream', 'Find Dune', requests.capture(), () => {}),
+    /authentication required/,
+  );
+  const stale = requests.capture();
+  requests.advance();
+  await assert.rejects(
+    () => unauthorized('/api/conversations/first/chat/stream', 'Find Dune', stale, () => {}),
+    /authentication required/,
+  );
+
+  assert.deepEqual(resets, ['Your session expired. Please log in again.']);
+});
+
+test('submits only an unmodified Enter outside IME composition', () => {
+  assert.equal(shouldSubmitComposer({ key: 'Enter', shiftKey: false, isComposing: false }), true);
+  assert.equal(shouldSubmitComposer({ key: 'Enter', shiftKey: true, isComposing: false }), false);
+  assert.equal(shouldSubmitComposer({ key: 'Enter', shiftKey: false, isComposing: true }), false);
+  assert.equal(shouldSubmitComposer({ key: 'a', shiftKey: false, isComposing: false }), false);
+});
+
 test('segments only validated HTTPS transcript URLs as links', () => {
   const valid = 'https://api.webcmd.test/account/live/checkout-token';
   assert.equal(safeTranscriptUrl(valid), valid);
@@ -120,14 +268,14 @@ test('serializes preference fields and booking labels for the API and UI', () =>
   }), 'PVR Phoenix · 7:00 PM · A1, A2');
 });
 
-test('applies current chat state while ignoring stale session and selection responses', () => {
+test('applies current chat state without writing a background reply into another transcript', () => {
   const requests = createRequestEpoch();
   const selections = createRequestEpoch();
   const messages: string[] = [];
   const response = {
     message: { role: 'assistant' as const, content: 'confirmed' },
     conversation: { id: 'first', title: 'Resume this chat' },
-    bookings: [{ status: 'confirmed' }],
+    bookings: [{ cinema: 'PVR', showTime: '7 PM', seats: ['A1'], status: 'confirmed' }],
   };
 
   assert.deepEqual(
@@ -159,12 +307,17 @@ test('applies current chat state while ignoring stale session and selection resp
 
   const staleSelection = selections.capture();
   selections.advance();
-  assert.equal(applyChatResponse(
+  const rendered: client.Booking[] = [];
+  assert.deepEqual(applyChatResponse(
     response,
     () => true,
     () => assert.fail('old conversation appended'),
-    () => {},
-    [],
+    (bookings) => rendered.push(...bookings),
+    [{ id: 'second', title: 'New chat' }],
     () => selections.isCurrent(staleSelection),
-  ), null);
+  ), [
+    { id: 'first', title: 'Resume this chat' },
+    { id: 'second', title: 'New chat' },
+  ]);
+  assert.deepEqual(rendered, [{ cinema: 'PVR', showTime: '7 PM', seats: ['A1'], status: 'confirmed' }]);
 });
