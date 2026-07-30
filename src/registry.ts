@@ -48,6 +48,8 @@ interface BaseCliCommand {
   strategy?: Strategy;
   args: Arg[];
   columns?: string[];
+  tags?: string[];
+  keywords?: string[];
   pipeline?: Record<string, unknown>[];
   /** Origin of this command: 'yaml', 'ts', or plugin name. */
   source?: string;
@@ -151,6 +153,8 @@ export function cli(opts: CliOptions): CliCommand {
     browser: opts.browser,
     args: opts.args ?? [],
     columns: opts.columns,
+    ...(opts.tags?.length ? { tags: [...opts.tags] } : {}),
+    ...(opts.keywords?.length ? { keywords: [...opts.keywords] } : {}),
     func: opts.func,
     pipeline: opts.pipeline,
     footerExtra: opts.footerExtra,

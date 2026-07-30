@@ -11,6 +11,7 @@ import { PACKAGIST_BASE, packagistFetch, requireBoundedInt, requireString } from
 cli({
     site: 'packagist',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search Packagist (PHP / Composer) packages by keyword',
     domain: 'packagist.org',

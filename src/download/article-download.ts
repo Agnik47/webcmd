@@ -200,17 +200,15 @@ function createTurndown(
   return td;
 }
 
-function convertToMarkdown(
+export function articleHtmlToMarkdown(
   contentHtml: string,
-  codeBlocks: Array<{ lang: string; code: string }>,
-  configure?: (td: TurndownService) => void,
-  cleanSelectors?: string[],
+  options: { codeBlocks?: Array<{ lang: string; code: string }>; configure?: (td: TurndownService) => void; cleanSelectors?: string[] } = {},
 ): string {
-  const td = createTurndown(configure, cleanSelectors);
+  const td = createTurndown(options.configure, options.cleanSelectors);
   let md = td.turndown(contentHtml);
 
   // Restore code block placeholders
-  codeBlocks.forEach((block, i) => {
+  (options.codeBlocks ?? []).forEach((block, i) => {
     const placeholder = `CODEBLOCK-PLACEHOLDER-${i}`;
     const fenced = `\n\`\`\`${block.lang}\n${block.code}\n\`\`\`\n`;
     md = md.replace(placeholder, fenced);
@@ -353,12 +351,11 @@ export async function downloadArticle(
   }
 
   // Convert HTML to Markdown
-  let markdown = convertToMarkdown(
-    data.contentHtml,
-    data.codeBlocks || [],
-    configureTurndown,
+  let markdown = articleHtmlToMarkdown(data.contentHtml, {
+    codeBlocks: data.codeBlocks,
+    configure: configureTurndown,
     cleanSelectors,
-  );
+  });
 
   const safeTitle = sanitizeFilename(data.title, maxTitleLength);
 

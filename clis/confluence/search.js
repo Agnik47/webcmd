@@ -5,6 +5,7 @@ import { confluenceConfig, confluenceResults, normalizeSearchResult, withSpaceCq
 cli({
     site: 'confluence',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search Confluence content with CQL',
     domain: 'atlassian.net',

@@ -18,6 +18,7 @@ import {
 cli({
     site: 'flathub',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search Flathub apps by keyword',
     domain: 'flathub.org',

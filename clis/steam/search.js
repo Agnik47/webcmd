@@ -23,6 +23,7 @@ function platformList(platforms) {
 cli({
     site: 'steam',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search the Steam storefront by name keyword',
     domain: 'store.steampowered.com',

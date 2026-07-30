@@ -10,6 +10,7 @@ import { CRATES_BASE, cratesFetch, requireBoundedInt, requireString } from './ut
 cli({
     site: 'crates',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search the public crates.io registry by keyword',
     domain: 'crates.io',

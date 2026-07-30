@@ -14,6 +14,16 @@
         "handle": "agentrhq"
       }
     },
+    "pypi": {
+      "path": "plugins/pypi",
+      "version": "0.1.0",
+      "description": "Inspect public Python package metadata and releases from PyPI",
+      "webcmd": ">=0.2.0",
+      "author": {
+        "name": "Kemal Kaya",
+        "handle": "yoldaolmak"
+      }
+    },
     "skyscanner": {
       "path": "plugins/skyscanner",
       "version": "0.1.0",

@@ -60,6 +60,7 @@ cli({
 cli({
     site: 'qoder',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Open Qoder Search palette (⌘P), type a query, return matched options.',
     domain: 'localhost',

@@ -5,6 +5,7 @@ import { fetchPosts, mapPost, parseLimit, requireQuery } from './utils.js';
 cli({
     site: 'bmwblog',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search BMWBLOG articles',
     domain: 'www.bmwblog.com',

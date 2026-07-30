@@ -11,7 +11,7 @@
     "rule": "silent-clamp",
     "command": "apple-podcasts/search",
     "file": "clis/apple-podcasts/search.js",
-    "line": 18,
+    "line": 19,
     "text": "const limit = Math.max(1, Math.min(Number(args.limit), 25));",
     "occurrence": 0
   },
@@ -59,7 +59,7 @@
     "rule": "silent-clamp",
     "command": "google/search",
     "file": "clis/google/search.js",
-    "line": 27,
+    "line": 28,
     "text": "const limit = Math.max(1, Math.min(Number(args.limit), 100));",
     "occurrence": 0
   },
@@ -139,7 +139,7 @@
     "rule": "silent-clamp",
     "command": "imdb/search",
     "file": "clis/imdb/search.js",
-    "line": 26,
+    "line": 27,
     "text": "const limit = Math.max(1, Math.min(Number(args.limit) || 20, 50));",
     "occurrence": 0
   },
@@ -179,7 +179,7 @@
     "rule": "silent-clamp",
     "command": "producthunt/browse",
     "file": "clis/producthunt/browse.js",
-    "line": 29,
+    "line": 30,
     "text": "const count = Math.min(Number(args.limit) || 20, 50);",
     "occurrence": 0
   },
@@ -219,7 +219,7 @@
     "rule": "silent-clamp",
     "command": "spotify/auth",
     "file": "clis/spotify/spotify.js",
-    "line": 277,
+    "line": 278,
     "text": "const limit = Math.min(50, Math.max(1, Math.round(kwargs.limit)));",
     "occurrence": 0
   },
@@ -227,7 +227,7 @@
     "rule": "silent-clamp",
     "command": "spotify/next",
     "file": "clis/spotify/spotify.js",
-    "line": 277,
+    "line": 278,
     "text": "const limit = Math.min(50, Math.max(1, Math.round(kwargs.limit)));",
     "occurrence": 0
   },
@@ -235,7 +235,7 @@
     "rule": "silent-clamp",
     "command": "spotify/pause",
     "file": "clis/spotify/spotify.js",
-    "line": 277,
+    "line": 278,
     "text": "const limit = Math.min(50, Math.max(1, Math.round(kwargs.limit)));",
     "occurrence": 0
   },
@@ -243,7 +243,7 @@
     "rule": "silent-clamp",
     "command": "spotify/play",
     "file": "clis/spotify/spotify.js",
-    "line": 277,
+    "line": 278,
     "text": "const limit = Math.min(50, Math.max(1, Math.round(kwargs.limit)));",
     "occurrence": 0
   },
@@ -251,7 +251,7 @@
     "rule": "silent-clamp",
     "command": "spotify/prev",
     "file": "clis/spotify/spotify.js",
-    "line": 277,
+    "line": 278,
     "text": "const limit = Math.min(50, Math.max(1, Math.round(kwargs.limit)));",
     "occurrence": 0
   },
@@ -259,7 +259,7 @@
     "rule": "silent-clamp",
     "command": "spotify/queue",
     "file": "clis/spotify/spotify.js",
-    "line": 277,
+    "line": 278,
     "text": "const limit = Math.min(50, Math.max(1, Math.round(kwargs.limit)));",
     "occurrence": 0
   },
@@ -267,7 +267,7 @@
     "rule": "silent-clamp",
     "command": "spotify/repeat",
     "file": "clis/spotify/spotify.js",
-    "line": 277,
+    "line": 278,
     "text": "const limit = Math.min(50, Math.max(1, Math.round(kwargs.limit)));",
     "occurrence": 0
   },
@@ -275,7 +275,7 @@
     "rule": "silent-clamp",
     "command": "spotify/search",
     "file": "clis/spotify/spotify.js",
-    "line": 277,
+    "line": 278,
     "text": "const limit = Math.min(50, Math.max(1, Math.round(kwargs.limit)));",
     "occurrence": 0
   },
@@ -283,7 +283,7 @@
     "rule": "silent-clamp",
     "command": "spotify/shuffle",
     "file": "clis/spotify/spotify.js",
-    "line": 277,
+    "line": 278,
     "text": "const limit = Math.min(50, Math.max(1, Math.round(kwargs.limit)));",
     "occurrence": 0
   },
@@ -291,7 +291,7 @@
     "rule": "silent-clamp",
     "command": "spotify/status",
     "file": "clis/spotify/spotify.js",
-    "line": 277,
+    "line": 278,
     "text": "const limit = Math.min(50, Math.max(1, Math.round(kwargs.limit)));",
     "occurrence": 0
   },
@@ -299,7 +299,7 @@
     "rule": "silent-clamp",
     "command": "spotify/volume",
     "file": "clis/spotify/spotify.js",
-    "line": 277,
+    "line": 278,
     "text": "const limit = Math.min(50, Math.max(1, Math.round(kwargs.limit)));",
     "occurrence": 0
   },
@@ -315,7 +315,7 @@
     "rule": "silent-clamp",
     "command": "substack/search",
     "file": "clis/substack/search.js",
-    "line": 74,
+    "line": 75,
     "text": "const limit = Math.max(1, Math.min(Number(args.limit) || 20, 50));",
     "occurrence": 0
   },
@@ -363,7 +363,7 @@
     "rule": "silent-clamp",
     "command": "twitter/timeline",
     "file": "clis/twitter/timeline.js",
-    "line": 185,
+    "line": 187,
     "text": "const fetchCount = Math.min(40, limit - allTweets.length + 5); // over-fetch slightly for promoted filtering",
     "occurrence": 0
   },
@@ -379,7 +379,7 @@
     "rule": "silent-clamp",
     "command": "wikipedia/search",
     "file": "clis/wikipedia/search.js",
-    "line": 18,
+    "line": 19,
     "text": "const limit = Math.max(1, Math.min(Number(args.limit), 50));",
     "occurrence": 0
   },
@@ -443,7 +443,7 @@
     "rule": "silent-clamp",
     "command": "youtube/search",
     "file": "clis/youtube/search.js",
-    "line": 21,
+    "line": 22,
     "text": "const limit = Math.min(kwargs.limit || 20, 50);",
     "occurrence": 0
   },
@@ -467,7 +467,7 @@
     "rule": "silent-clamp",
     "command": "zlibrary/search",
     "file": "clis/zlibrary/search.js",
-    "line": 30,
+    "line": 31,
     "text": "const limit = Math.max(1, Math.min(Number(args.limit) || 10, 25));",
     "occurrence": 0
   },
@@ -485,14 +485,6 @@
     "file": "clis/twitter/accept.js",
     "line": 182,
     "text": "user: res.user || 'Unknown',",
-    "occurrence": 0
-  },
-  {
-    "rule": "silent-sentinel",
-    "command": "twitter/article",
-    "file": "clis/twitter/article.js",
-    "line": 109,
-    "text": "const screenName = user?.legacy?.screen_name || user?.core?.screen_name || 'unknown';",
     "occurrence": 0
   },
   {
@@ -553,32 +545,32 @@
   },
   {
     "rule": "silent-sentinel",
-    "command": "web/read",
-    "file": "clis/web/read.js",
+    "command": "web/fetch-browser",
+    "file": "clis/web/fetch-browser.js",
     "line": 378,
     "text": "lines.push(`  [frame ${frame.index}] ${frame.sameOrigin ? 'same-origin' : 'cross-origin'} ${frame.accessible ? 'accessible' : 'blocked'} text=${frame.textLength || 0} ${frame.src || '-'}`);",
     "occurrence": 0
   },
   {
     "rule": "silent-sentinel",
-    "command": "web/read",
-    "file": "clis/web/read.js",
+    "command": "web/fetch-browser",
+    "file": "clis/web/fetch-browser.js",
     "line": 390,
     "text": "lines.push(`  ${entry.method} ${entry.status || '-'} ${entry.contentType || '-'} ${entry.url}`);",
     "occurrence": 0
   },
   {
     "rule": "silent-sentinel",
-    "command": "web/read",
-    "file": "clis/web/read.js",
+    "command": "web/fetch-browser",
+    "file": "clis/web/fetch-browser.js",
     "line": 384,
     "text": "lines.push(`  ${item.scope}: ${selector} (${item.url || '-'})`);",
     "occurrence": 0
   },
   {
     "rule": "silent-sentinel",
-    "command": "web/read",
-    "file": "clis/web/read.js",
+    "command": "web/fetch-browser",
+    "file": "clis/web/fetch-browser.js",
     "line": 375,
     "text": "lines.push(`url: ${diag.url || '-'}`);",
     "occurrence": 0

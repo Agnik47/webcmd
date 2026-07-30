@@ -1,181 +1,121 @@
 ---
 name: smart-search
-description: Intelligent search router based on webcmd commands. Use this skill when the user wants to search, query, find, or research information through Webcmd, CLI, or API sources, especially for named websites, social media, technical material, news, shopping, travel, jobs, finance, or multilingual content
+description: Use when a request needs search, research, source discovery, direct URL fetch, evidence fetching, or search-capable Webcmd adapter discovery.
 ---
 
-# Smart Search Router
+# Smart Search
 
-Route a query to the best webcmd search source based on the topic and context. The goal of this skill is not to memorize command signatures. First choose the data source, then have the agent read live help through `webcmd` so stale documentation does not leak into the answer.
+This is Webcmd's one-stop workflow for search + fetch. Use it for any request that asks to search, research, find sources, look something up, fetch/read a URL, compare sources, or gather evidence.
 
-## Mandatory Preflight
+Use live fetch results, command metadata, and command help. Do not infer command arguments from this skill, maintain a routing table, or claim a source was searched when it was not.
 
-Before every use, do both of these steps:
+Do not use this skill for plugin inventory, plugin management, or listing available extensions. Marketplace commands appear here only to find and install search-capable adapters needed for the current search/fetch task.
 
-- Derive literal workflow terms from the requested action, entity, output fields, and any explicitly named site, then filter the live registry before it reaches bounded agent output:
+Cost order is mandatory: `webcmd web fetch` first, `webcmd web fetch-browser` second, search adapters last. Do not call search adapters until plain HTTP/TLS fetch and browser fetch cannot satisfy the task.
 
-  ```bash
-  WORKFLOW_TERMS='["requested action", "output field", "named site"]'
-  webcmd list -f json | jq --argjson terms "$WORKFLOW_TERMS" '
-    [.[] | select(
-      ([.site, .name, .description, ((.columns // []) | join(" "))]
-        | map(. // "") | join(" ") | ascii_downcase) as $text
-      | any($terms[]; . as $term | $text | contains($term | ascii_downcase))
-    )]
-  '
-  ```
+## Trust boundary
 
-- Use the complete, non-truncated filtered registry to confirm that candidate sites exist, and inspect `strategy`, `browser`, and `domain`
+Use only installed commands, their reported output, and fetched primary content as evidence. Preserve source URLs and report failures. Do not add marketplaces automatically: adding a marketplace is a user trust decision.
 
-Any truncation warning from registry or plugin output means the inspection is incomplete. Narrow the filter or query and inspect again; absence from truncated output never proves a site, command, or plugin is unavailable. Do not search plugins until a complete filtered registry result for the missing capability is exactly `[]`, and do not use raw browser fallback until plugin output is also complete and non-truncated.
+Prefer primary sources, official docs, and direct content over search snippets. Treat snippets, previews, and result titles as discovery, not evidence.
 
-If the user explicitly names a site/source, or no installed command covers the query, refine the filter for that missing site or capability. Only when the complete filtered result is `[]`, check installable plugins before marking it unavailable:
+## Direct URL
+
+For a supplied HTTP(S) URL, fetch it first:
 
 ```bash
-webcmd plugin search <site-or-source-or-capability> -f json
+webcmd web fetch --url <url>
 ```
 
-Derive a short plugin query from the missing site or capability. Preserve the user's term when practical: `find flights` becomes `flight`.
+Only when the structured error code is `FETCH_BLOCKED` or `FETCH_REQUIRES_BROWSER`, use:
 
-If a complete, non-truncated plugin search finds a match, tell the user it is available as a plugin and offer `webcmd plugin install <source>`. If plugin search is truncated, refine it before fallback. If it fails because catalog sources cannot be fetched, report that catalog/search error separately from no plugin match.
+```bash
+webcmd web fetch-browser --url <url>
+```
 
-After choosing a site, do both of these steps:
+Do not escalate on message prose and do not make `web fetch` launch a browser.
 
-- Run `webcmd <site> -h` to see the site's subcommands
-- If a subcommand is already selected, run `webcmd <site> <command> -h` to inspect parameters, output columns, and strategy
+If direct fetch is rate-limited, blocked, CAPTCHA-gated, login-gated, geo-gated, or returns unusable extracted text, report that state. Only browser-escalate for `FETCH_BLOCKED` or `FETCH_REQUIRES_BROWSER`.
 
-Do not hard-code parameters or assume command signatures from skill docs. Trust the live output of `webcmd ... -h`.
+## Fetch-first web search
 
-## Main Routing Rule
+For a search query without a direct URL, start with fetched search-engine result pages, not adapters. Encode the query into one of these URLs and fetch it:
 
-Use this single rule instead of maintaining multiple priority lists:
+```bash
+webcmd web fetch --url "https://duckduckgo.com/html/?q=<encoded-query>"
+webcmd web fetch --url "https://www.bing.com/search?q=<encoded-query>"
+webcmd web fetch --url "https://www.google.com/search?q=<encoded-query>"
+```
 
-1. If the user explicitly names a website, platform, or data source, use that site directly.
-2. If the user does not name a site, prefer exactly one AI source: choose one of `grok`, `chatgpt`, or `gemini`.
-3. If the AI answer is thin, lacks raw data, needs authoritative corroboration, or needs vertical results, add 1-2 specialized sources.
+Try one search engine by default. Try a second when the first is weak, empty, blocked, CAPTCHA-gated, or lacks usable result URLs. Treat Google as more likely to block; DuckDuckGo HTML and Bing are cheaper first choices.
 
-## Per-Question Budget And Rate Limits
+Extract useful result URLs from the fetched page and then fetch the target pages with `webcmd web fetch`. Search snippets and result titles are discovery only, not evidence.
 
-Treat a "single user question" as one problem-solving chain for the same intent. Follow-ups, clarifications, and added constraints in the same thread still count as the same question when the core problem has not changed.
+If the search-engine result page itself needs browser rendering, use at most one browser fetch for a search results page before trying another search engine. Do not jump to adapters because one engine blocked.
 
-First create a site-call ledger. After each real search command, update it immediately:
+## Fetch evidence
 
-- `site`
-- `query`
-- `count`
-- `status`
+Fetch up to three result URLs by default (five for a broad comparison):
 
-Counting rules:
+```bash
+webcmd web fetch --url <url>
+```
 
-- `webcmd list -f json`, `webcmd plugin search <query> -f json`, `webcmd <site> -h`, and `webcmd <site> <command> -h` are preflight/help commands and do not count as searches.
-- One real `webcmd <site> ...` search/query execution counts as 1 call for that site.
-- A failed call caused by an error, timeout, CAPTCHA, anti-bot check, or broken login state still counts as 1 call for that site. Do not retry indefinitely.
+Use up to two browser fetches by default, only when target-page `web fetch` returns `FETCH_BLOCKED` or `FETCH_REQUIRES_BROWSER`. Cite or link the source URL with substantive claims.
 
-Rate limits:
+If fetch is rate-limited, auth-gated, CAPTCHA-gated, bot-detected, quota-limited, or geo-blocked, do not loop. Try another relevant URL/source when available; otherwise report the blocker.
 
-- Hard AI-source limit: for the same question, call each AI source at most once.
-- The default strategy is still to choose only 1 AI source. Do not chain multiple AI sources as a routine workflow.
-- Call additional AI sources only when the user explicitly asks to compare multiple AI sources. Even then, each named AI source may be called at most once.
-- Non-AI sites default to at most 2 calls.
-- The second call to a non-AI site must have a clear reason, such as narrowing by time, region, category, sorting, or keywords after an overly broad first result.
-- Do not make a third call to a non-AI site. If information is still insufficient, stop expanding and state the gap clearly.
+## Adapter fallback
 
-When a rate limit is reached:
+Only after fetch-first search, target-page fetch, and allowed browser fetches fail or are insufficient, discover search adapters:
 
-- Record: `Skipped: <site> reached the rate limit`
-- Prefer another site of the same type
-- If no suitable alternative source exists, answer from the collected information and explain coverage and gaps
+```bash
+webcmd list --tag search -f json
+```
 
-## End-Of-Query Report
+Shortlist up to five candidate commands from site, name, description, keywords, strategy, browser requirement, and output columns. Prefer the named site, then a comparably relevant installed command. Read live help before execution:
 
-At the end of every query, append a short "Search Summary" with at least these three items:
+```bash
+webcmd <site> <command> -h
+```
 
-- Which sites were searched
-- What query terms were used for each site
-- How many times each site was searched
+Run one adapter search command. Run a second only if the first is weak, empty, fails, or an independent source materially corroborates it. Do not use adapters as the first search path.
 
-If any site was skipped because of a rate limit, say so explicitly.
+When no installed command covers the needed site or specialized capability, use marketplace search only as adapter fallback:
 
-Use this fixed format when possible:
+```bash
+webcmd plugin search <site-or-capability> -f json
+```
+
+Install promising plugins sequentially, at most three plugins per user request:
+
+```bash
+webcmd plugin install <source>
+webcmd list --tag search -f json
+```
+
+Inspect the newly visible command help. Stop once a suitable command appears. If hosted marketplace installation is unavailable, state that gap and continue with fetched sources.
+
+Do not add custom marketplaces in this workflow. In hosted mode, only verified hosted marketplace adapters are installable.
+
+## Operational budgets
+
+- At most three plugin installs per user request.
+- One fetched search-engine page by default; second if weak/blocked; third only if the first two fail.
+- Up to five candidate commands before choosing.
+- Three URLs by default; five only for broad comparison.
+- Two browser fetches by default.
+- One adapter search by default; second only for weakness or corroboration.
+- Do not retry the same blocked command more than once.
+
+## Search Summary
+
+Append this to the response:
 
 ```md
 Search Summary
-- Site: <site1> | Query: <term1> | Calls: <n>
-- Site: <site2> | Query: <term2>; <term3> | Calls: <n>
-- Skipped: <site3> | Reason: reached the rate limit
+- Commands: <executed commands>
+- Sources fetched: <URLs>
+- Browser fallback: <URLs or none>
+- Gaps/failures: <none or details>
 ```
-
-## AI Source Selection
-
-- `grok`
-  Best for real-time discussion, English-language internet sentiment, Twitter/X context, and trending topics.
-- `chatgpt`
-  Best for broad Q&A, synthesis, planning, coding help, and general-purpose English-language research.
-- `gemini`
-  Best for global web coverage, English-language sources, general information retrieval, and background summaries.
-
-If the user did not name a site, first judge language and context, then choose exactly one of these three.
-
-After an AI site has run one real query for the same question, do not call that same AI site again with rewritten keywords. If the answer is insufficient, prefer specialized sources instead of repeatedly hitting the same AI site.
-
-## AI Query Guidance
-
-When using an AI source, do not send a very short keyword by itself. Prefer a query shaped as "topic + goal + constraints."
-
-- Topic
-  The object, event, product, person, company, or technical term the user really wants to investigate.
-- Goal
-  The desired result, such as summary, comparison, cause, trend, recommendation, or raw leads.
-- Constraints
-  Language, region, time range, platform scope, audience, price band, job location, or whether raw sources are required.
-
-Prefer these shapes:
-
-- `<topic> + <question to answer>`
-- `<topic> + <time range/region/language>`
-- `<topic> + <platform or source scope>`
-- `<topic> + <output requirement>`
-
-Avoid sending only:
-
-- A single noun
-- A trending question with no time range
-- A shopping, jobs, or travel question with no region
-- A social-media question with no platform scope
-
-## When To Add Specialized Sources
-
-Add specialized sources when any of these conditions apply:
-
-- The AI provides a summary, but raw posts, raw videos, raw products, or raw job results are needed
-- The AI coverage is thin or misses vertical-site information
-- Higher authority or stronger domain relevance is needed
-- The user explicitly asks to search on a specific platform
-
-Keep a typical query to 1 AI source plus 1-2 specialized sources to avoid result overload.
-
-## Handling Unavailable Sources
-
-When a site is unavailable:
-
-- Do not stop the whole search because one source failed
-- For a missing site or capability, first require a complete filtered registry result of `[]`, then run `webcmd plugin search <query> -f json` before recording unavailable
-- Record: `Skipped: <site> unavailable`
-- Fall back to another site of the same type, or to one AI source
-- Always trust the actual output of `webcmd list -f json`, `webcmd plugin search -f json`, and `webcmd <site> -h`
-
-Do not assume any site is always available. Even for public sites, trust complete, non-truncated live registry and plugin output, live help, and execution results in the current environment. Raw browser fallback requires both the complete `[]` registry result and a complete, non-truncated plugin search that returned no match and no error.
-
-## Reference Files
-
-Read only the files relevant to the current query:
-
-- **`references/sources-ai.md`** - default AI sources
-- **`references/sources-tech.md`** - technology and research
-- **`references/sources-social.md`** - social media
-- **`references/sources-media.md`** - media and entertainment
-- **`references/sources-info.md`** - news and knowledge
-- **`references/sources-shopping.md`** - shopping
-- **`references/sources-travel.md`** - travel
-- **`references/sources-other.md`** - other vertical sources
-
-Do not load every reference file unless the query actually needs them.

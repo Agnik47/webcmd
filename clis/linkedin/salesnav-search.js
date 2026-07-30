@@ -127,6 +127,7 @@ function requireLeadSearchResult(result) {
 cli({
   site: 'linkedin',
   name: 'salesnav-search',
+  tags: ['search'],
   access: 'read',
   description: 'Search LinkedIn Sales Navigator for people leads by keyword',
   domain: LINKEDIN_DOMAIN,

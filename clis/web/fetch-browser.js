@@ -10,8 +10,8 @@
  * Pipes through the shared article-download pipeline (Turndown + image download).
  *
  * Usage:
- *   webcmd web read --url "https://www.anthropic.com/research/..." --output ./articles
- *   webcmd web read --url "https://..." --download-images false
+ *   webcmd web fetch-browser --url "https://www.anthropic.com/research/..." --output ./articles
+ *   webcmd web fetch-browser --url "https://..." --download-images false
  */
 import { cli, Strategy } from '@agentrhq/webcmd/registry';
 import { downloadArticle } from '@agentrhq/webcmd/download/article-download';
@@ -371,7 +371,7 @@ function buildRenderAwareExtractorJs(options) {
 function formatDiagnostics(data, networkEntries, captureSupported) {
     const lines = [];
     const diag = data?.diagnostics || {};
-    lines.push('[web-read diagnose]');
+    lines.push('[web-fetch-browser diagnose]');
     lines.push(`url: ${diag.url || '-'}`);
     lines.push(`frames: ${Array.isArray(diag.frames) ? diag.frames.length : 0}, included_same_origin: ${diag.includedFrameCount || 0}`);
     for (const frame of (diag.frames || []).slice(0, 20)) {
@@ -394,7 +394,7 @@ function formatDiagnostics(data, networkEntries, captureSupported) {
 
 const command = cli({
     site: 'web',
-    name: 'read',
+    name: 'fetch-browser',
     access: 'read',
     description: 'Fetch any web page and export as Markdown',
     strategy: Strategy.COOKIE,

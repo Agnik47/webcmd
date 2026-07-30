@@ -14,6 +14,7 @@ import {
 cli({
     site: 'pubmed',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search PubMed articles with advanced filters',
     domain: 'pubmed.ncbi.nlm.nih.gov',

@@ -261,6 +261,9 @@
       "rating_value",
       "review_count"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "amazon/search.js",
     "sourceFile": "amazon/search.js",
@@ -495,6 +498,9 @@
       "image_url",
       "product_url",
       "is_sponsored"
+    ],
+    "tags": [
+      "search"
     ],
     "type": "js",
     "modulePath": "amazon-in/search.js",
@@ -1500,6 +1506,9 @@
       "genre",
       "url"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "apple-podcasts/search.js",
     "sourceFile": "apple-podcasts/search.js"
@@ -1615,6 +1624,9 @@
       "mediatype",
       "downloads",
       "url"
+    ],
+    "tags": [
+      "search"
     ],
     "type": "js",
     "modulePath": "archive/search.js",
@@ -1834,6 +1846,9 @@
       "published",
       "primary_category",
       "url"
+    ],
+    "tags": [
+      "search"
     ],
     "type": "js",
     "modulePath": "arxiv/search.js",
@@ -2502,6 +2517,9 @@
       "availability",
       "url"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "bigbasket/search.js",
     "sourceFile": "bigbasket/search.js",
@@ -3130,6 +3148,9 @@
       "imageUrl",
       "url"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "blinkit/search.js",
     "sourceFile": "blinkit/search.js",
@@ -3655,6 +3676,9 @@
       "followers",
       "description"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "bluesky/search.js",
     "sourceFile": "bluesky/search.js"
@@ -3882,6 +3906,9 @@
       "recommended_room",
       "url"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "booking/search.js",
     "sourceFile": "booking/search.js"
@@ -3922,6 +3949,9 @@
       "title",
       "url",
       "snippet"
+    ],
+    "tags": [
+      "search"
     ],
     "type": "js",
     "modulePath": "brave/search.js",
@@ -4060,6 +4090,9 @@
       "url",
       "method",
       "diagnostics"
+    ],
+    "tags": [
+      "search"
     ],
     "type": "js",
     "modulePath": "chatgpt/deep-research-result.js",
@@ -6307,6 +6340,9 @@
       "lastModified",
       "url"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "confluence/search.js",
     "sourceFile": "confluence/search.js"
@@ -6526,6 +6562,9 @@
       "delivery_promise",
       "url"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "coupang/search.js",
     "sourceFile": "coupang/search.js",
@@ -6623,6 +6662,9 @@
       "repository",
       "updated",
       "url"
+    ],
+    "tags": [
+      "search"
     ],
     "type": "js",
     "modulePath": "crates/search.js",
@@ -7015,6 +7057,9 @@
       "doi",
       "url"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "dblp/search.js",
     "sourceFile": "dblp/search.js"
@@ -7364,6 +7409,9 @@
       "type",
       "definition"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "dictionary/search.js",
     "sourceFile": "dictionary/search.js"
@@ -7574,6 +7622,9 @@
       "Index",
       "Author",
       "Message"
+    ],
+    "tags": [
+      "search"
     ],
     "type": "js",
     "modulePath": "discord-app/search.js",
@@ -7995,6 +8046,9 @@
       "price",
       "url"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "district/search.js",
     "sourceFile": "district/search.js"
@@ -8336,6 +8390,9 @@
       "description",
       "url"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "dockerhub/search.js",
     "sourceFile": "dockerhub/search.js"
@@ -8391,6 +8448,9 @@
       "displayUrl",
       "icon",
       "resultType"
+    ],
+    "tags": [
+      "search"
     ],
     "type": "js",
     "modulePath": "duckduckgo/search.js",
@@ -8828,6 +8888,9 @@
       "text",
       "url"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "facebook/search.js",
     "sourceFile": "facebook/search.js",
@@ -8930,6 +8993,9 @@
       "updatedAt",
       "url"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "flathub/search.js",
     "sourceFile": "flathub/search.js"
@@ -9028,6 +9094,9 @@
       "status",
       "url"
     ],
+    "tags": [
+      "search"
+    ],
     "defaultFormat": "plain",
     "type": "js",
     "modulePath": "gemini/deep-research.js",
@@ -9072,6 +9141,9 @@
     ],
     "columns": [
       "response"
+    ],
+    "tags": [
+      "search"
     ],
     "defaultFormat": "plain",
     "type": "js",
@@ -9824,6 +9896,9 @@
       "url",
       "snippet"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "google/search.js",
     "sourceFile": "google/search.js"
@@ -10002,6 +10077,9 @@
       "year",
       "cited",
       "url"
+    ],
+    "tags": [
+      "search"
     ],
     "type": "js",
     "modulePath": "google-scholar/search.js",
@@ -10813,6 +10891,9 @@
       "comments",
       "url"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "hackernews/search.js",
     "sourceFile": "hackernews/search.js"
@@ -11392,6 +11473,9 @@
       "type",
       "url"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "imdb/search.js",
     "sourceFile": "imdb/search.js"
@@ -11576,6 +11660,9 @@
       "tags",
       "url"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "indeed/search.js",
     "sourceFile": "indeed/search.js",
@@ -11730,6 +11817,9 @@
       "likes",
       "comments",
       "type"
+    ],
+    "tags": [
+      "search"
     ],
     "type": "js",
     "modulePath": "instagram/explore.js",
@@ -12164,6 +12254,9 @@
       "private",
       "url"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "instagram/search.js",
     "sourceFile": "instagram/search.js",
@@ -12516,6 +12609,9 @@
       "assignee",
       "updated",
       "url"
+    ],
+    "tags": [
+      "search"
     ],
     "type": "js",
     "modulePath": "jira/search.js",
@@ -13322,6 +13418,9 @@
       "location",
       "profile_url"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "linkedin/people-search.js",
     "sourceFile": "linkedin/people-search.js",
@@ -13766,6 +13865,9 @@
       "lead_url",
       "recipient_urn"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "linkedin/salesnav-search.js",
     "sourceFile": "linkedin/salesnav-search.js",
@@ -13903,6 +14005,9 @@
       "listed",
       "salary",
       "url"
+    ],
+    "tags": [
+      "search"
     ],
     "type": "js",
     "modulePath": "linkedin/search.js",
@@ -14161,6 +14266,9 @@
       "rating_count",
       "viewers",
       "url"
+    ],
+    "tags": [
+      "search"
     ],
     "type": "js",
     "modulePath": "linkedin-learning/search.js",
@@ -14720,6 +14828,9 @@
       "repository",
       "url"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "maven/search.js",
     "sourceFile": "maven/search.js"
@@ -14762,6 +14873,9 @@
       "locale",
       "summary",
       "url"
+    ],
+    "tags": [
+      "search"
     ],
     "type": "js",
     "modulePath": "mdn/search.js",
@@ -14836,6 +14950,9 @@
       "readTime",
       "claps",
       "url"
+    ],
+    "tags": [
+      "search"
     ],
     "type": "js",
     "modulePath": "medium/search.js",
@@ -15835,6 +15952,9 @@
       "updated",
       "url"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "npm/search.js",
     "sourceFile": "npm/search.js"
@@ -15918,6 +16038,9 @@
       "projectUrl",
       "url"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "nuget/search.js",
     "sourceFile": "nuget/search.js"
@@ -15989,6 +16112,9 @@
       "author",
       "created",
       "url"
+    ],
+    "tags": [
+      "search"
     ],
     "type": "js",
     "modulePath": "oeis/search.js",
@@ -16068,6 +16194,9 @@
       "type",
       "doi",
       "url"
+    ],
+    "tags": [
+      "search"
     ],
     "type": "js",
     "modulePath": "openalex/search.js",
@@ -16351,6 +16480,9 @@
       "pdate",
       "url"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "openreview/search.js",
     "sourceFile": "openreview/search.js"
@@ -16447,6 +16579,9 @@
       "modified",
       "affectedPackages",
       "url"
+    ],
+    "tags": [
+      "search"
     ],
     "type": "js",
     "modulePath": "osv/query.js",
@@ -16552,6 +16687,9 @@
       "favers",
       "repository",
       "url"
+    ],
+    "tags": [
+      "search"
     ],
     "type": "js",
     "modulePath": "packagist/search.js",
@@ -16982,6 +17120,9 @@
       "tags",
       "url"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "pixiv/search.js",
     "sourceFile": "pixiv/search.js",
@@ -17387,6 +17528,9 @@
       "next_available",
       "profile_url"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "practo/search.js",
     "sourceFile": "practo/search.js",
@@ -17482,6 +17626,9 @@
       "tagline",
       "reviews",
       "url"
+    ],
+    "tags": [
+      "search"
     ],
     "type": "js",
     "modulePath": "producthunt/browse.js",
@@ -18171,6 +18318,9 @@
       "doi",
       "url"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "pubmed/search.js",
     "sourceFile": "pubmed/search.js"
@@ -18540,6 +18690,9 @@
     "columns": [
       "Index",
       "Item"
+    ],
+    "tags": [
+      "search"
     ],
     "type": "js",
     "modulePath": "qoder/ui.js",
@@ -19086,6 +19239,9 @@
       "preview_image_url",
       "gallery_urls"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "reddit/search.js",
     "sourceFile": "reddit/search.js",
@@ -19607,6 +19763,9 @@
       "authors",
       "url"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "reuters/search.js",
     "sourceFile": "reuters/search.js",
@@ -19736,6 +19895,9 @@
       "authors",
       "info",
       "url"
+    ],
+    "tags": [
+      "search"
     ],
     "type": "js",
     "modulePath": "rubygems/search.js",
@@ -19890,6 +20052,9 @@
       "firstAuthor",
       "citationCount",
       "url"
+    ],
+    "tags": [
+      "search"
     ],
     "type": "js",
     "modulePath": "semanticscholar/search.js",
@@ -20770,6 +20935,9 @@
       "createdAt",
       "senderName",
       "content"
+    ],
+    "tags": [
+      "search"
     ],
     "type": "js",
     "modulePath": "slock/message-search.js",
@@ -21705,6 +21873,9 @@
       "album",
       "uri"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "spotify/spotify.js",
     "sourceFile": "spotify/spotify.js"
@@ -21984,6 +22155,9 @@
       "creation_date",
       "url"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "stackoverflow/search.js",
     "sourceFile": "stackoverflow/search.js"
@@ -22197,6 +22371,9 @@
       "platforms",
       "url"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "steam/search.js",
     "sourceFile": "steam/search.js"
@@ -22344,6 +22521,9 @@
       "date",
       "description",
       "url"
+    ],
+    "tags": [
+      "search"
     ],
     "type": "js",
     "modulePath": "substack/search.js",
@@ -22722,6 +22902,9 @@
       "shares",
       "createTime"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "tiktok/explore.js",
     "sourceFile": "tiktok/explore.js",
@@ -23036,6 +23219,9 @@
       "likes",
       "comments",
       "shares"
+    ],
+    "tags": [
+      "search"
     ],
     "type": "js",
     "modulePath": "tiktok/search.js",
@@ -23602,6 +23788,9 @@
       "Index",
       "Name",
       "Description"
+    ],
+    "tags": [
+      "search"
     ],
     "type": "js",
     "modulePath": "trae-solo/skill.js",
@@ -24254,6 +24443,9 @@
       "currency",
       "url"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "trip/hotel-search.js",
     "sourceFile": "trip/hotel-search.js",
@@ -24357,6 +24549,9 @@
       "airportCode",
       "province",
       "country"
+    ],
+    "tags": [
+      "search"
     ],
     "type": "js",
     "modulePath": "trip/search.js",
@@ -24544,6 +24739,9 @@
       "matchScore",
       "summary",
       "url"
+    ],
+    "tags": [
+      "search"
     ],
     "type": "js",
     "modulePath": "tvmaze/search.js",
@@ -25942,6 +26140,9 @@
       "card",
       "quoted_tweet"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "twitter/search.js",
     "sourceFile": "twitter/search.js",
@@ -26557,6 +26758,9 @@
       "publishedOn",
       "url"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "upwork/search.js",
     "sourceFile": "upwork/search.js",
@@ -26585,7 +26789,7 @@
   },
   {
     "site": "web",
-    "name": "read",
+    "name": "fetch-browser",
     "description": "Fetch any web page and export as Markdown",
     "access": "read",
     "strategy": "cookie",
@@ -26672,8 +26876,8 @@
       "saved"
     ],
     "type": "js",
-    "modulePath": "web/read.js",
-    "sourceFile": "web/read.js",
+    "modulePath": "web/fetch-browser.js",
+    "sourceFile": "web/fetch-browser.js",
     "navigateBefore": false
   },
   {
@@ -26755,6 +26959,9 @@
       "matchType",
       "matchText",
       "url"
+    ],
+    "tags": [
+      "search"
     ],
     "type": "js",
     "modulePath": "wikidata/search.js",
@@ -26863,6 +27070,9 @@
       "title",
       "snippet",
       "url"
+    ],
+    "tags": [
+      "search"
     ],
     "type": "js",
     "modulePath": "wikipedia/search.js",
@@ -27057,6 +27267,9 @@
       "title",
       "url",
       "snippet"
+    ],
+    "tags": [
+      "search"
     ],
     "type": "js",
     "modulePath": "yahoo/search.js",
@@ -27972,6 +28185,9 @@
       "published",
       "url"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "youtube/search.js",
     "sourceFile": "youtube/search.js",
@@ -28416,6 +28632,9 @@
       "availability",
       "url"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "zepto/search.js",
     "sourceFile": "zepto/search.js",
@@ -28497,6 +28716,9 @@
       "title",
       "author",
       "url"
+    ],
+    "tags": [
+      "search"
     ],
     "type": "js",
     "modulePath": "zlibrary/search.js",

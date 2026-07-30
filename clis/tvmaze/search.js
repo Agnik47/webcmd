@@ -12,6 +12,7 @@ import {
 cli({
     site: 'tvmaze',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'TVmaze TV show search by title (returns id, name, network, premiered/ended, rating)',
     domain: 'tvmaze.com',

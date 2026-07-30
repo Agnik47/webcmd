@@ -29,6 +29,8 @@ export interface HostedCommand extends CommandSurfaceMetadata {
   browser: boolean;
   args: HostedCommandArg[];
   columns: string[];
+  tags?: string[];
+  keywords?: string[];
   domain?: string | null;
   defaultFormat?: string | null;
   freshPage?: boolean;
@@ -58,6 +60,33 @@ export interface HostedPublicProfile {
 export interface HostedProfilesResponse {
   ok: true;
   profiles: HostedPublicProfile[];
+}
+
+export interface HostedMarketplacePlugin {
+  name: string;
+  description?: string;
+  version?: string;
+  sourceId: string;
+  installSource: string;
+  webcmd?: string;
+}
+
+export interface HostedMarketplaceSearchError {
+  sourceId: string;
+  manifestUrl: string;
+  message: string;
+}
+
+export interface HostedMarketplaceSearchResult {
+  plugins: HostedMarketplacePlugin[];
+  errors: HostedMarketplaceSearchError[];
+}
+
+export interface HostedMarketplaceInstallation {
+  installationId: string;
+  name: string;
+  version: string;
+  installSource: string;
 }
 
 export interface HostedExecution {

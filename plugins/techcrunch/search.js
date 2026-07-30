@@ -37,6 +37,7 @@ export async function searchTechCrunch(args, request = fetch) {
 cli({
     site: 'techcrunch',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search TechCrunch stories or list the latest stories',
     domain: 'techcrunch.com',

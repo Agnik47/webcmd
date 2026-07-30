@@ -3,6 +3,7 @@ import { Command } from 'commander';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Strategy, type CliCommand } from '../registry.js';
 import { registerCommandToProgram } from '../commanderAdapter.js';
+import { commandListPresentation, filterCommandsByTag, toPresentableCommand } from '../command-presentation.js';
 import { PKG_VERSION } from '../version.js';
 import { makeHostedConfig } from './config.js';
 import { runHostedCli } from './runner.js';
@@ -111,6 +112,14 @@ beforeEach(() => {
 });
 
 describe('local/hosted command output differential', () => {
+  it('keeps filtered local and hosted list rows identical', () => {
+    const local = { ...command, tags: ['search'], keywords: ['identity'] };
+    const hosted = { ...manifest.commands[0]!, tags: ['search'], keywords: ['identity'] };
+
+    expect(commandListPresentation(filterCommandsByTag([toPresentableCommand(local)], 'SEARCH'), 'json').rows)
+      .toEqual(commandListPresentation(filterCommandsByTag([toPresentableCommand(hosted)], 'SEARCH'), 'json').rows);
+  });
+
   it('suppresses a null result in both modes', async () => {
     const result = null;
     const hosted = await hostedBytes(result, ['-f', 'json'], false);

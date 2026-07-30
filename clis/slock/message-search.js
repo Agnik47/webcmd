@@ -9,6 +9,7 @@ import { UUID_RE, parsePositiveInteger } from './resolve.js';
 cli({
   site: SLOCK_SITE,
   name: 'message-search',
+  tags: ['search'],
   access: 'read',
   description: 'Search messages',
   domain: SLOCK_DOMAIN,

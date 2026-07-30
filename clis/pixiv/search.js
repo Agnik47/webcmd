@@ -8,6 +8,7 @@ import { pixivFetch } from './utils.js';
 cli({
     site: 'pixiv',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search Pixiv illustrations by keyword',
     domain: 'www.pixiv.net',

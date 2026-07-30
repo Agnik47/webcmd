@@ -26,6 +26,7 @@
     "./download/article-download": "./dist/src/download/article-download.js",
     "./download/media-download": "./dist/src/download/media-download.js",
     "./download/progress": "./dist/src/download/progress.js",
+    "./fetch/command": "./dist/src/fetch/command.js",
     "./pipeline": "./dist/src/pipeline/index.js"
   },
   "files": [
@@ -46,6 +47,7 @@
     "build": "npm run clean-dist && npm run copy-yaml && npm run compile && npm run build-manifest",
     "compile": "tsc --build && node -e \"require('fs').chmodSync('dist/src/main.js', 0o755)\"",
     "build-manifest": "tsx src/build-manifest.ts",
+    "check:codex-plugin": "node scripts/check-codex-plugin.mjs",
     "check:hosted-contract": "node scripts/check-hosted-contract.mjs",
     "clean-dist": "node scripts/clean-dist.cjs",
     "copy-yaml": "node scripts/copy-yaml.cjs",
@@ -91,7 +93,9 @@
     "cli-table3": "^0.6.5",
     "cloakbrowser": "0.4.5",
     "commander": "^14.0.3",
+    "impit": "0.14.3",
     "js-yaml": "^4.3.0",
+    "jsdom": "^29.0.2",
     "playwright-core": "1.61.1",
     "turndown": "^7.2.2",
     "turndown-plugin-gfm": "^1.0.2",
@@ -106,7 +110,6 @@
     "@types/node": "^25.5.2",
     "@types/turndown": "^5.0.6",
     "@types/ws": "^8.5.13",
-    "jsdom": "^29.0.2",
     "tsx": "^4.19.3",
     "typescript": "^6.0.2",
     "vitest": "^4.1.0"

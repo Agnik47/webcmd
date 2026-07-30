@@ -5,6 +5,7 @@ import { buildSearchUrl, normalizeLimit, rowsFromSearchState, unwrapBrowserResul
 cli({
   site: 'practo',
   name: 'search',
+  tags: ['search'],
   access: 'read',
   description: 'Search Practo doctors by specialty, city, and optional locality',
   domain: 'www.practo.com',
