@@ -8,9 +8,11 @@ import {
   createApi,
   createChatStream,
   createRequestEpoch,
+  isPendingConversation,
   preferencePayload,
   requiresAuthReset,
   safeTranscriptUrl,
+  shouldFollowOutput,
   shouldSubmitComposer,
   transcriptParts,
 } from '../frontend/src/client.js';
@@ -33,6 +35,25 @@ test('keeps a delayed reply pending when reselecting its active conversation', (
   assert.equal(client.shouldIgnoreConversationReselection?.(true, 'active', 'active'), true);
   assert.equal(client.shouldIgnoreConversationReselection?.(true, 'active', 'other'), false);
   assert.equal(client.shouldIgnoreConversationReselection?.(false, 'active', 'active'), false);
+});
+
+test('identifies only the conversation with the active turn', () => {
+  assert.equal(isPendingConversation('chat-1', 'chat-1'), true);
+  assert.equal(isPendingConversation('chat-1', 'chat-2'), false);
+  assert.equal(isPendingConversation(undefined, 'chat-1'), false);
+});
+
+test('follows streamed output only while the reader is near the bottom', () => {
+  assert.equal(shouldFollowOutput({
+    scrollTop: 700,
+    clientHeight: 300,
+    scrollHeight: 1040,
+  }), true);
+  assert.equal(shouldFollowOutput({
+    scrollTop: 200,
+    clientHeight: 300,
+    scrollHeight: 1040,
+  }), false);
 });
 
 test('invalidates an async result captured before the session changes', async () => {

@@ -2,20 +2,24 @@ import { Button } from '@opencode-ai/ui/button';
 import { Card } from '@opencode-ai/ui/card';
 import { Icon } from '@opencode-ai/ui/icon';
 import { Tag } from '@opencode-ai/ui/tag';
-import { For, Show, createSignal, onMount } from 'solid-js';
+import { For, Show, createSignal, onCleanup, onMount } from 'solid-js';
 import { render } from 'solid-js/web';
 import {
   applyChatResponse,
   bookingDetails,
   bookingStatusLabel,
   createApi,
+  createChatStream,
   createRequestEpoch,
+  isPendingConversation,
   preferencePayload,
   shouldIgnoreConversationReselection,
+  shouldFollowOutput,
+  shouldSubmitComposer,
   thinkingStatus,
   transcriptParts,
   type Booking,
-  type ChatResponse,
+  type ChatStreamEvent,
   type Conversation,
   type Message,
   type Preferences,
@@ -36,6 +40,13 @@ interface PreferenceFields {
   formats: string;
   seatPosition: string;
   budget: string;
+}
+
+interface PendingTurn {
+  conversationId: string;
+  messages: Message[];
+  draft: string;
+  activity: boolean;
 }
 
 const EMPTY_PREFERENCES: PreferenceFields = {
@@ -70,11 +81,13 @@ function App() {
   const [preferenceFields, setPreferenceFields] = createSignal(EMPTY_PREFERENCES);
   const [authPending, setAuthPending] = createSignal(false);
   const [newChatPending, setNewChatPending] = createSignal(false);
-  const [chatPending, setChatPending] = createSignal(false);
+  const [pendingTurn, setPendingTurn] = createSignal<PendingTurn | null>(null);
+  const [transcriptPending, setTranscriptPending] = createSignal(false);
   const [preferencesPending, setPreferencesPending] = createSignal(false);
   const [authError, setAuthError] = createSignal('');
   const [appError, setAppError] = createSignal('');
   const [chatError, setChatError] = createSignal('');
+  const [chatStatus, setChatStatus] = createSignal('');
   const [preferencesStatus, setPreferencesStatus] = createSignal('');
   const [mobilePanel, setMobilePanel] = createSignal<'conversations' | 'details' | null>(null);
   const requests = createRequestEpoch();
@@ -84,15 +97,35 @@ function App() {
   let messageInput!: HTMLTextAreaElement;
   let emailInput!: HTMLInputElement;
   let passwordInput!: HTMLInputElement;
+  let mobilePanelOpener: HTMLElement | undefined;
   const api = createApi(fetch, requests.isCurrent, resetSession);
+  const chatStream = createChatStream(fetch, requests.isCurrent, resetSession);
 
   const activeConversation = () =>
     conversations().find((conversation) => conversation.id === activeConversationId());
+  const selectedPendingTurn = () => {
+    const turn = pendingTurn();
+    return isPendingConversation(turn?.conversationId, activeConversationId()) ? turn : null;
+  };
 
-  function scrollTranscript(): void {
+  function scrollTranscript(follow = true): void {
+    if (!follow) return;
     requestAnimationFrame(() => {
       transcript.scrollTop = transcript.scrollHeight;
     });
+  }
+
+  function closeMobilePanel(): void {
+    setMobilePanel(null);
+    requestAnimationFrame(() => mobilePanelOpener?.focus());
+  }
+
+  function openMobilePanel(
+    panel: 'conversations' | 'details',
+    opener: HTMLElement,
+  ): void {
+    mobilePanelOpener = opener;
+    setMobilePanel(panel);
   }
 
   function resetSession(message = ''): number {
@@ -107,11 +140,13 @@ function App() {
     setPreferenceFields(EMPTY_PREFERENCES);
     setAuthPending(false);
     setNewChatPending(false);
-    setChatPending(false);
+    setPendingTurn(null);
+    setTranscriptPending(false);
     setPreferencesPending(false);
     setAuthError(message);
     setAppError('');
     setChatError('');
+    setChatStatus('');
     setPreferencesStatus('');
     setMobilePanel(null);
     requestAnimationFrame(() => {
@@ -124,12 +159,28 @@ function App() {
   }
 
   async function selectConversation(conversation: Conversation): Promise<void> {
-    if (shouldIgnoreConversationReselection(chatPending(), activeConversationId(), conversation.id)) return;
-    setChatPending(false);
+    const turn = pendingTurn();
+    if (shouldIgnoreConversationReselection(Boolean(turn), activeConversationId(), conversation.id)) {
+      setMobilePanel(null);
+      requestAnimationFrame(() => messageInput?.focus());
+      return;
+    }
+    if (isPendingConversation(turn?.conversationId, conversation.id)) {
+      selections.advance();
+      setActiveConversationId(conversation.id);
+      setMessages(turn!.messages);
+      setTranscriptPending(false);
+      setChatError('');
+      setMobilePanel(null);
+      scrollTranscript();
+      requestAnimationFrame(() => messageInput?.focus());
+      return;
+    }
     const captured = requests.capture();
     const selected = selections.advance();
     setActiveConversationId(conversation.id);
     setMessages([]);
+    setTranscriptPending(true);
     setChatError('');
     setMobilePanel(null);
     try {
@@ -152,6 +203,12 @@ function App() {
         && selections.isCurrent(selected)
         && activeConversationId() === conversation.id
       ) setChatError(messageFor(error));
+    } finally {
+      if (
+        requests.isCurrent(captured)
+        && selections.isCurrent(selected)
+        && activeConversationId() === conversation.id
+      ) setTranscriptPending(false);
     }
   }
 
@@ -221,45 +278,67 @@ function App() {
     const data = new FormData(form);
     const message = String(data.get('message') ?? '').trim();
     const conversationId = activeConversationId();
-    if (!message || !conversationId) return;
+    if (!message || !conversationId || pendingTurn()) return;
     const captured = requests.capture();
-    const selected = selections.capture();
-    setChatPending(true);
+    const optimistic = [...messages(), { role: 'user', content: message } satisfies Message];
+    setMessages(optimistic);
+    setPendingTurn({ conversationId, messages: optimistic, draft: '', activity: false });
     setChatError('');
-    setMessages((current) => [...current, { role: 'user', content: message }]);
+    setChatStatus(thinkingStatus(true));
     form.reset();
     scrollTranscript();
-    try {
-      const response = await api<ChatResponse>(
-        `/api/conversations/${encodeURIComponent(conversationId)}/chat`,
-        { method: 'POST', body: JSON.stringify({ message }) },
-        captured,
-      );
+
+    const handleStreamEvent = (streamEvent: ChatStreamEvent): void => {
+      const turn = pendingTurn();
+      if (!requests.isCurrent(captured) || turn?.conversationId !== conversationId) return;
+      const follow = activeConversationId() === conversationId && shouldFollowOutput(transcript);
+      if (streamEvent.type === 'assistant.delta') {
+        setPendingTurn({ ...turn, draft: turn.draft + streamEvent.delta });
+        if (!turn.draft) setChatStatus('Hermes is responding');
+        scrollTranscript(follow);
+        return;
+      }
+      if (streamEvent.type === 'activity') {
+        setPendingTurn({ ...turn, activity: streamEvent.active });
+        setChatStatus(streamEvent.active ? 'Hermes is working' : 'Hermes is responding');
+        scrollTranscript(follow);
+        return;
+      }
       const updated = applyChatResponse(
-        response,
-        () => requests.isCurrent(captured) && activeConversationId() === conversationId,
-        (reply) => setMessages((current) => [...current, reply]),
+        streamEvent.response,
+        () => requests.isCurrent(captured),
+        (reply) => setMessages([...turn.messages, reply]),
         setBookings,
         conversations(),
-        () => selections.isCurrent(selected),
+        () => activeConversationId() === conversationId,
       );
-      if (updated) {
-        setConversations(updated);
-        scrollTranscript();
-      }
+      if (updated) setConversations(updated);
+      setPendingTurn(null);
+      setChatStatus('Response complete');
+      scrollTranscript(follow);
+    };
+
+    try {
+      await chatStream(
+        `/api/conversations/${encodeURIComponent(conversationId)}/chat/stream`,
+        message,
+        captured,
+        handleStreamEvent,
+      );
     } catch (error) {
-      if (
-        requests.isCurrent(captured)
-        && selections.isCurrent(selected)
-        && activeConversationId() === conversationId
-      ) setChatError(messageFor(error));
+      const turn = pendingTurn();
+      if (!requests.isCurrent(captured) || turn?.conversationId !== conversationId) return;
+      if (activeConversationId() === conversationId) {
+        setMessages(turn.draft
+          ? [...turn.messages, { role: 'assistant', content: turn.draft }]
+          : turn.messages);
+      }
+      const message = messageFor(error);
+      setPendingTurn(null);
+      setChatError(message);
+      setChatStatus(`Message failed: ${message}`);
     } finally {
-      if (
-        requests.isCurrent(captured)
-        && selections.isCurrent(selected)
-        && activeConversationId() === conversationId
-      ) {
-        setChatPending(false);
+      if (requests.isCurrent(captured) && activeConversationId() === conversationId) {
         messageInput.focus();
       }
     }
@@ -298,6 +377,13 @@ function App() {
   }
 
   onMount(() => {
+    const closeOnEscape = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape' || !mobilePanel()) return;
+      event.preventDefault();
+      closeMobilePanel();
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    onCleanup(() => window.removeEventListener('keydown', closeOnEscape));
     const captured = requests.capture();
     loadApp(captured, '').catch((error) => {
       if (requests.isCurrent(captured)) resetSession(messageFor(error));
@@ -337,7 +423,7 @@ function App() {
     }>
       <main class="app-shell">
         <Show when={mobilePanel()}>
-          <button class="mobile-backdrop" aria-label="Close panel" onClick={() => setMobilePanel(null)} />
+          <button class="mobile-backdrop" aria-label="Close panel" onClick={closeMobilePanel} />
         </Show>
 
         <aside class="conversation-rail" data-mobile-open={mobilePanel() === 'conversations'}>
@@ -346,7 +432,7 @@ function App() {
               <span class="brand-mark small" aria-hidden="true"><Icon name="speech-bubble" /></span>
               <div><strong>Movie desk</strong><span>powered by Hermes</span></div>
             </div>
-            <Button class="mobile-only" variant="ghost" icon="close" aria-label="Close conversations" onClick={() => setMobilePanel(null)}>Close</Button>
+            <Button class="mobile-only" variant="ghost" icon="close" aria-label="Close conversations" onClick={closeMobilePanel}>Close</Button>
           </header>
           <Button class="new-chat" variant="primary" icon="plus-small" disabled={newChatPending()} onClick={newConversation}>
             {newChatPending() ? 'Starting…' : 'New conversation'}
@@ -378,42 +464,75 @@ function App() {
 
         <section class="chat-pane">
           <header class="chat-header">
-            <Button class="mobile-only compact" variant="ghost" icon="sidebar" aria-label="Open conversations" onClick={() => setMobilePanel('conversations')}>Chats</Button>
+            <Button
+              class="mobile-only compact"
+              variant="ghost"
+              icon="sidebar"
+              aria-label="Open conversations"
+              onClick={(event: MouseEvent & { currentTarget: HTMLButtonElement }) =>
+                openMobilePanel('conversations', event.currentTarget)}
+            >Chats</Button>
             <div>
               <span class="status-dot" aria-hidden="true" />
               <div><h1>{activeConversation()?.title ?? 'Your movie assistant'}</h1><p>Ready to search shows and plan seats</p></div>
             </div>
-            <Button class="mobile-only compact" variant="ghost" icon="sliders" aria-label="Open preferences and bookings" onClick={() => setMobilePanel('details')}>Details</Button>
+            <Button
+              class="mobile-only compact"
+              variant="ghost"
+              icon="sliders"
+              aria-label="Open preferences and bookings"
+              onClick={(event: MouseEvent & { currentTarget: HTMLButtonElement }) =>
+                openMobilePanel('details', event.currentTarget)}
+            >Details</Button>
           </header>
           <Show when={appError()}><p class="banner error" role="alert">{appError()}</p></Show>
-          <ol ref={transcript} class="transcript" aria-label="Conversation transcript" aria-live="polite">
-            <Show when={messages().length} fallback={
-              <li class="chat-empty">
-                <span class="brand-mark" aria-hidden="true"><Icon name="prompt" size="large" /></span>
-                <h2>What would you like to watch?</h2>
-                <p>Try “Find an evening IMAX show in Bengaluru” or start with a movie name.</p>
-              </li>
-            }>
-              <For each={messages()}>{(message) =>
-                <li class="message" data-role={message.role}>
-                  <span class="message-label">{message.role === 'user' ? 'YOU' : 'HERMES'}</span>
-                  <div class="message-content">
-                    <For each={transcriptParts(message.content)}>{(part) =>
-                      part.href
-                        ? <a href={part.href} target="_blank" rel="noopener noreferrer">{part.text}</a>
-                        : part.text
-                    }</For>
-                  </div>
+          <p class="sr-only" role="status">{chatStatus()}</p>
+          <ol ref={transcript} class="transcript" aria-label="Conversation transcript">
+            <Show when={!transcriptPending()} fallback={<li class="transcript-loading">Loading conversation…</li>}>
+              <Show when={messages().length} fallback={
+                <li class="chat-empty">
+                  <span class="brand-mark" aria-hidden="true"><Icon name="prompt" size="large" /></span>
+                  <h2>What would you like to watch?</h2>
+                  <p>Try “Find an evening IMAX show in Bengaluru” or start with a movie name.</p>
                 </li>
-              }</For>
-              <Show when={chatPending()}>
-                <li class="message thinking-message">
-                  <span class="message-label">HERMES</span>
-                  <div class="message-content thinking-content">
-                    <span>{thinkingStatus(chatPending())}</span>
-                    <span class="thinking-dots" aria-hidden="true"><i /><i /><i /></span>
-                  </div>
-                </li>
+              }>
+                <For each={messages()}>{(message) =>
+                  <li class="message" data-role={message.role}>
+                    <span class="message-label">{message.role === 'user' ? 'YOU' : 'HERMES'}</span>
+                    <div class="message-content">
+                      <For each={transcriptParts(message.content)}>{(part) =>
+                        part.href
+                          ? <a href={part.href} target="_blank" rel="noopener noreferrer">{part.text}</a>
+                          : part.text
+                      }</For>
+                    </div>
+                  </li>
+                }</For>
+                <Show when={selectedPendingTurn()}>{(turn) =>
+                  <li class="message streaming-message" data-role="assistant">
+                    <span class="message-label">HERMES</span>
+                    <Show when={turn().draft} fallback={
+                      <div class="thinking-content">
+                        <span>{turn().activity ? 'Hermes is working' : thinkingStatus(true)}</span>
+                        <span class="thinking-dots" aria-hidden="true"><i /><i /><i /></span>
+                      </div>
+                    }>
+                      <div class="message-content">
+                        <For each={transcriptParts(turn().draft)}>{(part) =>
+                          part.href
+                            ? <a href={part.href} target="_blank" rel="noopener noreferrer">{part.text}</a>
+                            : part.text
+                        }</For>
+                      </div>
+                      <Show when={turn().activity}>
+                        <div class="stream-activity">
+                          <span class="thinking-dots" aria-hidden="true"><i /><i /><i /></span>
+                          <span>Working…</span>
+                        </div>
+                      </Show>
+                    </Show>
+                  </li>
+                }</Show>
               </Show>
             </Show>
           </ol>
@@ -424,24 +543,41 @@ function App() {
                 ref={messageInput}
                 id="message"
                 name="message"
-                rows="2"
+                rows="1"
                 placeholder={activeConversationId() ? 'Ask about movies, shows, or seats…' : 'Start a conversation first'}
-                disabled={!activeConversationId() || chatPending()}
+                disabled={!activeConversationId() || Boolean(pendingTurn())}
+                onKeyDown={(event) => {
+                  if (shouldSubmitComposer({
+                    key: event.key,
+                    shiftKey: event.shiftKey,
+                    isComposing: event.isComposing,
+                  })) {
+                    event.preventDefault();
+                    event.currentTarget.form?.requestSubmit();
+                  }
+                }}
                 required
               />
-              <Button type="submit" variant="primary" icon="arrow-up" aria-label="Send message" disabled={!activeConversationId() || chatPending()}>
-                {chatPending() ? 'Sending…' : 'Send'}
+              <Button
+                class="send-action"
+                type="submit"
+                variant="primary"
+                icon="arrow-up"
+                aria-label={pendingTurn() ? 'Waiting for Hermes' : 'Send message'}
+                disabled={!activeConversationId() || Boolean(pendingTurn())}
+              >
+                {pendingTurn() ? 'Sending…' : 'Send'}
               </Button>
             </form>
             <p class="composer-note">Hermes can prepare a booking but will always stop before payment.</p>
-            <p class="error" role="alert">{chatError()}</p>
+            <p class="error">{chatError()}</p>
           </div>
         </section>
 
         <aside class="details-panel" data-mobile-open={mobilePanel() === 'details'}>
           <header class="details-header">
             <div><p class="eyebrow">YOUR CONTEXT</p><h2>Trip details</h2></div>
-            <Button class="mobile-only" variant="ghost" icon="close" aria-label="Close details" onClick={() => setMobilePanel(null)}>Close</Button>
+            <Button class="mobile-only" variant="ghost" icon="close" aria-label="Close details" onClick={closeMobilePanel}>Close</Button>
           </header>
           <section class="detail-section">
             <div class="section-title"><h3>Preferences</h3><Icon name="sliders" size="small" /></div>

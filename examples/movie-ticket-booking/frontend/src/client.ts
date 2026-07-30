@@ -48,6 +48,21 @@ export function shouldIgnoreConversationReselection(
   return pending && activeConversationId === selectedConversationId;
 }
 
+export function isPendingConversation(
+  pendingConversationId: string | undefined,
+  selectedConversationId: string,
+): boolean {
+  return pendingConversationId === selectedConversationId;
+}
+
+export function shouldFollowOutput(input: {
+  scrollTop: number;
+  clientHeight: number;
+  scrollHeight: number;
+}): boolean {
+  return input.scrollHeight - input.scrollTop - input.clientHeight <= 80;
+}
+
 export function createRequestEpoch() {
   let current = 0;
   return {
