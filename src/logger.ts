@@ -6,7 +6,8 @@
  */
 
 function isVerbose(): boolean {
-  return !!process.env.WEBCMD_VERBOSE;
+  const value = (process.env.WEBCMD_VERBOSE ?? '').trim().toLowerCase();
+  return value !== '' && value !== '0' && value !== 'false' && value !== 'no' && value !== 'off';
 }
 
 export const log = {
