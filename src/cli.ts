@@ -37,7 +37,7 @@ import { analyzeSite, type PageSignals } from './browser/analyze.js';
 import { browserOptionValueParser } from './browser/command-catalog.js';
 import { registerAuthCommands } from './commands/auth.js';
 import { daemonRestart, daemonStatus, daemonStop } from './commands/daemon.js';
-import { log } from './logger.js';
+import { isVerbose, log } from './logger.js';
 import { bindTab, BrowserCommandError, sendCommand } from './browser/daemon-client.js';
 import { fetchDaemonStatus } from './browser/daemon-transport.js';
 import { aliasForContextId, loadProfileConfig, profileRouteParams, renameProfile, resolveProfileSelection, setDefaultProfile, type ProfileSelection } from './browser/profile.js';
@@ -240,7 +240,7 @@ async function captureNetworkItems(page: import('./types.js').IPage): Promise<Br
     const parsed = JSON.parse(raw) as BrowserNetworkItem[];
     return parsed.map((item) => ({ ...item, timestamp: timestampFromRaw(item.timestamp) }));
   } catch {
-    if (process.env.WEBCMD_VERBOSE) log.warn(`[network] Failed to parse interceptor buffer: ${typeof raw === 'string' ? raw.slice(0, 200) : String(raw)}`);
+    if (isVerbose()) log.warn(`[network] Failed to parse interceptor buffer: ${typeof raw === 'string' ? raw.slice(0, 200) : String(raw)}`);
     return [];
   }
 }
