@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.1](https://github.com/agentrhq/webcmd/compare/webcmd-v0.5.0...webcmd-v0.5.1) (2026-07-30)
+
+
+### Features
+
+* add payment handoff to UPI QR scanner for District checkout and improve seat selection reliability ([c734c1d](https://github.com/agentrhq/webcmd/commit/c734c1d20a3e5baca49f38c817fcd661db93b6a4))
+* add payment handoff to UPI QR scanner for District checkout and… ([78cf232](https://github.com/agentrhq/webcmd/commit/78cf2327bf7eabd99628dbbf004e8b1b87c0103f))
+
 ## [0.5.0](https://github.com/agentrhq/webcmd/compare/webcmd-v0.4.3...webcmd-v0.5.0) (2026-07-30)
 
 _webcmd v0.5.0: A Native Codex Plugin and Expanded Discovery_
