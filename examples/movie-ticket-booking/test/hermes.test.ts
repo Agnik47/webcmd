@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { createServer, type IncomingHttpHeaders } from 'node:http';
 import test from 'node:test';
-import { HermesClient, HermesHttpError } from '../src/hermes.js';
+import { HermesClient, HermesHttpError, type HermesStreamEvent } from '../src/hermes.js';
 
 async function fixture(
   handler: (request: {
@@ -32,6 +32,45 @@ async function fixture(
       server.close((error) => error ? reject(error) : resolve());
     }),
   };
+}
+
+async function streamFixture(
+  chunks: Buffer[],
+  contentType = 'text/event-stream; charset=utf-8',
+): Promise<{
+  url: string;
+  seen: { path?: string; sessionKey?: string; accept?: string; body?: unknown };
+  close: () => Promise<void>;
+}> {
+  const seen: { path?: string; sessionKey?: string; accept?: string; body?: unknown } = {};
+  const server = createServer(async (request, response) => {
+    let raw = '';
+    for await (const chunk of request) raw += chunk;
+    seen.path = request.url;
+    seen.sessionKey = request.headers['x-hermes-session-key'] as string | undefined;
+    seen.accept = request.headers.accept;
+    seen.body = raw ? JSON.parse(raw) : undefined;
+    response.writeHead(200, { 'content-type': contentType });
+    for (const chunk of chunks) response.write(chunk);
+    response.end();
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const address = server.address();
+  assert(address && typeof address === 'object');
+  return {
+    url: `http://127.0.0.1:${address.port}`,
+    seen,
+    close: () => new Promise<void>((resolve, reject) => {
+      server.close((error) => error ? reject(error) : resolve());
+    }),
+  };
+}
+
+function assertSafeStreamError(error: unknown): boolean {
+  assert(error instanceof HermesHttpError);
+  assert.equal(error.status, 502);
+  assert.doesNotMatch(error.message, /upstream-secret/);
+  return true;
 }
 
 test('sends backend authentication and the stable user key on chat', async () => {
@@ -191,5 +230,79 @@ test('rejects malformed successful Hermes responses', async () => {
     );
   } finally {
     await hermes.close();
+  }
+});
+
+test('streams Hermes deltas across raw SSE chunks and returns the completed reply', async () => {
+  const stream = [
+    'event: assistant.delta\r\ndata: {"delta":"Du"}\r\n\r\n',
+    'event: assistant.delta\ndata: {"delta":"ne 😀"}\n\n',
+    ': keepalive\r\n\r\n',
+    'event: ignored\ndata: {"ignored":true}\n\n',
+    'event: tool.started\ndata: {}\n\n',
+    'event: tool.completed\ndata: {}\n\n',
+    'event: assistant.completed\ndata: {"session_id":"hermes-1","content":"Dune 😀 is playing."}\n\n',
+    'event: run.completed\ndata: {}\n\n',
+    'event: done\ndata: {}',
+  ].join('');
+  const bytes = Buffer.from(stream);
+  const emoji = Buffer.from('😀');
+  const emojiOffset = bytes.indexOf(emoji);
+  assert.notEqual(emojiOffset, -1);
+  const hermes = await streamFixture([
+    bytes.subarray(0, emojiOffset + 2),
+    bytes.subarray(emojiOffset + 2, emojiOffset + emoji.length),
+    bytes.subarray(emojiOffset + emoji.length),
+  ]);
+
+  try {
+    const client = new HermesClient(hermes.url, 'hermes-secret');
+    const events: HermesStreamEvent[] = [];
+    const response = await client.chatStream(
+      'hermes-1',
+      'movie-demo:user:user-1',
+      'Find Dune',
+      (event) => events.push(event),
+    );
+
+    assert.equal(hermes.seen.path, '/api/sessions/hermes-1/chat/stream');
+    assert.equal(hermes.seen.sessionKey, 'movie-demo:user:user-1');
+    assert.equal(hermes.seen.accept, 'text/event-stream');
+    assert.deepEqual(hermes.seen.body, { input: 'Find Dune' });
+    assert.deepEqual(events, [
+      { type: 'assistant.delta', delta: 'Du' },
+      { type: 'assistant.delta', delta: 'ne 😀' },
+      { type: 'activity', active: true },
+      { type: 'activity', active: false },
+    ]);
+    assert.deepEqual(response.message, {
+      role: 'assistant',
+      content: 'Dune 😀 is playing.',
+    });
+  } finally {
+    await hermes.close();
+  }
+});
+
+test('rejects invalid Hermes SSE streams without surfacing upstream text', async () => {
+  const cases = [
+    { name: 'a non-SSE response', contentType: 'application/json', body: '{"message":"upstream-secret"}' },
+    { name: 'an error event', body: 'event: error\ndata: {"message":"upstream-secret"}\n\n' },
+    { name: 'done before completion', body: 'event: done\ndata: {}' },
+    { name: 'malformed event JSON', body: 'event: assistant.delta\ndata: {bad json}\n\n' },
+  ];
+
+  for (const streamCase of cases) {
+    const hermes = await streamFixture([Buffer.from(streamCase.body)], streamCase.contentType);
+    try {
+      const client = new HermesClient(hermes.url, 'hermes-secret');
+      await assert.rejects(
+        () => client.chatStream('hermes-1', 'movie-demo:user:user-1', 'Find Dune', () => {}),
+        assertSafeStreamError,
+        streamCase.name,
+      );
+    } finally {
+      await hermes.close();
+    }
   }
 });
