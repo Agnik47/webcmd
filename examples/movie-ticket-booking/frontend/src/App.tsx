@@ -15,6 +15,7 @@ import {
   thinkingStatus,
   transcriptParts,
   type Booking,
+  type ChatResponse,
   type Conversation,
   type Message,
   type Preferences,
@@ -26,12 +27,6 @@ interface Bootstrap {
   user: { email: string };
   conversations: Conversation[];
   preferences: Preferences;
-  bookings: Booking[];
-}
-
-interface ChatResponse {
-  message: Message;
-  conversation: Conversation;
   bookings: Booking[];
 }
 
