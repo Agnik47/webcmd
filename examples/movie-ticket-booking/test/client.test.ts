@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import * as client from '../frontend/src/client.js';
 import {
   applyChatResponse,
   bookingDetails,
@@ -11,6 +12,11 @@ import {
   safeTranscriptUrl,
   transcriptParts,
 } from '../frontend/src/client.js';
+
+test('exposes a status only while Hermes is thinking', () => {
+  assert.equal(client.thinkingStatus?.(true), 'Hermes is thinking');
+  assert.equal(client.thinkingStatus?.(false), '');
+});
 
 test('invalidates an async result captured before the session changes', async () => {
   const requests = createRequestEpoch();

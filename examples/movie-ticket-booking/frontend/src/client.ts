@@ -25,6 +25,10 @@ export interface Booking {
   status: string;
 }
 
+export function thinkingStatus(pending: boolean): string {
+  return pending ? 'Hermes is thinking' : '';
+}
+
 export function createRequestEpoch() {
   let current = 0;
   return {

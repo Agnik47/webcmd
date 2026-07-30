@@ -11,6 +11,7 @@ import {
   createApi,
   createRequestEpoch,
   preferencePayload,
+  thinkingStatus,
   transcriptParts,
   type Booking,
   type Conversation,
@@ -127,6 +128,7 @@ function App() {
   }
 
   async function selectConversation(conversation: Conversation): Promise<void> {
+    setChatPending(false);
     const captured = requests.capture();
     const selected = selections.advance();
     setActiveConversationId(conversation.id);
@@ -407,6 +409,15 @@ function App() {
                   </div>
                 </li>
               }</For>
+              <Show when={chatPending()}>
+                <li class="message thinking-message" role="status" aria-live="polite">
+                  <span class="message-label">HERMES</span>
+                  <div class="message-content thinking-content">
+                    <span>{thinkingStatus(chatPending())}</span>
+                    <span class="thinking-dots" aria-hidden="true"><i /><i /><i /></span>
+                  </div>
+                </li>
+              </Show>
             </Show>
           </ol>
           <div class="composer-wrap">
