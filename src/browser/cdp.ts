@@ -19,6 +19,7 @@ import { waitForDomStableJs } from './dom-helpers.js';
 import { isRecord, saveBase64ToFile } from '../utils.js';
 import { getAllElectronApps } from '../electron-apps.js';
 import { BasePage } from './base-page.js';
+import { isVerbose } from '../logger.js';
 
 export interface CDPTarget {
   type?: string;
@@ -117,7 +118,7 @@ export class CDPBridge implements IBrowserFactory {
             }
           }
         } catch (err) {
-          if (process.env.WEBCMD_VERBOSE) {
+          if (isVerbose()) {
             // eslint-disable-next-line no-console
             console.error('[cdp] Failed to parse WebSocket message:', err instanceof Error ? err.message : err);
           }
@@ -353,7 +354,7 @@ class CDPPage extends BasePage {
             }
           }).catch((err) => {
             // Body unavailable for some requests (e.g. uploads) — non-fatal
-            if (process.env.WEBCMD_VERBOSE) {
+            if (isVerbose()) {
               // eslint-disable-next-line no-console
               console.error(`[cdp] getResponseBody failed for ${p.requestId}:`, err instanceof Error ? err.message : err);
             }
