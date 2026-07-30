@@ -5,6 +5,7 @@ import { DOMAIN, SITE, ZEPTO_NAV_OPTIONS, buildSearchUrl, normalizeProductRow, p
 cli({
   site: SITE,
   name: 'search',
+  tags: ['search'],
   access: 'read',
   description: 'Search Zepto products',
   domain: DOMAIN,

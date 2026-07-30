@@ -125,6 +125,7 @@ async function listExploreVideos(page, args) {
 export const exploreCommand = cli({
     site: 'tiktok',
     name: 'explore',
+    tags: ['search'],
     access: 'read',
     description: 'Get trending TikTok videos from the recommend feed via page-context APIs',
     domain: 'www.tiktok.com',

@@ -3,6 +3,7 @@ import { CommandExecutionError, EmptyResultError } from '@agentrhq/webcmd/errors
 export const searchCommand = cli({
     site: 'discord-app',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search messages in the current Discord server/channel (Cmd+F)',
     domain: 'localhost',

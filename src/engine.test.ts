@@ -146,6 +146,51 @@ cli({
     }
   });
 
+  it('loads search metadata from a manifest without importing the lazy module', async () => {
+    const site = `manifest-metadata-${Date.now()}`;
+    const tempBuildRoot = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'webcmd-manifest-metadata-'));
+    const distDir = path.join(tempBuildRoot, 'dist');
+    const siteDir = path.join(distDir, site);
+    const commandPath = path.join(siteDir, 'search.js');
+    const manifestPath = path.join(tempBuildRoot, 'cli-manifest.json');
+    const tags = ['search'];
+    const keywords = ['lookup', 'discovery'];
+
+    try {
+      await fs.promises.mkdir(siteDir, { recursive: true });
+      await fs.promises.writeFile(commandPath, `globalThis.__webcmd_lazy_metadata_imported__ = true;`);
+      await fs.promises.writeFile(manifestPath, `${JSON.stringify([{
+        site,
+        name: 'search',
+        description: 'Search metadata',
+        access: 'read',
+        strategy: 'public',
+        browser: false,
+        args: [],
+        columns: ['title'],
+        tags,
+        keywords,
+        type: 'js',
+        modulePath: `${site}/search.js`,
+        sourceFile: `${site}/search.js`,
+      }], null, 2)}\n`);
+
+      await discoverClis(distDir);
+      const cmd = getRegistry().get(`${site}/search`);
+      tags.push('changed');
+      keywords.push('changed');
+
+      expect(cmd).toMatchObject({ tags: ['search'], keywords: ['lookup', 'discovery'], _lazy: true });
+      expect(cmd?.tags).not.toBe(tags);
+      expect(cmd?.keywords).not.toBe(keywords);
+      expect((globalThis as { __webcmd_lazy_metadata_imported__?: boolean }).__webcmd_lazy_metadata_imported__).toBeUndefined();
+    } finally {
+      delete (globalThis as { __webcmd_lazy_metadata_imported__?: boolean }).__webcmd_lazy_metadata_imported__;
+      getRegistry().delete(`${site}/search`);
+      await fs.promises.rm(tempBuildRoot, { recursive: true, force: true });
+    }
+  });
+
   it('loads user CLI modules via package exports symlink', async () => {
     const tempWebcmdRoot = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'webcmd-user-clis-'));
     const userClisDir = path.join(tempWebcmdRoot, 'clis');

@@ -20,6 +20,7 @@ import {
 cli({
     site: 'trip',
     name: 'hotel-search',
+    tags: ['search'],
     access: 'read',
     description: 'List Trip.com hotels for a city id + check-in/out date range',
     domain: 'trip.com',

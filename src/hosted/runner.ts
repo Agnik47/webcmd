@@ -2,10 +2,10 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Command, CommanderError } from 'commander';
-import { configureCompletionCommandSurface, configureListCommandSurface } from '../builtin-command-surface.js';
+import { configureCompletionCommandSurface, configureListCommandSurface, configurePluginInstallSurface, configurePluginSearchSurface } from '../builtin-command-surface.js';
 import { BrowserSessionArgvError, rewriteBrowserArgv } from '../cli-argv-preprocess.js';
 import { CommanderStructuralError, MissingRequiredPositionalError } from '../command-surface.js';
-import { formatRootHelp, getCommandCompletionCandidates } from '../command-presentation.js';
+import { filterCommandsByTag, formatRootHelp, getCommandCompletionCandidates } from '../command-presentation.js';
 import {
   HOSTED_BUILTIN_COMMANDS,
   HOSTED_ROOT_HELP,
@@ -19,6 +19,7 @@ import { StreamWriteError, writeToStream } from '../stream-write.js';
 import { PKG_VERSION } from '../version.js';
 import { getCompletionScriptFast } from '../completion-fast.js';
 import { browserCommandCatalog } from '../browser/command-catalog.js';
+import { CLI_COMMAND } from '../brand.js';
 import { HostedClient, HostedClientError, resolveWorkspace } from './client.js';
 import { parseHostedInvocation } from './args.js';
 import { HostedBrowserHelp, parseHostedBrowserStructure } from './browser-args.js';
@@ -189,7 +190,7 @@ async function dispatchHosted(
     }
     const manifest = await client.getManifest();
     validateManifestContractIdentity(manifest);
-    await renderHostedList(manifest, parsed.format, parsed.formatExplicit, stdout);
+    await renderHostedList(manifest, parsed.format, parsed.formatExplicit, stdout, parsed.tag);
     return;
   }
 
@@ -206,6 +207,40 @@ async function dispatchHosted(
       return;
     }
     await dispatchHostedProfile(parsed, client, stdout);
+    return;
+  }
+
+  if (args[0] === 'plugin') {
+    const subcommand = args[1];
+    if (subcommand !== 'search' && subcommand !== 'install' && subcommand !== '--help' && subcommand !== '-h') {
+      throw new ConfigError(
+        `webcmd plugin ${subcommand ?? ''}`.trimEnd() + ' is not available in hosted mode.',
+        'Hosted mode supports: webcmd plugin search and webcmd plugin install.',
+      );
+    }
+    const parsed = parseHostedPluginSurface(args.slice(1), normalized.literal);
+    if (parsed.kind === 'help') {
+      await writeToStream(stdout, parsed.output);
+      return;
+    }
+    if (parsed.command === 'search') {
+      const result = await client.searchMarketplacePlugins(parsed.query);
+      if (parsed.format === 'json') {
+        await renderOutput(result, { fmt: 'json', stdout });
+      } else {
+        for (const error of result.errors) await writeToStream(stderr, `Warning: ${error.sourceId}: ${error.message}\n`);
+        await renderOutput(result.plugins, {
+          fmt: parsed.format,
+          columns: ['name', 'description', 'version', 'sourceId', 'installSource', 'webcmd'],
+          title: `${CLI_COMMAND}/plugin-search`,
+          source: `${CLI_COMMAND} plugin search`,
+          stdout,
+        });
+      }
+      return;
+    }
+    const installed = await client.installMarketplacePlugin(parsed.source);
+    await writeToStream(stdout, `✅ Plugin "${installed.name}" installed successfully. Commands are ready to use.\n`);
     return;
   }
 
@@ -654,8 +689,9 @@ async function renderHostedList(
   fmt: string,
   explicit: boolean,
   stdout: NodeJS.WritableStream,
+  tag?: string,
 ): Promise<void> {
-  const presentation = hostedListPresentation(manifest, fmt);
+  const presentation = hostedListPresentation({ ...manifest, commands: filterCommandsByTag(manifest.commands, tag) }, fmt);
   if (presentation.displayLines) {
     for (const line of presentation.displayLines) await writeToStream(stdout, `${line}\n`);
     return;
@@ -680,12 +716,13 @@ async function writeHostedHelp(
 
 type ParsedHostedListSurface =
   | { kind: 'help'; output: string }
-  | { kind: 'run'; format: string; formatExplicit: boolean };
+  | { kind: 'run'; format: string; formatExplicit: boolean; tag?: string };
 
 function parseHostedListSurface(argv: readonly string[], literal: boolean): ParsedHostedListSurface {
   let stdout = '';
   let stderr = '';
   let parsedFormat = 'table';
+  let parsedTag: string | undefined;
   let formatExplicit = false;
   let actionRan = false;
   const root = new Command('webcmd');
@@ -695,9 +732,10 @@ function parseHostedListSurface(argv: readonly string[], literal: boolean): Pars
     writeErr: (value: string) => { stderr += value; },
   };
   root.exitOverride().configureOutput(output);
-  list.exitOverride().configureOutput(output).action((options: { format: string }) => {
+  list.exitOverride().configureOutput(output).action((options: { format: string; tag?: string }) => {
     actionRan = true;
     parsedFormat = options.format;
+    parsedTag = options.tag;
     formatExplicit = list.getOptionValueSource('format') === 'cli';
   });
 
@@ -709,7 +747,7 @@ function parseHostedListSurface(argv: readonly string[], literal: boolean): Pars
     throw new CommanderStructuralError(stderr || `${error.message}\n`, error.exitCode);
   }
   if (!actionRan) throw new CommanderStructuralError("error: command 'list' did not run\n", 1);
-  return { kind: 'run', format: parsedFormat, formatExplicit };
+  return { kind: 'run', format: parsedFormat, formatExplicit, ...(parsedTag !== undefined ? { tag: parsedTag } : {}) };
 }
 
 type HostedProfileCommand = 'list' | 'delete';
@@ -788,6 +826,47 @@ async function dispatchHostedProfile(
     fmtExplicit: parsed.formatExplicit,
     stdout,
   });
+}
+
+type ParsedHostedPluginSurface =
+  | { kind: 'help'; output: string }
+  | { kind: 'run'; command: 'search'; query?: string; format: string }
+  | { kind: 'run'; command: 'install'; source: string };
+
+function parseHostedPluginSurface(
+  argv: readonly string[],
+  literal: boolean,
+): ParsedHostedPluginSurface {
+  let stdout = '';
+  let stderr = '';
+  let parsed: Exclude<ParsedHostedPluginSurface, { kind: 'help' }> | undefined;
+  const root = new Command('webcmd');
+  const plugin = root.command('plugin').description(`Manage ${CLI_COMMAND} plugins`);
+  const output = {
+    writeOut: (value: string) => { stdout += value; },
+    writeErr: (value: string) => { stderr += value; },
+  };
+  root.exitOverride().configureOutput(output);
+  plugin.exitOverride().configureOutput(output);
+
+  const search = configurePluginSearchSurface(plugin.command('search'));
+  search.exitOverride().configureOutput(output).action((query: string | undefined, options: { format: string }) => {
+    parsed = { kind: 'run', command: 'search', ...(query !== undefined ? { query } : {}), format: options.format };
+  });
+  const install = configurePluginInstallSurface(plugin.command('install'));
+  install.exitOverride().configureOutput(output).action((source: string) => {
+    parsed = { kind: 'run', command: 'install', source };
+  });
+
+  try {
+    root.parse(literal ? ['--', 'plugin', ...argv] : ['plugin', ...argv], { from: 'user' });
+  } catch (error) {
+    if (!(error instanceof CommanderError)) throw error;
+    if (error.code === 'commander.helpDisplayed') return { kind: 'help', output: stdout };
+    throw new CommanderStructuralError(stderr || `${error.message}\n`, error.exitCode);
+  }
+  if (!parsed) throw new CommanderStructuralError("error: command 'plugin' did not run\n", 1);
+  return parsed;
 }
 
 type ParsedHostedCompletionSurface =

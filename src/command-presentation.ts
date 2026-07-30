@@ -11,6 +11,8 @@ export interface PresentableCommand {
   browser: boolean;
   args: readonly Arg[];
   columns: readonly string[];
+  tags?: readonly string[];
+  keywords?: readonly string[];
   defaultFormat?: string;
   domain?: string;
   example?: string;
@@ -27,6 +29,8 @@ export interface PresentableCommandSource {
   browser?: boolean;
   args: readonly Arg[];
   columns?: readonly string[];
+  tags?: readonly string[];
+  keywords?: readonly string[];
   defaultFormat?: string | null;
   domain?: string | null;
   example?: string;
@@ -140,6 +144,8 @@ export function toPresentableCommand(command: PresentableCommandSource): Present
     browser: command.browser === true,
     args: command.args.map((arg) => ({ ...arg, ...(arg.choices ? { choices: [...arg.choices] } : {}) })),
     columns: [...(command.columns ?? [])],
+    ...(command.tags?.length ? { tags: [...command.tags] } : {}),
+    ...(command.keywords?.length ? { keywords: [...command.keywords] } : {}),
     ...(command.defaultFormat ? { defaultFormat: command.defaultFormat } : {}),
     ...(command.domain ? { domain: command.domain } : {}),
     ...(command.example ? { example: command.example } : {}),
@@ -212,6 +218,8 @@ export function commandListRows(
         browser: command.browser,
         args: command.args.map(serializePresentableArg),
         columns: [...command.columns],
+        ...(command.tags?.length ? { tags: [...command.tags] } : {}),
+        ...(command.keywords?.length ? { keywords: [...command.keywords] } : {}),
         domain: command.domain ?? null,
         example: formatPresentableCommandExample(command),
         defaultFormat: command.defaultFormat ?? null,
@@ -230,6 +238,16 @@ export function commandListRows(
       args: formatArgumentSummary(command.args),
     };
   });
+}
+
+export function filterCommandsByTag<T extends { tags?: readonly string[] }>(
+  commands: readonly T[],
+  tag?: string,
+): T[] {
+  const wanted = tag?.trim().toLowerCase();
+  if (!wanted) return [...commands];
+  return commands.filter((command) =>
+    command.tags?.some((value) => value.toLowerCase() === wanted));
 }
 
 export function commandListPresentation(

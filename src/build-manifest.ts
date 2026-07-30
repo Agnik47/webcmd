@@ -128,6 +128,8 @@ function toManifestEntry(cmd: CliCommand, modulePath: string, sourceFile?: strin
     browser: cmd.browser ?? true,
     args: toManifestArgs(cmd.args),
     columns: cmd.columns,
+    ...(cmd.tags?.length ? { tags: [...cmd.tags] } : {}),
+    ...(cmd.keywords?.length ? { keywords: [...cmd.keywords] } : {}),
     defaultFormat: cmd.defaultFormat,
     type: 'js',
     modulePath,

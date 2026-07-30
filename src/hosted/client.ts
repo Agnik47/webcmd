@@ -16,6 +16,8 @@ import type {
   HostedProfilesResponse,
   HostedUploadArtifactResponse,
   HostedManifest,
+  HostedMarketplaceInstallation,
+  HostedMarketplaceSearchResult,
   HostedTraceReceipt,
 } from './types.js';
 
@@ -98,6 +100,27 @@ export class HostedClient {
       throw protocolError('Webcmd Cloud returned an invalid profile deletion response.');
     }
     return { ok: true, deleted: true };
+  }
+
+  async searchMarketplacePlugins(query?: string): Promise<HostedMarketplaceSearchResult> {
+    const params = new URLSearchParams();
+    if (query !== undefined) params.set('query', query);
+    const body = await this.request(`/v1/marketplace/plugins${params.size ? `?${params}` : ''}`);
+    if (!hasExactKeys(body, ['ok', 'result']) || body.ok !== true || !isHostedMarketplaceSearchResult(body.result)) {
+      throw protocolError('Webcmd Cloud returned an invalid marketplace search response.');
+    }
+    return body.result;
+  }
+
+  async installMarketplacePlugin(installSource: string): Promise<HostedMarketplaceInstallation> {
+    const body = await this.request('/v1/marketplace/installations', {
+      method: 'POST',
+      body: JSON.stringify({ installSource }),
+    });
+    if (!hasExactKeys(body, ['ok', 'result']) || body.ok !== true || !isHostedMarketplaceInstallation(body.result)) {
+      throw protocolError('Webcmd Cloud returned an invalid marketplace installation response.');
+    }
+    return body.result;
   }
 
   async execute(input: {
@@ -402,6 +425,39 @@ function isHostedProfilesResponse(value: unknown): value is HostedProfilesRespon
     && value.profiles.every(isHostedPublicProfile);
 }
 
+function isHostedMarketplaceSearchResult(value: unknown): value is HostedMarketplaceSearchResult {
+  return hasExactKeys(value, ['plugins', 'errors'])
+    && Array.isArray(value.plugins)
+    && value.plugins.every(isHostedMarketplacePlugin)
+    && Array.isArray(value.errors)
+    && value.errors.every(isHostedMarketplaceSearchError);
+}
+
+function isHostedMarketplacePlugin(value: unknown): boolean {
+  return hasOnlyKeys(value, ['name', 'description', 'version', 'sourceId', 'installSource', 'webcmd'])
+    && typeof value.name === 'string'
+    && typeof value.sourceId === 'string'
+    && typeof value.installSource === 'string'
+    && (value.description === undefined || typeof value.description === 'string')
+    && (value.version === undefined || typeof value.version === 'string')
+    && (value.webcmd === undefined || typeof value.webcmd === 'string');
+}
+
+function isHostedMarketplaceSearchError(value: unknown): boolean {
+  return hasExactKeys(value, ['sourceId', 'manifestUrl', 'message'])
+    && typeof value.sourceId === 'string'
+    && typeof value.manifestUrl === 'string'
+    && typeof value.message === 'string';
+}
+
+function isHostedMarketplaceInstallation(value: unknown): value is HostedMarketplaceInstallation {
+  return hasExactKeys(value, ['installationId', 'name', 'version', 'installSource'])
+    && typeof value.installationId === 'string'
+    && typeof value.name === 'string'
+    && typeof value.version === 'string'
+    && typeof value.installSource === 'string';
+}
+
 function isHostedPublicProfile(value: unknown): boolean {
   return hasExactKeys(value, [
     'id', 'name', 'workspace', 'default', 'status',
@@ -420,7 +476,7 @@ function isHostedPublicProfile(value: unknown): boolean {
 function isHostedManifestCommand(value: unknown): boolean {
   if (!hasOnlyKeys(value, [
     'site', 'name', 'aliases', 'command', 'description', 'access', 'example', 'domain', 'strategy', 'browser',
-    'args', 'columns', 'pipeline', 'defaultFormat', 'type', 'modulePath', 'sourceFile', 'navigateBefore',
+    'args', 'columns', 'tags', 'keywords', 'pipeline', 'defaultFormat', 'type', 'modulePath', 'sourceFile', 'navigateBefore',
     'siteSession', 'freshPage', 'adapterPackageId', 'adapterPackageName', 'adapterPackageVersion',
   ])) return false;
   if (typeof value.site !== 'string' || typeof value.name !== 'string' || typeof value.command !== 'string') return false;
@@ -428,6 +484,8 @@ function isHostedManifestCommand(value: unknown): boolean {
   if (typeof value.browser !== 'boolean' || !Array.isArray(value.args) || !value.args.every(isHostedManifestArg)) return false;
   if (value.aliases !== undefined && (!Array.isArray(value.aliases) || !value.aliases.every(item => typeof item === 'string'))) return false;
   if (!Array.isArray(value.columns) || !value.columns.every(item => typeof item === 'string')) return false;
+  if (value.tags !== undefined && (!Array.isArray(value.tags) || !value.tags.every(item => typeof item === 'string'))) return false;
+  if (value.keywords !== undefined && (!Array.isArray(value.keywords) || !value.keywords.every(item => typeof item === 'string'))) return false;
   if (value.domain !== undefined && value.domain !== null && typeof value.domain !== 'string') return false;
   if (value.defaultFormat !== undefined && value.defaultFormat !== null && typeof value.defaultFormat !== 'string') return false;
   if (value.example !== undefined && typeof value.example !== 'string') return false;

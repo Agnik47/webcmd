@@ -42,6 +42,7 @@ function requireLocale(value) {
 cli({
     site: 'mdn',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search MDN Web Docs by keyword',
     domain: 'developer.mozilla.org',

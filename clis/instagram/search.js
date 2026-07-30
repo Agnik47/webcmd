@@ -2,6 +2,7 @@ import { cli } from '@agentrhq/webcmd/registry';
 cli({
     site: 'instagram',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search Instagram users',
     domain: 'www.instagram.com',

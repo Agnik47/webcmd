@@ -10,6 +10,7 @@ import { NPM_REGISTRY, npmFetch, requireBoundedInt, requireString } from './util
 cli({
     site: 'npm',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search the public npm registry by keyword',
     domain: 'registry.npmjs.org',

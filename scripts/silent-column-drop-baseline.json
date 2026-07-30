@@ -357,8 +357,8 @@
     ]
   },
   {
-    "command": "web/read",
-    "file": "clis/web/read.js",
+    "command": "web/fetch-browser",
+    "file": "clis/web/fetch-browser.js",
     "missing": [
       "accessible",
       "index",
@@ -368,8 +368,8 @@
     ]
   },
   {
-    "command": "web/read",
-    "file": "clis/web/read.js",
+    "command": "web/fetch-browser",
+    "file": "clis/web/fetch-browser.js",
     "missing": [
       "bodyTruncated",
       "contentType",

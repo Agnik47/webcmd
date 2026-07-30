@@ -31,6 +31,8 @@ export interface ManifestEntry {
     file?: FileArgumentContract;
   }>;
   columns?: string[];
+  tags?: string[];
+  keywords?: string[];
   pipeline?: Record<string, unknown>[];
   defaultFormat?: 'table' | 'plain' | 'json' | 'yaml' | 'yml' | 'md' | 'markdown' | 'csv';
   type: 'js';

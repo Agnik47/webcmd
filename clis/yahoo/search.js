@@ -50,6 +50,7 @@ function buildExtractorJs(limit) {
 const command = cli({
   site: 'yahoo',
   name: 'search',
+  tags: ['search'],
   access: 'read',
   description: 'Search Yahoo (powered by Bing)',
   domain: 'search.yahoo.com',

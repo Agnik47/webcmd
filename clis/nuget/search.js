@@ -16,6 +16,7 @@ import {
 cli({
     site: 'nuget',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search NuGet packages by keyword',
     domain: 'api.nuget.org',

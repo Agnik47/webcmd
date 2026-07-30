@@ -23,6 +23,7 @@ import {
 cli({
     site: 'indeed',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Indeed keyword job search (rendered DOM via browser session, US site)',
     domain: 'www.indeed.com',

@@ -12,6 +12,7 @@ import {
 cli({
     site: 'osv',
     name: 'query',
+    tags: ['search'],
     access: 'read',
     description: 'OSV.dev vulnerabilities affecting a package (optionally pinned to a version)',
     domain: 'osv.dev',

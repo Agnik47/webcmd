@@ -71,6 +71,79 @@ const validTraceUrlCases = [
 ] as const;
 
 describe('HostedClient', () => {
+  it('searches the authenticated marketplace and validates every public plugin field', async () => {
+    const requests: Array<{ url: string; method: string }> = [];
+    const client = new HostedClient({
+      apiBaseUrl: 'https://api.example.com',
+      apiKey: 'key',
+      fetchImpl: async (url, init) => {
+        requests.push({ url: String(url), method: init?.method ?? 'GET' });
+        return new Response(JSON.stringify({
+          ok: true,
+          result: {
+            plugins: [{
+              name: 'acme',
+              description: 'Search Acme',
+              version: '1.0.0',
+              sourceId: 'agentrhq/webcmd',
+              installSource: 'github:agentrhq/webcmd/acme',
+              webcmd: '>=0.4.3',
+            }],
+            errors: [],
+          },
+        }));
+      },
+    });
+
+    await expect(client.searchMarketplacePlugins('Acme & Co')).resolves.toEqual({
+      plugins: [{
+        name: 'acme',
+        description: 'Search Acme',
+        version: '1.0.0',
+        sourceId: 'agentrhq/webcmd',
+        installSource: 'github:agentrhq/webcmd/acme',
+        webcmd: '>=0.4.3',
+      }],
+      errors: [],
+    });
+    await expect(client.searchMarketplacePlugins()).resolves.toMatchObject({ errors: [] });
+    expect(requests).toEqual([
+      { url: 'https://api.example.com/v1/marketplace/plugins?query=Acme+%26+Co', method: 'GET' },
+      { url: 'https://api.example.com/v1/marketplace/plugins', method: 'GET' },
+    ]);
+  });
+
+  it('installs a marketplace plugin through the authenticated API', async () => {
+    const requests: Array<{ url: string; method: string; body?: string }> = [];
+    const client = new HostedClient({
+      apiBaseUrl: 'https://api.example.com',
+      apiKey: 'key',
+      fetchImpl: async (url, init) => {
+        requests.push({
+          url: String(url),
+          method: init?.method ?? 'GET',
+          ...(init?.body ? { body: String(init.body) } : {}),
+        });
+        return new Response(JSON.stringify({
+          ok: true,
+          result: {
+            installationId: 'install_acme',
+            name: 'acme',
+            version: '1.0.0',
+            installSource: 'github:agentrhq/webcmd/acme',
+          },
+        }));
+      },
+    });
+
+    await expect(client.installMarketplacePlugin('github:agentrhq/webcmd/acme')).resolves.toMatchObject({ name: 'acme' });
+    expect(requests).toEqual([{
+      url: 'https://api.example.com/v1/marketplace/installations',
+      method: 'POST',
+      body: JSON.stringify({ installSource: 'github:agentrhq/webcmd/acme' }),
+    }]);
+  });
+
   it('sends bearer auth and parses hosted manifest', async () => {
     const requests: Array<{ url: string; authorization: string | null }> = [];
     const client = new HostedClient({
@@ -140,6 +213,68 @@ describe('HostedClient', () => {
     await expect(client.getManifest()).resolves.toMatchObject({
       commands: [expect.objectContaining({ freshPage: true })],
     });
+  });
+
+  it('accepts string-array search metadata in hosted manifest commands', async () => {
+    const client = new HostedClient({
+      apiBaseUrl: 'https://api.example.com',
+      apiKey: 'key',
+      fetchImpl: async () => new Response(JSON.stringify({
+        ok: true,
+        manifest: {
+          userId: 'user_demo',
+          metadata: {
+            contractSchemaVersion: 1,
+            webcmdPackageVersion: '0.3.0',
+            generatedAt: 'now',
+          },
+          commands: [{
+            site: 'metadata',
+            name: 'search',
+            command: 'metadata/search',
+            description: 'Search metadata',
+            access: 'read',
+            strategy: 'PUBLIC',
+            browser: false,
+            args: [],
+            columns: ['title'],
+            tags: ['search'],
+            keywords: ['lookup', 'discovery'],
+          }],
+        },
+      }), { status: 200 }),
+    });
+
+    await expect(client.getManifest()).resolves.toMatchObject({
+      commands: [expect.objectContaining({
+        tags: ['search'],
+        keywords: ['lookup', 'discovery'],
+      })],
+    });
+  });
+
+  it('rejects non-string search metadata in hosted manifest commands', async () => {
+    const client = new HostedClient({
+      apiBaseUrl: 'https://api.example.com',
+      apiKey: 'key',
+      fetchImpl: async () => new Response(JSON.stringify({
+        ok: true,
+        manifest: {
+          userId: 'user_demo',
+          metadata: {
+            contractSchemaVersion: 1,
+            webcmdPackageVersion: '0.3.0',
+            generatedAt: 'now',
+          },
+          commands: [{
+            site: 'metadata', name: 'search', command: 'metadata/search', description: 'Search metadata',
+            access: 'read', strategy: 'PUBLIC', browser: false, args: [], columns: [], tags: ['search', 42],
+          }],
+        },
+      }), { status: 200 }),
+    });
+
+    await expect(client.getManifest()).rejects.toMatchObject({ code: 'HOSTED_PROTOCOL' });
   });
 
   it('rejects non-boolean freshPage command metadata', async () => {

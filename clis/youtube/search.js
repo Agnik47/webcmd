@@ -5,6 +5,7 @@ import { cli, Strategy } from '@agentrhq/webcmd/registry';
 cli({
     site: 'youtube',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search YouTube videos',
     domain: 'www.youtube.com',

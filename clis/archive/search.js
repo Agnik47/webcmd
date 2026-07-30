@@ -14,6 +14,7 @@ const IDENTIFIER_RE = /^[A-Za-z0-9._-]+$/;
 cli({
     site: 'archive',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search Internet Archive items across books, movies, audio, software, and web.',
     domain: 'archive.org',

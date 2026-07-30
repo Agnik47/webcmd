@@ -8,6 +8,7 @@ import { noteToRow, openreviewFetch, requireBoundedInt } from './utils.js';
 cli({
     site: 'openreview',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search OpenReview papers by free-text query',
     domain: 'openreview.net',

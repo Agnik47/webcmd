@@ -29,6 +29,7 @@ import {
 cli({
     site: 'upwork',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Upwork keyword job search (logged-in browser session, US site)',
     domain: 'www.upwork.com',

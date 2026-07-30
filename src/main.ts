@@ -76,6 +76,9 @@ if (!fastPathHandled) {
   } else if (argv[0] === 'skills') {
     const { createProgram } = await import('./cli.js');
     await createProgram(BUILTIN_CLIS, USER_CLIS).parseAsync(argv, { from: 'user' });
+  } else if (argv[0] === 'web' && argv[1] === 'fetch') {
+    const { runClientOwnedWebFetch } = await import('./fetch/command.js');
+    await runClientOwnedWebFetch(argv);
   } else {
     const { shouldUseHostedMode } = await import('./hosted/config.js');
     if (shouldUseHostedMode()) {

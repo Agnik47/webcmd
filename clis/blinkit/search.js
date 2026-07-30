@@ -40,6 +40,7 @@ function buildSearchEvaluate(query, limit, lat, lon) {
 cli({
   site: 'blinkit',
   name: 'search',
+  tags: ['search'],
   access: 'read',
   description: 'Search Blinkit products for a delivery location',
   domain: 'blinkit.com',
