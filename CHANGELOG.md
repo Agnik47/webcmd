@@ -2,30 +2,26 @@
 
 ## [0.5.0](https://github.com/agentrhq/webcmd/compare/webcmd-v0.4.3...webcmd-v0.5.0) (2026-07-30)
 
+_webcmd v0.5.0: A Native Codex Plugin and Expanded Discovery_
 
-### Features
+### Highlights
+Webcmd is now available as a native plugin for Codex. In Codex, open **Plugins**, choose **Add plugin marketplace**, and enter `agentrhq/webcmd` to find and install the new plugin. It bundles all seven core Webcmd skills for a seamless agent setup and, on first use, will help install the Webcmd CLI if it is missing.
 
-* add command tags and keywords ([91776a5](https://github.com/agentrhq/webcmd/commit/91776a5b1e76e33e831a5dca9976443783dfe9f9))
-* add PyPI community plugin ([00235fc](https://github.com/agentrhq/webcmd/commit/00235fc6f8455342bb682f0bd4692130cd04f958))
-* add PyPI community plugin ([4740abd](https://github.com/agentrhq/webcmd/commit/4740abd86ea5446e8d3e364ca349fd54e26a821c))
-* add tiered local web fetch ([4b8b07f](https://github.com/agentrhq/webcmd/commit/4b8b07f6908ad0a7965b57d9402f1bb8034f7193))
-* add Webcmd Codex plugin marketplace ([b8367e0](https://github.com/agentrhq/webcmd/commit/b8367e0267692e9bd23673ce564d7c74413300a9))
-* bootstrap Webcmd CLI from Codex skill ([975250a](https://github.com/agentrhq/webcmd/commit/975250a2d474be9a5d254117dc7712bef853b82c))
-* expose local web fetch and smart search skill ([ad0f54f](https://github.com/agentrhq/webcmd/commit/ad0f54ff3741230bf1b3869a05914c0cd61a5090))
-* filter command list by tag ([d1a8dd6](https://github.com/agentrhq/webcmd/commit/d1a8dd62eb4cc73dbe64e909b23c42be44e075e1))
-* package Webcmd as a Codex plugin ([1b3d483](https://github.com/agentrhq/webcmd/commit/1b3d483d98b496ed8f12fca4185b97727a1ffc22))
-* support hosted plugin search and install ([991470e](https://github.com/agentrhq/webcmd/commit/991470eaaead909d7ae836552e742839ca4bee94))
-* tag search commands ([34b33d9](https://github.com/agentrhq/webcmd/commit/34b33d973137694c35ff2aa10c4cc4c9453c8945))
+### Improvements
+- The `smart-search` skill has been updated with improved guidance, helping agents make better use of Webcmd's expanding set of search adapters.
 
+### Fixes
+- `webcmd doctor` no longer brings the browser window to the foreground on startup, respecting the background window mode.
+- Verbose logging is now correctly disabled when the `WEBCMD_VERBOSE` environment variable is set to `0`, `false`, or other "false-y" values.
 
-### Bug Fixes
+### Adapters
+- A new `pypi` adapter has been added to inspect public Python package metadata. Use `webcmd pypi package <name>` for project details and `webcmd pypi releases <name>` to list recent release files.
+- The new `web fetch` command provides a fast, non-browser way to retrieve the content of a URL.
+- The browser-based `web read` command has been renamed to `web fetch-browser` to distinguish it from the new non-browser fetch command.
+- Over 70 existing commands have been tagged as `search` adapters, improving command discovery and the effectiveness of the `smart-search` skill.
 
-* accept command search metadata in manifests ([5d4fddd](https://github.com/agentrhq/webcmd/commit/5d4fddd1868be619576757161f35276565500c0f))
-* align Codex plugin publisher metadata ([e22c2ba](https://github.com/agentrhq/webcmd/commit/e22c2ba6b9b505ad80c62e470cf207580264039e))
-* **doctor:** honor background window mode ([6c439f8](https://github.com/agentrhq/webcmd/commit/6c439f858dd5eea092fbf641831807b202125f84))
-* **doctor:** honor background window mode ([1322c8e](https://github.com/agentrhq/webcmd/commit/1322c8e49d121bb2daf778b6693b9e4a4485fcbf))
-* load plugin from marketplace snapshot ([347614a](https://github.com/agentrhq/webcmd/commit/347614a4b3fcc6720448d27e1cf5537be0b328c9))
-* use Impit fetch clients ([36d7c13](https://github.com/agentrhq/webcmd/commit/36d7c13a852b2eaa08c6e179c766bf10eecc71b5))
+### Contributors
+[@ankitranjan7](https://github.com/ankitranjan7) | [@beubax](https://github.com/beubax) | [@ngaurav](https://github.com/ngaurav) | [@Savyasachi-2005](https://github.com/Savyasachi-2005) | [@yoldaolmak](https://github.com/yoldaolmak)
 
 ## [0.4.3](https://github.com/agentrhq/webcmd/compare/webcmd-v0.4.2...webcmd-v0.4.3) (2026-07-27)
 
