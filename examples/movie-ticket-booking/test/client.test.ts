@@ -1,58 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-// @ts-ignore -- exercise the browser JavaScript module directly.
-import { appendTranscriptContent, applyChatResponse, createApi, createRequestEpoch, renderBookings, requiresAuthReset, safeTranscriptUrl } from '../public/app.js';
-
-class FakeNode {
-  children: FakeNode[] = [];
-  className = '';
-  hidden = false;
-  href = '';
-  rel = '';
-  target = '';
-  #text = '';
-
-  constructor(readonly tagName: string) {}
-
-  set textContent(value: string) {
-    this.#text = value;
-    this.children = [];
-  }
-
-  get textContent(): string {
-    return this.#text + this.children.map(child => child.textContent).join('');
-  }
-
-  append(...children: FakeNode[]): void {
-    this.children.push(...children);
-  }
-
-  replaceChildren(...children: FakeNode[]): void {
-    this.#text = '';
-    this.children = children;
-  }
-}
-
-function fakeDocument() {
-  const nodes = new Map([
-    ['booking-list', new FakeNode('UL')],
-    ['no-bookings', new FakeNode('P')],
-  ]);
-  return {
-    nodes,
-    createElement: (tag: string) => new FakeNode(tag.toUpperCase()),
-    createTextNode: (text: string) => {
-      const node = new FakeNode('#text');
-      node.textContent = text;
-      return node;
-    },
-    getElementById: (id: string) => nodes.get(id),
-  };
-}
-
-function descendants(node: FakeNode): FakeNode[] {
-  return node.children.flatMap(child => [child, ...descendants(child)]);
-}
+import {
+  applyChatResponse,
+  bookingDetails,
+  bookingStatusLabel,
+  createApi,
+  createRequestEpoch,
+  preferencePayload,
+  requiresAuthReset,
+  safeTranscriptUrl,
+  transcriptParts,
+} from '../frontend/src/client.js';
 
 test('invalidates an async result captured before the session changes', async () => {
   const requests = createRequestEpoch();
@@ -79,7 +37,7 @@ test('discards an old unauthorized response before it can reset a new session', 
   let respond!: (response: Response) => void;
   const response = new Promise<Response>((resolve) => { respond = resolve; });
   const resets: string[] = [];
-  const api = createApi(() => response, requests.isCurrent, (message: string) => resets.push(message));
+  const api = createApi(() => response, requests.isCurrent, (message) => resets.push(message));
   const pending = api('/api/preferences', {}, requests.capture());
 
   requests.advance();
@@ -95,7 +53,7 @@ test('resets a current unauthorized request and keeps initial bootstrap neutral'
   const api = createApi(
     async () => Response.json({ error: 'authentication required' }, { status: 401 }),
     requests.isCurrent,
-    (message: string) => resets.push(message),
+    (message) => resets.push(message),
   );
 
   await assert.rejects(api('/api/preferences', {}, requests.capture()), /authentication required/);
@@ -105,7 +63,7 @@ test('resets a current unauthorized request and keeps initial bootstrap neutral'
   assert.deepEqual(resets, ['Your session expired. Please log in again.', '']);
 });
 
-test('renders only validated HTTPS transcript URLs as safe anchors', () => {
+test('segments only validated HTTPS transcript URLs as links', () => {
   const valid = 'https://api.webcmd.test/account/live/checkout-token';
   assert.equal(safeTranscriptUrl(valid), valid);
   for (const unsafe of [
@@ -117,86 +75,84 @@ test('renders only validated HTTPS transcript URLs as safe anchors', () => {
     assert.equal(safeTranscriptUrl(unsafe), null, unsafe);
   }
 
-  const documentRoot = fakeDocument();
-  const content = new FakeNode('P');
-  appendTranscriptContent(
-    content,
-    `Pay here: ${valid} not http://unsafe.example or javascript:alert(1)`,
-    documentRoot,
+  assert.deepEqual(
+    transcriptParts(`Pay here: ${valid} not http://unsafe.example`),
+    [
+      { text: 'Pay here: ' },
+      { text: valid, href: valid },
+      { text: ' not ' },
+      { text: 'http://unsafe.example' },
+    ],
   );
-  const anchors = descendants(content).filter(node => node.tagName === 'A');
-  assert.equal(anchors.length, 1);
-  assert.equal(anchors[0]?.href, valid);
-  assert.equal(anchors[0]?.target, '_blank');
-  assert.equal(anchors[0]?.rel, 'noopener noreferrer');
-  assert.match(content.textContent, /http:\/\/unsafe\.example/);
-  assert.match(content.textContent, /javascript:alert/);
 });
 
-test('applies the updated conversation and bookings while ignoring a stale response', () => {
+test('serializes preference fields and booking labels for the API and UI', () => {
+  assert.deepEqual(preferencePayload({
+    city: ' Bengaluru ',
+    languages: 'Hindi, English, ',
+    formats: '2D, IMAX',
+    seatPosition: ' Back centre ',
+    budget: '750.50',
+  }), {
+    city: 'Bengaluru',
+    languages: ['Hindi', 'English'],
+    formats: ['2D', 'IMAX'],
+    seatPosition: 'Back centre',
+    budgetPaise: 75050,
+  });
+  assert.equal(bookingStatusLabel('awaiting_confirmation'), 'Awaiting confirmation');
+  assert.equal(bookingDetails({
+    cinema: 'PVR Phoenix',
+    showTime: '7:00 PM',
+    seats: ['A1', 'A2'],
+  }), 'PVR Phoenix · 7:00 PM · A1, A2');
+});
+
+test('applies current chat state while ignoring stale session and selection responses', () => {
   const requests = createRequestEpoch();
-  const documentRoot = fakeDocument();
-  const apply = (status: string, captured: number) => applyChatResponse(
-    {
-      message: { role: 'assistant', content: status },
-      conversation: {
-        id: 'first',
-        title: status === 'confirmed' ? 'Resume this chat' : 'Stale title',
-      },
-      bookings: [{
-        movie: 'Dune',
-        cinema: 'PVR Phoenix',
-        showTime: '2026-07-28T19:00:00+05:30',
-        seats: ['A1', 'A2'],
-        status,
-      }],
-    },
-    () => requests.isCurrent(captured),
-    () => {},
-    (bookings: unknown[]) => renderBookings(bookings, documentRoot),
-    [
-      { id: 'second', title: 'New chat' },
-      { id: 'first', title: 'New chat' },
-    ],
-    () => true,
-  );
+  const selections = createRequestEpoch();
+  const messages: string[] = [];
+  const response = {
+    message: { role: 'assistant' as const, content: 'confirmed' },
+    conversation: { id: 'first', title: 'Resume this chat' },
+    bookings: [{ status: 'confirmed' }],
+  };
 
   assert.deepEqual(
-    apply('confirmed', requests.capture()),
+    applyChatResponse(
+      response,
+      () => requests.isCurrent(requests.capture()),
+      (message) => messages.push(message.content),
+      () => {},
+      [{ id: 'second', title: 'New chat' }, { id: 'first', title: 'New chat' }],
+      () => selections.isCurrent(selections.capture()),
+    ),
     [
       { id: 'first', title: 'Resume this chat' },
       { id: 'second', title: 'New chat' },
     ],
   );
-  assert.match(documentRoot.nodes.get('booking-list')?.textContent ?? '', /confirmed/);
+  assert.deepEqual(messages, ['confirmed']);
 
-  const stale = requests.capture();
+  const staleSession = requests.capture();
   requests.advance();
-  assert.equal(apply('failed', stale), null);
-  assert.doesNotMatch(documentRoot.nodes.get('booking-list')?.textContent ?? '', /failed/);
-  assert.match(documentRoot.nodes.get('booking-list')?.textContent ?? '', /confirmed/);
-});
-
-test('ignores a pending A response after switching A to B and back to A', () => {
-  const selections = createRequestEpoch();
-  const pendingA = selections.capture();
-  selections.advance();
-  selections.advance();
-  let appended = 0;
-
-  const result = applyChatResponse(
-    {
-      message: { role: 'assistant', content: 'duplicate reply' },
-      conversation: { id: 'A', title: 'Conversation A' },
-      bookings: [],
-    },
-    () => true,
-    () => { appended += 1; },
+  assert.equal(applyChatResponse(
+    response,
+    () => requests.isCurrent(staleSession),
+    () => assert.fail('stale response appended'),
     () => {},
-    [{ id: 'A', title: 'Conversation A' }],
-    () => selections.isCurrent(pendingA),
-  );
+    [],
+    () => true,
+  ), null);
 
-  assert.equal(result, null);
-  assert.equal(appended, 0);
+  const staleSelection = selections.capture();
+  selections.advance();
+  assert.equal(applyChatResponse(
+    response,
+    () => true,
+    () => assert.fail('old conversation appended'),
+    () => {},
+    [],
+    () => selections.isCurrent(staleSelection),
+  ), null);
 });

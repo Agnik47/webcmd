@@ -1,0 +1,9 @@
+@layer theme, base, components;
+
+@import "../../node_modules/@opencode-ai/ui/src/styles/colors.css" layer(theme);
+@import "../../node_modules/@opencode-ai/ui/src/styles/theme.css" layer(theme);
+@import "../../node_modules/@opencode-ai/ui/src/styles/base.css" layer(base);
+@import "../../node_modules/@opencode-ai/ui/src/components/button.css" layer(components);
+@import "../../node_modules/@opencode-ai/ui/src/components/icon.css" layer(components);
+@import "../../node_modules/@opencode-ai/ui/src/components/card.css" layer(components);
+@import "../../node_modules/@opencode-ai/ui/src/components/tag.css" layer(components);

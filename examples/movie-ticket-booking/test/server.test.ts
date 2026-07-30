@@ -148,7 +148,7 @@ test('keeps HTTP connections alive beyond the GCP backend timeout', () => {
   }
 });
 
-test('serves only the three public assets with their correct content types', async () => {
+test('serves only the three built frontend assets with their correct content types', async () => {
   const { db, app } = testApp();
   const baseUrl = await listen(app);
 
@@ -161,6 +161,7 @@ test('serves only the three public assets with their correct content types', asy
       const response = await fetch(`${baseUrl}${path}`);
       assert.equal(response.status, 200, path);
       assert.equal(response.headers.get('content-type'), contentType, path);
+      if (path === '/') assert.match(await response.text(), /data-app="movie-booking"/);
     }
 
     for (const path of [

@@ -28,9 +28,9 @@ import { PerUserQueue } from './user-queue.js';
 const COOKIE = 'movie_demo_session';
 const MAX_JSON_BYTES = 64 * 1024;
 const PUBLIC_FILES = new Map([
-  ['/', { url: new URL('../public/index.html', import.meta.url), type: 'text/html; charset=utf-8' }],
-  ['/app.js', { url: new URL('../public/app.js', import.meta.url), type: 'text/javascript; charset=utf-8' }],
-  ['/style.css', { url: new URL('../public/style.css', import.meta.url), type: 'text/css; charset=utf-8' }],
+  ['/', { url: new URL('../dist/index.html', import.meta.url), type: 'text/html; charset=utf-8' }],
+  ['/app.js', { url: new URL('../dist/app.js', import.meta.url), type: 'text/javascript; charset=utf-8' }],
+  ['/style.css', { url: new URL('../dist/style.css', import.meta.url), type: 'text/css; charset=utf-8' }],
 ]);
 
 class HttpError extends Error {

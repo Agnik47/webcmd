@@ -40,8 +40,8 @@ current Node server -> SQLite / Hermes / moviectl / WebCMD
 ```
 
 Vite produces fixed-name static assets so the existing Node server can serve a
-small explicit allowlist. The setup helper builds those assets after installing
-the example package. No frontend development server runs in deployment.
+small explicit allowlist. The package lifecycle builds those assets before
+tests and app startup. No frontend development server runs in deployment.
 
 ## Interface
 

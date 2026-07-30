@@ -34,6 +34,7 @@ in this repository, the Hermes skill, or chat.
 ## 2. Install the example and Hermes profile
 
 ```bash
+npm --prefix examples/movie-ticket-booking ci
 examples/movie-ticket-booking/scripts/setup.sh setup
 ```
 
@@ -217,6 +218,7 @@ sudo -u movie-booking -H bash -lc '
   . /etc/movie-booking-hermes.env
   set +a
   cd /opt/webcmd
+  npm --prefix examples/movie-ticket-booking ci
   webcmd setup
   examples/movie-ticket-booking/scripts/setup.sh setup
 '
