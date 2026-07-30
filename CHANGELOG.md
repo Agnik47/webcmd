@@ -2,11 +2,12 @@
 
 ## [0.5.1](https://github.com/agentrhq/webcmd/compare/webcmd-v0.5.0...webcmd-v0.5.1) (2026-07-30)
 
+### Adapters
+*   The `district checkout` adapter now automatically proceeds to the payment page to open the UPI QR scanner. A new `--payment` argument can be set to `review` to stop on the order review page instead. New output columns have been added to report payment status (`paymentMethod`, `paymentState`, `upiQrVisible`, `paymentAmount`).
+*   The seat selection logic for the `district checkout` adapter has been hardened to handle cases where the site hides selected seat labels, making the command more reliable.
 
-### Features
-
-* add payment handoff to UPI QR scanner for District checkout and improve seat selection reliability ([c734c1d](https://github.com/agentrhq/webcmd/commit/c734c1d20a3e5baca49f38c817fcd661db93b6a4))
-* add payment handoff to UPI QR scanner for District checkout and… ([78cf232](https://github.com/agentrhq/webcmd/commit/78cf2327bf7eabd99628dbbf004e8b1b87c0103f))
+### Contributors
+[@beubax](https://github.com/beubax)
 
 ## [0.5.0](https://github.com/agentrhq/webcmd/compare/webcmd-v0.4.3...webcmd-v0.5.0) (2026-07-30)
 
