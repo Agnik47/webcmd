@@ -29,6 +29,14 @@ export function thinkingStatus(pending: boolean): string {
   return pending ? 'Hermes is thinking' : '';
 }
 
+export function shouldIgnoreConversationReselection(
+  pending: boolean,
+  activeConversationId: string,
+  selectedConversationId: string,
+): boolean {
+  return pending && activeConversationId === selectedConversationId;
+}
+
 export function createRequestEpoch() {
   let current = 0;
   return {

@@ -18,6 +18,12 @@ test('exposes a status only while Hermes is thinking', () => {
   assert.equal(client.thinkingStatus?.(false), '');
 });
 
+test('keeps a delayed reply pending when reselecting its active conversation', () => {
+  assert.equal(client.shouldIgnoreConversationReselection?.(true, 'active', 'active'), true);
+  assert.equal(client.shouldIgnoreConversationReselection?.(true, 'active', 'other'), false);
+  assert.equal(client.shouldIgnoreConversationReselection?.(false, 'active', 'active'), false);
+});
+
 test('invalidates an async result captured before the session changes', async () => {
   const requests = createRequestEpoch();
   const captured = requests.capture();

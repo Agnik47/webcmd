@@ -11,6 +11,7 @@ import {
   createApi,
   createRequestEpoch,
   preferencePayload,
+  shouldIgnoreConversationReselection,
   thinkingStatus,
   transcriptParts,
   type Booking,
@@ -128,6 +129,7 @@ function App() {
   }
 
   async function selectConversation(conversation: Conversation): Promise<void> {
+    if (shouldIgnoreConversationReselection(chatPending(), activeConversationId(), conversation.id)) return;
     setChatPending(false);
     const captured = requests.capture();
     const selected = selections.advance();
@@ -410,7 +412,7 @@ function App() {
                 </li>
               }</For>
               <Show when={chatPending()}>
-                <li class="message thinking-message" role="status" aria-live="polite">
+                <li class="message thinking-message">
                   <span class="message-label">HERMES</span>
                   <div class="message-content thinking-content">
                     <span>{thinkingStatus(chatPending())}</span>
