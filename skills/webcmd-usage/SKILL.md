@@ -8,6 +8,8 @@ allowed-tools: Bash(webcmd:*), Bash(npm:*), Read
 
 Webcmd turns websites, Electron desktop apps, and external CLIs into a uniform `webcmd <site> <command>` surface that agents can drive without screen scraping. This skill is the orientation layer. Once you know the task, load the specialized skill that fits it.
 
+For any search, research, source discovery, direct URL fetch, evidence gathering, or “look this up” request, load `smart-search` before choosing commands. `smart-search` owns search-command discovery, marketplace search-adapter installation, fetch escalation, and source-summary rules.
+
 ## CLI Preflight
 
 Before the first Webcmd command in a session, run:
@@ -225,7 +227,7 @@ The script prints to stdout; source or save it according to your shell.
 | Drive a live browser ad-hoc | `webcmd-browser` |
 | Write a new adapter or command | `webcmd-adapter-author` |
 | Fix a broken adapter after failure | `webcmd-autofix` |
-| Route a search or research request | `smart-search` |
+| Search, research, fetch URLs, gather evidence, or find source material | `smart-search` |
 
 ## Removed Commands
 
@@ -233,7 +235,7 @@ Do not invoke these removed commands:
 
 - `webcmd explore <url>`: use `webcmd browser network` and `webcmd browser find`, or the `webcmd-adapter-author` workflow.
 - `webcmd record <url>`: manual capture now lives in `webcmd browser network --detail`.
-- Top-level `webcmd web fetch-browser` / `webcmd desktop *` groups: use their adapters instead.
+- Top-level `webcmd desktop *` groups: use their adapters instead.
 
 ## Do Not
 
