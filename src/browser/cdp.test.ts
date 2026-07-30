@@ -3,10 +3,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const { MockWebSocket } = vi.hoisted(() => {
   class MockWebSocket {
     static OPEN = 1;
+    static latest: MockWebSocket | undefined;
     readyState = 1;
     private handlers = new Map<string, Array<(...args: unknown[]) => void>>();
 
     constructor(_url: string) {
+      MockWebSocket.latest = this;
       queueMicrotask(() => this.emit('open'));
     }
 
@@ -22,7 +24,7 @@ const { MockWebSocket } = vi.hoisted(() => {
       this.readyState = 3;
     }
 
-    private emit(event: string, ...args: unknown[]): void {
+    emit(event: string, ...args: unknown[]): void {
       for (const handler of this.handlers.get(event) ?? []) {
         handler(...args);
       }
@@ -41,6 +43,20 @@ import { CDPBridge } from './cdp.js';
 describe('CDPBridge cookies', () => {
   beforeEach(() => {
     vi.unstubAllEnvs();
+    MockWebSocket.latest = undefined;
+  });
+
+  it('suppresses CDP diagnostics when WEBCMD_VERBOSE is false', async () => {
+    vi.stubEnv('WEBCMD_CDP_ENDPOINT', 'ws://127.0.0.1:9222/devtools/page/1');
+    vi.stubEnv('WEBCMD_VERBOSE', 'false');
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const bridge = new CDPBridge();
+    vi.spyOn(bridge, 'send').mockResolvedValue({});
+
+    await bridge.connect();
+    MockWebSocket.latest!.emit('message', Buffer.from('{'));
+
+    expect(errorSpy).not.toHaveBeenCalled();
   });
 
   it('filters cookies by actual domain match instead of substring match', async () => {
