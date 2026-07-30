@@ -88,6 +88,15 @@ Open `http://127.0.0.1:3000`, register a local account, and start a chat.
 The helper passes the bearer key only to each launched process; it never prints
 the key or leaves `API_SERVER_KEY` in either shell environment.
 
+The browser streams each turn from the same-origin
+`/api/conversations/:id/chat/stream` endpoint. The Node server forwards that
+turn to Hermes with the backend-created stable per-user session key; the
+synchronous `/api/conversations/:id/chat` endpoint remains available. If the
+browser disconnects after a turn is accepted, the server continues the turn
+and finalizes its state without replaying tool work. This demo does not bundle
+the Hermes WebUI runtime, and its existing local start and build commands are
+unchanged.
+
 ## Environment
 
 | Variable | Used by | Purpose |
