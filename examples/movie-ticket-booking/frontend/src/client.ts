@@ -67,21 +67,31 @@ export function failedTurnForConversation(
   return failedTurns[selectedConversationId];
 }
 
-export function rememberFailedTurn(
-  failedTurns: Readonly<Record<string, FailedTurn>>,
-  conversationId: string,
-  messages: Message[],
-  draft: string,
-  error: string,
-): Record<string, FailedTurn> {
+export function applyFailedTurn(input: {
+  failedTurns: Readonly<Record<string, FailedTurn>>;
+  failedConversationId: string;
+  failedMessages: Message[];
+  draft: string;
+  error: string;
+  activeConversationId: string;
+  visibleMessages: Message[];
+  visibleError: string;
+}): {
+  failedTurns: Record<string, FailedTurn>;
+  visibleMessages: Message[];
+  visibleError: string;
+} {
+  const failedTurn = {
+    messages: input.draft
+      ? [...input.failedMessages, { role: 'assistant', content: input.draft } satisfies Message]
+      : input.failedMessages,
+    error: input.error,
+  };
+  const failedConversationIsActive = input.failedConversationId === input.activeConversationId;
   return {
-    ...failedTurns,
-    [conversationId]: {
-      messages: draft
-        ? [...messages, { role: 'assistant', content: draft } satisfies Message]
-        : messages,
-      error,
-    },
+    failedTurns: { ...input.failedTurns, [input.failedConversationId]: failedTurn },
+    visibleMessages: failedConversationIsActive ? failedTurn.messages : input.visibleMessages,
+    visibleError: failedConversationIsActive ? input.error : input.visibleError,
   };
 }
 

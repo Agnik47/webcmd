@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import * as client from '../frontend/src/client.js';
 import {
+  applyFailedTurn,
   applyChatResponse,
   bookingDetails,
   bookingStatusLabel,
@@ -13,7 +14,6 @@ import {
   isPendingConversation,
   preferencePayload,
   requiresAuthReset,
-  rememberFailedTurn,
   safeTranscriptUrl,
   shouldFollowOutput,
   shouldSubmitComposer,
@@ -46,17 +46,30 @@ test('identifies only the conversation with the active turn', () => {
   assert.equal(isPendingConversation(undefined, 'chat-1'), false);
 });
 
-test('restores a failed local turn only after returning to its conversation', () => {
-  const failedTurns = rememberFailedTurn(
-    {},
-    'chat-a',
-    [{ role: 'user', content: 'Find Dune' }],
-    'I found a partial result',
-    'Hermes request failed',
-  );
+test('keeps B visible when A fails and restores A only after returning', () => {
+  const aMessages: client.Message[] = [{ role: 'user', content: 'Find Dune' }];
+  let activeConversationId = 'chat-a';
+  let visibleMessages = aMessages;
 
-  assert.equal(failedTurnForConversation(failedTurns, 'chat-b'), undefined);
-  assert.deepEqual(failedTurnForConversation(failedTurns, 'chat-a'), {
+  activeConversationId = 'chat-b';
+  visibleMessages = [{ role: 'user', content: 'Find Oppenheimer' }];
+  const failed = applyFailedTurn({
+    failedTurns: {},
+    failedConversationId: 'chat-a',
+    failedMessages: aMessages,
+    draft: 'I found a partial result',
+    error: 'Hermes request failed',
+    activeConversationId,
+    visibleMessages,
+    visibleError: '',
+  });
+
+  assert.deepEqual(failed.visibleMessages, [
+    { role: 'user', content: 'Find Oppenheimer' },
+  ]);
+  assert.equal(failed.visibleError, '');
+  assert.equal(failedTurnForConversation(failed.failedTurns, 'chat-b'), undefined);
+  assert.deepEqual(failedTurnForConversation(failed.failedTurns, 'chat-a'), {
     messages: [
       { role: 'user', content: 'Find Dune' },
       { role: 'assistant', content: 'I found a partial result' },

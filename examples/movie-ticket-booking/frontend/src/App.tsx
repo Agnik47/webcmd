@@ -5,6 +5,7 @@ import { Tag } from '@opencode-ai/ui/tag';
 import { For, Show, createSignal, onCleanup, onMount } from 'solid-js';
 import { render } from 'solid-js/web';
 import {
+  applyFailedTurn,
   applyChatResponse,
   bookingDetails,
   bookingStatusLabel,
@@ -15,7 +16,6 @@ import {
   isComposerDisabled,
   isPendingConversation,
   preferencePayload,
-  rememberFailedTurn,
   shouldIgnoreConversationReselection,
   shouldFollowOutput,
   shouldSubmitComposer,
@@ -358,19 +358,22 @@ function App() {
       const turn = pendingTurn();
       if (!requests.isCurrent(captured) || turn?.conversationId !== conversationId) return;
       const message = messageFor(error);
-      const updatedFailedTurns = rememberFailedTurn(
-        failedTurns(),
-        conversationId,
-        turn.messages,
-        turn.draft,
-        message,
-      );
-      const failedTurn = updatedFailedTurns[conversationId]!;
-      setFailedTurns(updatedFailedTurns);
+      const selectedConversationId = activeConversationId();
+      const failedState = applyFailedTurn({
+        failedTurns: failedTurns(),
+        failedConversationId: conversationId,
+        failedMessages: turn.messages,
+        draft: turn.draft,
+        error: message,
+        activeConversationId: selectedConversationId,
+        visibleMessages: messages(),
+        visibleError: chatError(),
+      });
+      setFailedTurns(failedState.failedTurns);
+      setMessages(failedState.visibleMessages);
+      setChatError(failedState.visibleError);
       setPendingTurn(null);
-      if (activeConversationId() === conversationId) {
-        setMessages(failedTurn.messages);
-        setChatError(message);
+      if (selectedConversationId === conversationId) {
         setChatStatus(`Message failed: ${message}`);
       }
     } finally {
