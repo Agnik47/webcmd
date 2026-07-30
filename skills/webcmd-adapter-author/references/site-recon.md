@@ -50,8 +50,8 @@ If data is loaded asynchronously, `wait time 2` may not be enough. Prefer `webcm
 
 When classification needs a dependent UI trigger plus a request/response
 waiter, use one sandboxed `browser run` program and arm the waiter before the
-trigger. Record the endpoint and UI evidence; do not treat the Playwright-style
-program as adapter source. Translate it through `recon-to-ipage.md`.
+trigger. Record the endpoint and UI evidence; do not copy the Playwright-style
+program into an adapter.
 
 ---
 

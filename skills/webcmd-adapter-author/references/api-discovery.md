@@ -87,9 +87,8 @@ return {
 };
 ```
 
-This is recon evidence only. Use `recon-to-ipage.md` to choose direct fetch,
-cookie fetch, page fetch, DOM/UI, or interceptor and rehearse it before writing
-the adapter.
+This is recon evidence only. Choose the adapter strategy from the verified
+endpoint and UI evidence; do not copy the browser-run program into the adapter.
 
 ## Section 2 - State Extraction
 

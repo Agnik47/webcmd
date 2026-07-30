@@ -100,12 +100,6 @@ Direct fetch verification, even for memory hits
   - site changed -> mark old endpoint stale and return to api-discovery
   |
   v
-Adapter-compatible rehearsal (recon-to-ipage.md)
-  - translate Playwright evidence to the selected strategy
-  - prove the path with current IPage/pipeline/runtime APIs
-  - do not paste the browser-run program
-  |
-  v
 Field decoding
   - self-explanatory -> use directly
   - known code -> field-conventions.md
@@ -175,13 +169,6 @@ Check these off step by step:
        [ ] Fill Evidence: observed request/state, auth source, replay result.
        [ ] If choosing `PAGE_FETCH` / `INTERCEPT`, explain why `PUBLIC_API`, `COOKIE_API`, `UI_SELECTOR`, and `DOM_STATE` are not suitable.
        [ ] If choosing `UI_SELECTOR` / `DOM_STATE`, do not over-defend why it is not an API; state the semantic anchor and typed-error path.
-
-[ ] 6A. Adapter-compatible rehearsal (`recon-to-ipage.md`) before filling the adapter:
-       [ ] Record the Playwright recon evidence separately from the final implementation.
-       [ ] Map every used Playwright method to an existing `IPage`, pipeline, Node-fetch, or interceptor path.
-       [ ] Reproduce the selected data/action path with that adapter-compatible path.
-       [ ] Record the rehearsal command/result and any unsupported Playwright code removed.
-       [ ] If compatibility is not proven, return to strategy selection. A successful browser-run program is not sufficient.
 
 [ ] 7. Field decoding:
        [ ] Self-explanatory key -> use it directly.
@@ -253,7 +240,6 @@ Check these off step by step:
 | `references/site-recon.md` | Step 3: classify site type |
 | `references/api-discovery.md` | Step 4: find endpoint |
 | `references/strategy-selection.md` | Before Step 6 strategy note: contract model, observed fix frequency, `api_candidates` evidence, counterexamples |
-| `references/recon-to-ipage.md` | Step 6A: translate Playwright-style recon into the unchanged adapter `IPage`/pipeline/runtime |
 | `references/field-conventions.md` | Step 7: known field-code lookup |
 | `references/field-decode-playbook.md` | Step 7: field not in dictionary |
 | `references/output-design.md` | Step 8: naming, types, order |
@@ -269,9 +255,7 @@ Check these off step by step:
 ## Key Conventions
 
 - Adapters import only `@agentrhq/webcmd/registry` and `@agentrhq/webcmd/errors`; do not add third-party dependencies.
-- Browser-run’s Playwright-style `page` and adapter `func(page,args)` are
-  different contracts. Preserve evidence and behavior, not syntax. Complete
-  the compatibility rehearsal in `recon-to-ipage.md` before adapter code.
+- Browser-run’s Playwright-style `page` and adapter `func(page,args)` are different contracts. Preserve evidence and behavior, not syntax. Implement adapters with the existing `IPage`, pipeline, Node-fetch, or interceptor APIs.
 - The `columns` array and `func` return object keys must match exactly, including order.
 - **Intermediate parsing object keys must not overlap any `columns` entry.** Otherwise silent-column-drop audits can misread the adapter. Use dedicated internal names and destructure with aliases when pushing rows.
 - **The `browser:` field determines the `func` signature:** `browser:false -> (args)`, `browser:true -> (page, args)`. If this is reversed, `args` may actually be a debug flag and all external parameters can silently fall back to defaults.

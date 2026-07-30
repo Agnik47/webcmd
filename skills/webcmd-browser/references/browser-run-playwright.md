@@ -307,4 +307,4 @@ Treat a successful program as evidence:
 
 Do not paste the program into `func(page,args)`. Adapter `page` is Webcmd
 `IPage`, not this Playwright-style client. Load `webcmd-adapter-author` and
-follow its recon-to-`IPage` translation and rehearsal step.
+implement the observed behavior with the existing adapter APIs.

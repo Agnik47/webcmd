@@ -2,10 +2,8 @@
 
 Use this after recon, endpoint verification, field decoding, output design, and strategy-note writing are complete.
 
-If reconnaissance used `browser run`, complete `recon-to-ipage.md` first.
-Playwright-style `page`, locators, and `waitForResponse` are not available in
-adapter `func(page,args)`. Copy evidence and behavior into the adapter-compatible
-path; never copy the browser-run program itself.
+Playwright-style browser-run code is reconnaissance, not adapter source.
+Implement the observed behavior with the existing adapter APIs.
 
 ## Create The File
 

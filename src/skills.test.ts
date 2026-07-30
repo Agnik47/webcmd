@@ -146,7 +146,7 @@ describe('webcmd skills content', () => {
     expect(autofix).toMatch(/CAPTCHA[\s\S]{0,250}stop automation[\s\S]{0,250}verification must succeed/i);
   });
 
-  it('teaches browser-run selection and Playwright recon to IPage translation', () => {
+  it('teaches browser-run selection and preserves the adapter API boundary', () => {
     const browser = bundledSkill('webcmd-browser');
     const usage = bundledSkill('webcmd-usage');
     const author = bundledSkill('webcmd-adapter-author');
@@ -160,15 +160,12 @@ describe('webcmd skills content', () => {
       ),
       'utf8',
     );
-    const reconReference = fs.readFileSync(
-      path.join(
-        process.cwd(),
-        'skills',
-        'webcmd-adapter-author',
-        'references',
-        'recon-to-ipage.md',
-      ),
-      'utf8',
+    const reconReferencePath = path.join(
+      process.cwd(),
+      'skills',
+      'webcmd-adapter-author',
+      'references',
+      'recon-to-ipage.md',
     );
     const commandReferenceIndex = browser.indexOf('## Command reference');
     const runFirstIndex = browser.indexOf('## Run-first decision loop');
@@ -289,12 +286,11 @@ describe('webcmd skills content', () => {
     expect(browser).toMatch(/user\s+file choice without a path[\s\S]{0,180}visible human handoff/i);
     expect(formExample.match(/webcmd browser work state/g)).toHaveLength(1);
     expect(browser).toMatch(/inspect after a run only when its evidence is\s+unexpected or insufficient and changes the next plan/i);
-    expect(author).toContain('Adapter-compatible rehearsal');
-    expect(author).toContain('recon-to-ipage.md');
-    expect(reconReference).toContain('public endpoint found by `waitForResponse`');
-    expect(reconReference).toContain('`page.getCookies()`');
-    expect(reconReference).toContain('`installInterceptor`');
-    expect(reconReference).toContain('the only rehearsal is “the browser-run program worked.”');
+    expect(author).toMatch(
+      /Browser-run’s Playwright-style `page` and adapter `func\(page,args\)` are different contracts\.[\s\S]{0,240}Preserve evidence and behavior, not syntax\./,
+    );
+    expect(author).not.toContain('recon-to-ipage.md');
+    expect(fs.existsSync(reconReferencePath)).toBe(false);
   });
 
   it('adds bundled skills once and refreshes them after package updates', () => {
