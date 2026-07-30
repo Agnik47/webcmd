@@ -8,6 +8,11 @@ export interface Message {
   content: string;
 }
 
+export interface FailedTurn {
+  messages: Message[];
+  error: string;
+}
+
 export interface Preferences {
   city: string;
   languages: string[];
@@ -53,6 +58,39 @@ export function isPendingConversation(
   selectedConversationId: string,
 ): boolean {
   return pendingConversationId === selectedConversationId;
+}
+
+export function failedTurnForConversation(
+  failedTurns: Readonly<Record<string, FailedTurn>>,
+  selectedConversationId: string,
+): FailedTurn | undefined {
+  return failedTurns[selectedConversationId];
+}
+
+export function rememberFailedTurn(
+  failedTurns: Readonly<Record<string, FailedTurn>>,
+  conversationId: string,
+  messages: Message[],
+  draft: string,
+  error: string,
+): Record<string, FailedTurn> {
+  return {
+    ...failedTurns,
+    [conversationId]: {
+      messages: draft
+        ? [...messages, { role: 'assistant', content: draft } satisfies Message]
+        : messages,
+      error,
+    },
+  };
+}
+
+export function isComposerDisabled(input: {
+  conversationId: string;
+  pending: boolean;
+  transcriptPending: boolean;
+}): boolean {
+  return !input.conversationId || input.pending || input.transcriptPending;
 }
 
 export function shouldFollowOutput(input: {

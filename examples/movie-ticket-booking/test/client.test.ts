@@ -8,9 +8,12 @@ import {
   createApi,
   createChatStream,
   createRequestEpoch,
+  failedTurnForConversation,
+  isComposerDisabled,
   isPendingConversation,
   preferencePayload,
   requiresAuthReset,
+  rememberFailedTurn,
   safeTranscriptUrl,
   shouldFollowOutput,
   shouldSubmitComposer,
@@ -43,6 +46,25 @@ test('identifies only the conversation with the active turn', () => {
   assert.equal(isPendingConversation(undefined, 'chat-1'), false);
 });
 
+test('restores a failed local turn only after returning to its conversation', () => {
+  const failedTurns = rememberFailedTurn(
+    {},
+    'chat-a',
+    [{ role: 'user', content: 'Find Dune' }],
+    'I found a partial result',
+    'Hermes request failed',
+  );
+
+  assert.equal(failedTurnForConversation(failedTurns, 'chat-b'), undefined);
+  assert.deepEqual(failedTurnForConversation(failedTurns, 'chat-a'), {
+    messages: [
+      { role: 'user', content: 'Find Dune' },
+      { role: 'assistant', content: 'I found a partial result' },
+    ],
+    error: 'Hermes request failed',
+  });
+});
+
 test('follows streamed output only while the reader is near the bottom', () => {
   assert.equal(shouldFollowOutput({
     scrollTop: 700,
@@ -54,6 +76,29 @@ test('follows streamed output only while the reader is near the bottom', () => {
     clientHeight: 300,
     scrollHeight: 1040,
   }), false);
+});
+
+test('disables message submission until the active transcript is loaded', () => {
+  assert.equal(isComposerDisabled({
+    conversationId: 'chat-a',
+    pending: false,
+    transcriptPending: false,
+  }), false);
+  assert.equal(isComposerDisabled({
+    conversationId: 'chat-a',
+    pending: false,
+    transcriptPending: true,
+  }), true);
+  assert.equal(isComposerDisabled({
+    conversationId: 'chat-a',
+    pending: true,
+    transcriptPending: false,
+  }), true);
+  assert.equal(isComposerDisabled({
+    conversationId: '',
+    pending: false,
+    transcriptPending: false,
+  }), true);
 });
 
 test('invalidates an async result captured before the session changes', async () => {

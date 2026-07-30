@@ -11,8 +11,11 @@ import {
   createApi,
   createChatStream,
   createRequestEpoch,
+  failedTurnForConversation,
+  isComposerDisabled,
   isPendingConversation,
   preferencePayload,
+  rememberFailedTurn,
   shouldIgnoreConversationReselection,
   shouldFollowOutput,
   shouldSubmitComposer,
@@ -21,6 +24,7 @@ import {
   type Booking,
   type ChatStreamEvent,
   type Conversation,
+  type FailedTurn,
   type Message,
   type Preferences,
 } from './client.js';
@@ -82,6 +86,7 @@ function App() {
   const [authPending, setAuthPending] = createSignal(false);
   const [newChatPending, setNewChatPending] = createSignal(false);
   const [pendingTurn, setPendingTurn] = createSignal<PendingTurn | null>(null);
+  const [failedTurns, setFailedTurns] = createSignal<Record<string, FailedTurn>>({});
   const [transcriptPending, setTranscriptPending] = createSignal(false);
   const [preferencesPending, setPreferencesPending] = createSignal(false);
   const [authError, setAuthError] = createSignal('');
@@ -107,6 +112,11 @@ function App() {
     const turn = pendingTurn();
     return isPendingConversation(turn?.conversationId, activeConversationId()) ? turn : null;
   };
+  const composerDisabled = () => isComposerDisabled({
+    conversationId: activeConversationId(),
+    pending: Boolean(pendingTurn()),
+    transcriptPending: transcriptPending(),
+  });
 
   function scrollTranscript(follow = true): void {
     if (!follow) return;
@@ -141,6 +151,7 @@ function App() {
     setAuthPending(false);
     setNewChatPending(false);
     setPendingTurn(null);
+    setFailedTurns({});
     setTranscriptPending(false);
     setPreferencesPending(false);
     setAuthError(message);
@@ -171,6 +182,19 @@ function App() {
       setMessages(turn!.messages);
       setTranscriptPending(false);
       setChatError('');
+      setMobilePanel(null);
+      scrollTranscript();
+      requestAnimationFrame(() => messageInput?.focus());
+      return;
+    }
+    const failedTurn = failedTurnForConversation(failedTurns(), conversation.id);
+    if (failedTurn) {
+      selections.advance();
+      setActiveConversationId(conversation.id);
+      setMessages(failedTurn.messages);
+      setTranscriptPending(false);
+      setChatError(failedTurn.error);
+      setChatStatus(`Message failed: ${failedTurn.error}`);
       setMobilePanel(null);
       scrollTranscript();
       requestAnimationFrame(() => messageInput?.focus());
@@ -278,9 +302,14 @@ function App() {
     const data = new FormData(form);
     const message = String(data.get('message') ?? '').trim();
     const conversationId = activeConversationId();
-    if (!message || !conversationId || pendingTurn()) return;
+    if (!message || composerDisabled()) return;
     const captured = requests.capture();
     const optimistic = [...messages(), { role: 'user', content: message } satisfies Message];
+    setFailedTurns((current) => {
+      const updated = { ...current };
+      delete updated[conversationId];
+      return updated;
+    });
     setMessages(optimistic);
     setPendingTurn({ conversationId, messages: optimistic, draft: '', activity: false });
     setChatError('');
@@ -328,15 +357,22 @@ function App() {
     } catch (error) {
       const turn = pendingTurn();
       if (!requests.isCurrent(captured) || turn?.conversationId !== conversationId) return;
-      if (activeConversationId() === conversationId) {
-        setMessages(turn.draft
-          ? [...turn.messages, { role: 'assistant', content: turn.draft }]
-          : turn.messages);
-      }
       const message = messageFor(error);
+      const updatedFailedTurns = rememberFailedTurn(
+        failedTurns(),
+        conversationId,
+        turn.messages,
+        turn.draft,
+        message,
+      );
+      const failedTurn = updatedFailedTurns[conversationId]!;
+      setFailedTurns(updatedFailedTurns);
       setPendingTurn(null);
-      setChatError(message);
-      setChatStatus(`Message failed: ${message}`);
+      if (activeConversationId() === conversationId) {
+        setMessages(failedTurn.messages);
+        setChatError(message);
+        setChatStatus(`Message failed: ${message}`);
+      }
     } finally {
       if (requests.isCurrent(captured) && activeConversationId() === conversationId) {
         messageInput.focus();
@@ -545,7 +581,7 @@ function App() {
                 name="message"
                 rows="1"
                 placeholder={activeConversationId() ? 'Ask about movies, shows, or seats…' : 'Start a conversation first'}
-                disabled={!activeConversationId() || Boolean(pendingTurn())}
+                disabled={composerDisabled()}
                 onKeyDown={(event) => {
                   if (shouldSubmitComposer({
                     key: event.key,
@@ -564,7 +600,7 @@ function App() {
                 variant="primary"
                 icon="arrow-up"
                 aria-label={pendingTurn() ? 'Waiting for Hermes' : 'Send message'}
-                disabled={!activeConversationId() || Boolean(pendingTurn())}
+                disabled={composerDisabled()}
               >
                 {pendingTurn() ? 'Sending…' : 'Send'}
               </Button>

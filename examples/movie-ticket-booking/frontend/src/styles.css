@@ -795,8 +795,11 @@ label {
     transform: translateX(105%);
   }
 
+  .composer .send-action,
+  .chat-header .compact,
   .conversation-rail [data-component="button"],
   .details-header [data-component="button"] {
+    min-width: 44px;
     min-height: 44px;
   }
 
