@@ -7802,7 +7802,7 @@
   {
     "site": "district",
     "name": "checkout",
-    "description": "Select District movie seats and stop at the payment handoff page",
+    "description": "Select District movie seats and open the UPI QR payment scanner",
     "access": "write",
     "domain": "www.district.in",
     "strategy": "cookie",
@@ -7838,7 +7838,14 @@
         "type": "int",
         "default": 45,
         "required": false,
-        "help": "Maximum seconds to wait for selection and review page"
+        "help": "Maximum seconds to wait for selection, review page, and payment handoff"
+      },
+      {
+        "name": "payment",
+        "type": "str",
+        "default": "upi-qr",
+        "required": false,
+        "help": "Payment handoff target: upi-qr opens the scanner; review stops on order review"
       }
     ],
     "columns": [
@@ -7852,6 +7859,10 @@
       "orderAmount",
       "bookingCharge",
       "total",
+      "paymentMethod",
+      "paymentState",
+      "upiQrVisible",
+      "paymentAmount",
       "paymentUrl",
       "showId"
     ],
