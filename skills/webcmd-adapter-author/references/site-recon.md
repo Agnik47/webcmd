@@ -48,6 +48,11 @@ Read `network` output this way:
 
 If data is loaded asynchronously, `wait time 2` may not be enough. Prefer `webcmd browser wait xhr '/api/path-fragment'` for a specific interface over blind `wait time 5`.
 
+When classification needs a dependent UI trigger plus a request/response
+waiter, use one sandboxed `browser run` program and arm the waiter before the
+trigger. Record the endpoint and UI evidence; do not treat the Playwright-style
+program as adapter source. Translate it through `recon-to-ipage.md`.
+
 ---
 
 ## Pattern A - SPA / JSON XHR

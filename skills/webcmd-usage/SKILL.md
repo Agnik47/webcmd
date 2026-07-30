@@ -14,6 +14,10 @@ Webcmd turns websites, Electron desktop apps, and external CLIs into a uniform `
 - **Browser driving:** `webcmd browser *` subcommands (`open`, `state`, `click`, `type`, `select`, `find`, `extract`, `network`) for ad-hoc interaction when no adapter covers the task. See `webcmd-browser`.
 - **External CLI passthrough:** `webcmd gh`, `webcmd docker`, `webcmd vercel`, and similar wrappers. Manage them with `webcmd external install <name>` or `webcmd external register <name>`.
 
+**REQUIRED SUB-SKILL:** Before the first raw `webcmd browser` command, load
+`webcmd-browser` and follow its primitive-versus-run decision boundary. This is
+required even when the browser command syntax is already familiar.
+
 ## Install
 
 ```bash

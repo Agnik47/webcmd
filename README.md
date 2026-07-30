@@ -37,6 +37,20 @@ On top of live browser control, WebCMD adds 3 layers of learnings. Each layer co
 | 3. CLI authoring | The action space is known, but the path is still too variable for one fixed sequence. | Explicitly author a reusable `webcmd <site>` adapter with structured output, so future agents spend tokens on the task instead of navigation. |
 | 4. Extend existing CLIs | The workflow is deterministic enough to stop browsing. | Extend the `webcmd <site>` adapter with a tailored command so the workflow runs instantly with the least amount of tokens. |
 
+For local, multi-step browser exploration, agents can send one sandboxed
+Playwright-style program to an existing CloakBrowser session:
+
+```bash
+webcmd browser work run --file explore.js
+printf 'const page = await browser.currentPage(); return await page.title();' \
+  | webcmd browser work run --stdin
+```
+
+`browser run` is additive: the existing `state`, `click`, `type`, `get`, and
+other primitive commands keep their current behavior. Reusable site adapters
+also keep using Webcmd's existing `IPage` contract; a browser-run program is
+reconnaissance or ad-hoc automation, not adapter source code.
+
 ## Demo
 
 https://github.com/user-attachments/assets/04eceadc-d398-4303-984d-ae3197bfa664

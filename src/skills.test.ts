@@ -146,6 +146,157 @@ describe('webcmd skills content', () => {
     expect(autofix).toMatch(/CAPTCHA[\s\S]{0,250}stop automation[\s\S]{0,250}verification must succeed/i);
   });
 
+  it('teaches browser-run selection and Playwright recon to IPage translation', () => {
+    const browser = bundledSkill('webcmd-browser');
+    const usage = bundledSkill('webcmd-usage');
+    const author = bundledSkill('webcmd-adapter-author');
+    const browserRunReference = fs.readFileSync(
+      path.join(
+        process.cwd(),
+        'skills',
+        'webcmd-browser',
+        'references',
+        'browser-run-playwright.md',
+      ),
+      'utf8',
+    );
+    const reconReference = fs.readFileSync(
+      path.join(
+        process.cwd(),
+        'skills',
+        'webcmd-adapter-author',
+        'references',
+        'recon-to-ipage.md',
+      ),
+      'utf8',
+    );
+    const commandReferenceIndex = browser.indexOf('## Command reference');
+    const runFirstIndex = browser.indexOf('## Run-first decision loop');
+    const antiPatternIndex = browser.indexOf('### Do not alternate open and one-operation run');
+    const customDropdown = browser.match(
+      /### Pick from a custom React dropdown[\s\S]*?(?=\n### |\n---)/,
+    )?.[0] ?? '';
+    const nativeDropdown = browser.match(
+      /### Pick from a long dropdown[\s\S]*?(?=\n### |\n---)/,
+    )?.[0] ?? '';
+    const selectCompound = browser.match(
+      /### Select[\s\S]*?(?=\n### File)/,
+    )?.[0] ?? '';
+    const formExample = browser.match(
+      /### Reconnaissance-to-run form example[\s\S]*?(?=\n---)/,
+    )?.[0] ?? '';
+    const paginationExamples = [
+      browser.match(/### Known destination: start with run[\s\S]*?(?=\n### |\n---)/)?.[0] ?? '',
+      browserRunReference.match(/## Program ownership[\s\S]*?(?=\n## )/)?.[0] ?? '',
+    ];
+
+    expect(usage).toContain('REQUIRED SUB-SKILL');
+    expect(usage).toMatch(/before (?:the )?first raw `webcmd browser` command[\s\S]{0,160}`webcmd-browser`/i);
+    expect(browser).toContain('Run-first decision loop');
+    expect(runFirstIndex).toBeGreaterThan(-1);
+    expect(antiPatternIndex).toBeGreaterThan(runFirstIndex);
+    expect(commandReferenceIndex).toBeGreaterThan(antiPatternIndex);
+    expect(browser).toContain('## Adapter fallback gate');
+    expect(browser).toMatch(/Prefer site adapters before raw browser driving/i);
+    expect(browser).toMatch(/state the next unknown whose answer requires agent reasoning/i);
+    expect(browser).toMatch(
+      /every known navigation[\s\S]{0,240}(?:interaction|loop|pagination)[\s\S]{0,240}one `browser run`/i,
+    );
+    expect(browser).toMatch(
+      /`browser run` may be the first raw browser command[\s\S]{0,240}`page\.goto\(\)`/i,
+    );
+    expect(browser).toContain('open -> one-operation run');
+    expect(browser).toMatch(
+      /do not use `browser open`[\s\S]{0,240}run that only reads/i,
+    );
+    expect(browser).toMatch(
+      /one `page\.evaluate\(\)`[\s\S]{0,240}(?:use|keep) (?:an|the) isolated primitive/i,
+    );
+    expect(browser).toMatch(
+      /one run per[\s\S]{0,240}(?:pagination page|candidate|revision|search iteration)/i,
+    );
+    expect(browser).toMatch(/return only the compact result needed/i);
+    expect(browser).toMatch(
+      /safe screenshot[\s\S]{0,300}page\.screenshot\(\)[\s\S]{0,300}sandbox receipt/i,
+    );
+    expect(browser).toMatch(
+      /browser screenshot primitive[\s\S]{0,240}(?:isolated screenshot|exact host path)/i,
+    );
+    expect(browser).toMatch(
+      /unsupported-run-surface exception[\s\S]{0,300}host cache[\s\S]{0,300}genuine decision boundary[\s\S]{0,300}--detail/i,
+    );
+    expect(nativeDropdown).toMatch(
+      /stable locator[\s\S]*selectOption\([\s\S]*inputValue\(\)/i,
+    );
+    expect(browser).toContain("run --stdin <<'JS'");
+    expect(browser).toContain('await page.goto(');
+    expect(browser).toContain('Recon-to-run locator translation');
+    expect(browser).toContain('not the adapter `IPage` API');
+    expect(browserRunReference).toContain('waitForResponse');
+    expect(browserRunReference).toContain('Arm the waiter before');
+    expect(browserRunReference).toContain('fresh QuickJS runtime');
+    expect(browserRunReference).toContain('Program ownership');
+    expect(browserRunReference).toContain('evaluateAll');
+    expect(browserRunReference).toContain('filter');
+    expect(browserRunReference).toContain('all()');
+    expect(browserRunReference).toContain('getByAltText');
+    expect(browserRunReference).toContain('getByTitle');
+    expect(browserRunReference).toContain('waitForSelector');
+    expect(browserRunReference).toContain('locator.screenshot');
+    expect(browserRunReference).toContain('BROWSER_RUN_API_UNSUPPORTED');
+    expect(browserRunReference).toMatch(
+      /artifact receipt[\s\S]{0,300}actual (?:stored )?path[\s\S]{0,300}(?:does not|never)[\s\S]*?host write\s+authority/i,
+    );
+    expect(browserRunReference).toMatch(
+      /one run owns[\s\S]{0,240}(?:navigation|pagination|loop)[\s\S]{0,240}next reasoning decision/i,
+    );
+    expect(browserRunReference).toContain('let pagesChecked = 0');
+    expect(browserRunReference).toContain('await page.goto(');
+    expect(browserRunReference).toMatch(/return \{[\s\S]{0,240}pagesChecked/i);
+    for (const example of paginationExamples) {
+      expect(example).toMatch(
+        /const rows[\s\S]{0,240}pagesChecked \+= 1;[\s\S]{0,240}pagesChecked >= 10[\s\S]{0,240}next\.isVisible\(\)[\s\S]{0,240}break;[\s\S]{0,240}await next\.click\(\)/,
+      );
+      expect(example).toMatch(
+        /next\.evaluate\([\s\S]{0,240}page\.waitForURL\([\s\S]{0,240}await next\.click\(\)[\s\S]{0,240}await navigation/,
+      );
+    }
+    expect(customDropdown).toContain('one `browser run`');
+    expect(customDropdown).toMatch(
+      /await trigger\.click\(\)[\s\S]{0,300}await option\.click\(\)[\s\S]{0,300}return \{ selected \};/,
+    );
+    expect(customDropdown).not.toMatch(
+      /browser mercury (?:state|click)[\s\S]{0,200}browser mercury click[\s\S]{0,200}browser mercury (?:state|click|get text)/,
+    );
+    expect(nativeDropdown).toMatch(
+      /observed (?:option )?(?:value|label)[\s\S]{0,240}(?:do not|never) (?:invent|guess)[\s\S]{0,240}decision\s+boundary/i,
+    );
+    expect(selectCompound).toContain('options_total > options.length');
+    expect(selectCompound).toContain('bounded `browser run`');
+    expect(selectCompound).toMatch(/live `<option>` set/i);
+    expect(nativeDropdown).toMatch(
+      /page\.evaluate\([\s\S]{0,500}candidates[\s\S]{0,500}selectOption\(candidates\[0\]\.value\)/,
+    );
+    expect(browserRunReference).toMatch(
+      /`check`[\s\S]{0,120}`uncheck`[\s\S]{0,200}`setChecked`/i,
+    );
+    expect(browser).toMatch(/`browser open` is only an isolated navigation exception/i);
+    expect(browser).toMatch(/known navigation plus inspection belongs in `page\.goto\(\)` inside a run/i);
+    expect(browser).toMatch(/known write chains plus verification belong in one run/i);
+    expect(browser).toMatch(/`reidentified` result may remain a genuine reconnaissance boundary/i);
+    expect(browser).toMatch(/user-supplied host path[\s\S]{0,180}`browser upload`/i);
+    expect(browser).toMatch(/generated in-memory content[\s\S]{0,180}`setInputFiles\(\)` inside `browser run`/i);
+    expect(browser).toMatch(/user\s+file choice without a path[\s\S]{0,180}visible human handoff/i);
+    expect(formExample.match(/webcmd browser work state/g)).toHaveLength(1);
+    expect(browser).toMatch(/inspect after a run only when its evidence is\s+unexpected or insufficient and changes the next plan/i);
+    expect(author).toContain('Adapter-compatible rehearsal');
+    expect(author).toContain('recon-to-ipage.md');
+    expect(reconReference).toContain('public endpoint found by `waitForResponse`');
+    expect(reconReference).toContain('`page.getCookies()`');
+    expect(reconReference).toContain('`installInterceptor`');
+    expect(reconReference).toContain('the only rehearsal is “the browser-run program worked.”');
+  });
+
   it('adds bundled skills once and refreshes them after package updates', () => {
     const firstRoot = makePackageRoot('first');
     const secondRoot = makePackageRoot('second');

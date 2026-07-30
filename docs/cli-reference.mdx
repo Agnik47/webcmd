@@ -34,6 +34,33 @@ webcmd pubmed search "agentic browser automation" --limit 5 -f json
 
 Agents should prefer existing adapters before browser exploration. That keeps tasks fast and repeatable.
 
+## Local Browser Programs
+
+`browser run` executes one Playwright-style JavaScript program against an
+existing local CloakBrowser session:
+
+```bash
+webcmd browser work run --file explore.js
+webcmd browser work run --stdin --timeout 45 --observe diff
+```
+
+Exactly one of `--file <path>` or `--stdin` is required. The CLI reads files
+locally and sends source—not the path—to the local daemon. `--timeout` is in
+seconds, `--max-output` bounds returned results and logs, `--observe` accepts
+`diff`, `full`, or `none`, and `--tab <page-id>` targets an existing tab.
+
+The program runs in a fresh QuickJS sandbox. It can obtain the selected page
+with `await browser.currentPage()`, use the supported Page/Frame/Locator
+methods, and passively inspect request and response events. It cannot access
+Node.js, the filesystem, environment variables, raw CDP endpoints, browser
+launch/connect APIs, or browser-context ownership. Screenshot bytes are
+written to a Webcmd-owned cache directory and returned as a receipt.
+
+This command is currently local-only. Existing primitive browser commands are
+unchanged, and reusable adapters continue to use the existing `IPage` API.
+Playwright-style programs are for reconnaissance and ad-hoc multi-step work;
+they are not pasted into adapter modules.
+
 ## Top-Level Commands
 
 | Command | Purpose |
@@ -115,6 +142,7 @@ Register our internal `releasectl` binary as a Webcmd external CLI with a short 
 | `~/.webcmd/` | User-level Webcmd state. |
 | `~/.webcmd/clis/` | Private adapters and local overrides. |
 | `~/.webcmd/cache/browser-network/` | Browser network capture cache. |
+| `~/.webcmd/cache/browser-run/` | Host-owned browser-run screenshot artifacts. |
 | `~/.webcmd/external-clis.yaml` | User external CLI registry. |
 | `skills/` | Bundled agent skills shipped with the package. |
 

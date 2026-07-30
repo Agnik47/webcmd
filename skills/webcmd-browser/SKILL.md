@@ -63,27 +63,153 @@ Bound sessions use the normal Webcmd session lifecycle; `unbind` releases the Cl
 
 ---
 
-## Mental model
+## Run-first decision loop
 
-1. **Selector-first target contract.** Every interaction command (`click`, `type`, `select`, `get text/value/attributes`) takes one `<target>`, which is *either* a numeric ref from `state`/`find` *or* a CSS selector. Use `--nth <n>` to disambiguate multiple CSS matches.
-2. **Every envelope reports `matches_n` and `match_level`.** `match_level` is `exact`, `stable`, or `reidentified` — the CLI already rescued moderate DOM drift for you, but the level tells you how confident to be.
-3. **Compact output first, full payload on demand.** `state` is a budget-aware snapshot; `get html --as json` supports `--depth/--children-max/--text-max`; `network` returns shape previews and you re-fetch a single body with `--detail <key>`. If you emit a giant payload you are burning context you did not need to burn.
-4. **Structured errors are machine-readable.** On failure the CLI emits `{error: {code, message, hint?, candidates?}}`. Branch on `code`, not on message strings.
+After raw browser fallback has been selected, state the next unknown whose answer requires agent reasoning.
+
+1. Put every known navigation, wait, read, interaction, loop, pagination step,
+   verification, and safe screenshot (use `await page.screenshot()` when a
+   sandbox receipt is accepted) before that unknown into one `browser run`.
+2. Return only the compact result needed for the next reasoning decision.
+3. Start another run only when that returned result changes the plan.
+
+`browser run` may be the first raw browser command when the destination URL
+and initial inspection are already known. Use `page.goto()` inside the run;
+do not use `browser open` followed by a run that only reads the known page.
+
+The target is not one task-wide program. It is a small number of substantial
+programs separated by genuine reasoning decisions.
+
+| Situation | Use |
+| --- | --- |
+| Known URL plus known inspection or action | One run beginning with `page.goto()` |
+| Pagination, candidate search, retries, or bounded loops with a known stop condition | One run containing the loop |
+| Several dependent form or navigation operations | One run containing action, wait, and verification |
+| One isolated inspect, click, fill, keypress, read, wait, or host-path screenshot | Matching primitive |
+| Output is genuinely required to decide what operation comes next | Primitive reconnaissance, then one run |
+| Existing host file upload | `browser upload` primitive |
+| Reusable site command | `webcmd-adapter-author`, not browser-run source |
+
+Use the browser screenshot primitive only for an isolated screenshot or when
+the caller requires an exact host path. Otherwise, capture a known screenshot
+inside its run with `await page.screenshot()` when a sandbox receipt is
+accepted.
+
+### Do not alternate open and one-operation run
+
+Wrong:
+
+```text
+browser open URL
+browser run { one page.evaluate() }
+browser open NEXT_URL
+browser run { one page.evaluate() }
+```
+
+This is `open -> one-operation run` and saves no agent decision. If the run
+would contain only one `page.evaluate()` that `eval`, `get`, `find`, or
+`state` can perform, keep the isolated primitive. If navigation and reading
+are both known, own both inside one run.
+
+Do not issue one run per pagination page, candidate, revision, or search
+iteration when the loop and stopping condition are already known.
+
+### Recon-to-run locator translation
+
+Numeric refs are primitive-command handles; translate the evidence behind a
+ref into a run locator:
+
+| Recon evidence | Run locator |
+| --- | --- |
+| `attrs.id` | `page.locator('#stable-id')` |
+| role + accessible name | `page.getByRole('button', { name: 'Save' })` |
+| associated label | `page.getByLabel('Email')` |
+| placeholder | `page.getByPlaceholder('Search')` |
+| test ID | `page.getByTestId('submit')` |
+| stable attribute relationship | `page.locator('form#search input[name=q]')` |
+
+Prefer semantic locators, then stable IDs or attributes. A numeric ref is not
+a reason to avoid `browser run`.
+
+### Known destination: start with run
+
+```bash
+webcmd browser research run --stdin <<'JS'
+await page.goto('https://example.com/articles');
+const matches = [];
+let pagesChecked = 0;
+for (;;) {
+  const rows = await page.locator('article').allTextContents();
+  matches.push(...rows.filter(text => text.includes('target phrase')));
+  pagesChecked += 1;
+  const next = page.getByRole('link', { name: 'Next' });
+  if (pagesChecked >= 10 || !(await next.isVisible())) {
+    break;
+  }
+  const nextUrl = await next.evaluate(element => element.href);
+  const navigation = page.waitForURL(nextUrl);
+  await next.click();
+  await navigation;
+}
+return {
+  matches: matches.slice(0, 10),
+  pagesChecked,
+  finalUrl: page.url(),
+};
+JS
+```
+
+Navigation, pagination, reduction, and verification are known before the next
+decision, so they belong to one invocation. Return the compact evidence, not
+every page body.
+
+### Reconnaissance-to-run form example
+
+```bash
+webcmd browser work state
+webcmd browser work run --stdin <<'JS'
+const page = await browser.currentPage();
+const email = page.getByLabel('Email');
+await email.fill('agent@example.com');
+if (await email.inputValue() !== 'agent@example.com') {
+  throw new Error('email did not stick');
+}
+await page.getByLabel('Country').selectOption({ label: 'Canada' });
+await page.getByRole('button', { name: 'Submit' }).click();
+await page.getByText('Form submitted successfully!').waitFor();
+return { submitted: true, url: page.url() };
+JS
+```
+
+Use a quoted heredoc so the shell cannot expand program contents. Keep an
+isolated screenshot or an exact host-path receipt as a primitive; otherwise,
+capture a known screenshot with `await page.screenshot()` inside the run when a
+sandbox receipt is accepted. Inspect after a run only when its evidence is
+unexpected or insufficient and changes the next plan. Read
+[`references/browser-run-playwright.md`](./references/browser-run-playwright.md)
+for the full supported API.
+
+`browser run` is reconnaissance and ad-hoc automation. Its Playwright-style
+objects are not the adapter `IPage` API, so never paste the program into an
+adapter.
 
 ---
 
 ## Critical rules
 
-1. **Always inspect before you act.** Run `state` or `find` first. Never hard-code a ref or selector from memory across sessions — indices are per-snapshot.
+1. **Inspect when output is needed to decide.** Use `state` or `find` before an action only when the page or target is unknown; a known URL plus known inspection or action starts with `page.goto()` in a run. Never hard-code a ref or selector from memory across sessions — indices are per-snapshot.
 2. **Prefer site adapters before raw browser driving.** Complete the adapter fallback gate above. If `webcmd <site> <command>` already covers the task, use that adapter command first (`webcmd facebook notifications`, `webcmd reddit read`, `webcmd chatgpt model <level>`, etc.). Use `webcmd browser ...` only for gaps, debugging, or one-off UI flows the adapter does not expose.
-3. **Prefer numeric ref over CSS once you have it.** Numeric refs survive mild DOM shifts because the CLI fingerprints each tagged element. A CSS selector written by hand will break the first time the site re-renders.
+3. **Prefer numeric refs for isolated primitives.** For `browser run`, translate recon evidence into a semantic locator, stable ID, or stable attribute relationship using the table above.
 4. **Read `match_level` after every write.** `exact` = all good. `stable` = the element is the same but some soft attrs drifted — your action still applied. `reidentified` = the original ref was gone and the CLI found a unique replacement; double-check you hit the right element.
 5. **Use the `compound` field for form controls.** Do not regex-guess a date format, do not `state` twice to get the full `<select>` options list. The compound envelope has the format string, full option list up to 50, `options_total` for overflow, and `accept`/`multiple` for `<input type=file>`.
-6. **Verify writes that matter.** After `type <target> <text>`, run `get value <target>`. After `select`, run `get value`. Autocomplete widgets, React controlled inputs, and masked fields all silently eat characters. The CLI cannot detect this for you.
-7. **`state` → action → `state` after a page change.** Navigations, form submits, and SPA route changes invalidate refs. Take a fresh snapshot. Do not reuse refs from before the transition.
-8. **Chain with `&&` when reusing freshly parsed refs.** A chained sequence runs in one shell so the ref you just read from output can be passed directly to the next command. Separate shell invocations keep the named browser session, but any shell-local variables or copied refs from the previous command can go stale after page changes.
-9. **`eval` is read-only.** Wrap the JS in an IIFE and return JSON. If you need to *change* the page, use the structured `click` / `type` / `select` / `keys` commands instead — they produce structured output and fingerprints, `eval` does not.
+6. **Verify writes that matter.** For an isolated primitive, use `get value`. In a run, call `inputValue`, `isChecked`, or another targeted read before returning. Autocomplete widgets, controlled inputs, and masked fields can silently eat characters.
+7. **Inspect only at genuine decision boundaries.** Use `state → primitive → state` when the result determines the next action. Known write chains plus verification belong in one run; inspect after that run only when its evidence is unexpected or insufficient and changes the next plan. A `reidentified` result may remain a genuine reconnaissance boundary. Never reuse refs across a page transition.
+8. **Use `&&` only for isolated primitives.** A known multi-action segment belongs in `browser run`, not a shell chain.
+9. **`eval` is read-only.** Use `browser run` for multi-action mutation and structured primitives for isolated mutation.
 10. **Prefer `network` to screen-scraping.** If a page you care about fetches its data from a JSON API, the API is almost always more reliable than scraping the rendered DOM. Capture once, inspect the shape, then `--detail <key>` the body you need.
+11. **Return only the decision result from `browser run`.** Keep large DOM,
+    response, and screenshot payloads out of the return value. The host already
+    supplies final page metadata and a bounded semantic observation.
 
 ---
 
@@ -223,6 +349,19 @@ List entries look like `{key, method, status, url, ct, size, shape, body_truncat
 
 Default output keeps JSON/XML/plain-text and JS-like API responses, then drops obvious static assets and telemetry by URL. If an expected endpoint is missing, run `browser network --all` once and check whether an unusual content type or URL filter hid it.
 
+### Sandboxed Playwright-style programs
+
+```bash
+webcmd browser <session> run --file <program.js>
+webcmd browser <session> run --stdin \
+  [--timeout <seconds>] [--max-output <characters>] \
+  [--observe diff|full|none] [--tab <page-id>]
+```
+
+Exactly one of `--file` or `--stdin` is required. This command is local-only.
+See [`references/browser-run-playwright.md`](./references/browser-run-playwright.md)
+for the supported Page, Frame, Locator, network, result, and isolation contract.
+
 ### Tabs & session
 
 | command | purpose |
@@ -272,7 +411,12 @@ Every date/time, select, and file input carries a `compound` field. Use it — d
 }
 ```
 
-`options[]` is capped at 50 entries. **`current` is always correct** even when the selected option is past the cap — it's computed by scanning every option, not from the truncated list. If `options_total > options.length` and you need an option that isn't in `options[]`, call `browser select <target> "<label>"` directly — the CLI matches against the live DOM, not the truncated list.
+`options[]` is capped at 50 entries. **`current` is always correct** even when
+the selected option is past the cap — it is computed by scanning every option,
+not from the truncated list. If `options_total > options.length`, or options
+load dynamically, inspect the live `<option>` set in a bounded `browser run`.
+Select only a unique observed label/value. Return compact matching candidates
+at the decision boundary when the requested option is absent or ambiguous.
 
 ### File
 
@@ -285,52 +429,20 @@ Every date/time, select, and file input carries a `compound` field. Use it — d
 }
 ```
 
-Do not invent file paths. Upload is done via the normal click flow — respect `accept` when telling the user what to upload.
-
-### Where compounds show up
-
-- `browser find --css <sel>` entries: inline on each match.
-- `browser get html --as json` tree nodes: inline on matching nodes.
-- `browser state` snapshot: in a `compounds (N):` sidecar keyed by numeric ref, so you can tell at a glance which `[N]` entries have rich metadata.
-
----
+Do not invent file paths. A user-supplied host path uses `browser upload`.
+Generated in-memory content uses `setInputFiles()` inside `browser run`. A user
+file choice without a path requires a visible human handoff; respect `accept`
+when telling the user what to upload.
 
 ## Cost guide
 
-Think about payload size per call. Budgets exist for a reason.
-
-| command | rough cost | when to use |
-|---------|-----------|-------------|
-| `state` | medium (bounded by internal budget) | First call on any page, after every nav, when you need refs. |
-| `find --css <sel>` | small | You already know the selector — one query, compact entries. |
-| `get title` / `get url` | tiny | Sanity checks between steps. |
-| `get text/value/attributes` | tiny per call | Verifying one specific field. |
-| `get html` (raw) | can be huge | Avoid on unbounded pages. Always pair with `--selector` and a budget. |
-| `get html --as json --depth 3 --children-max 20` | medium | When you need to reason about structure, not a specific field. |
-| `screenshot` | large | Only when the page is visual (CAPTCHA, charts). Prefer `state`. |
-| `extract` | medium per chunk | Long-form reading. Loop via `next_start_char`. |
-| `network` (default) | small | First look at APIs. |
-| `network --detail <key>` | varies | Pull one body. |
-| `network --raw` | huge | Only after `--filter` narrowed the candidate set. |
-| `eval "JSON.stringify(...)"` | controlled | Targeted extraction when none of the above fit. |
-
-Rule of thumb: **one `state` per page transition, one `find` per follow-up query, one `get`/`click`/`type` per action.** If your plan involves >10 calls per page you are probably scraping instead of interacting — consider `extract` or `network`.
-
----
-
-## Chaining rules
-
-**Good — one shell, live session:**
-
-```bash
-webcmd browser hn open "https://news.ycombinator.com" \
-  && webcmd browser hn state \
-  && webcmd browser hn click 3
-```
-
-**Bad — each line is a fresh shell, refs from call 1 are already forgotten when call 2 runs.** (Only a problem if you rely on shell-scoped state; browser refs themselves persist in-page, but interleaving unrelated shells invites races.) Prefer `&&` when the steps are meant to be atomic.
-
-**Never** chain a write and then an immediate `state` without a `wait` if the action causes a network round-trip — you will snapshot the pre-response DOM and make bad decisions off stale data.
+- Use `state` at discovery and decision boundaries, not after every known write.
+- Use `find` or a targeted `get` for one compact follow-up query.
+- Use one primitive only for an isolated known action.
+- Use one `browser run` for every known multi-operation segment and return only
+  its decision result.
+- Use screenshots only for visual evidence, CAPTCHA, charts, or required
+  receipts. Avoid unbounded HTML and raw network bodies.
 
 ---
 
@@ -352,63 +464,87 @@ For a CAPTCHA or user takeover, stop automation, give the user any viewer URL We
 
 ### Pick from a long dropdown
 
+Use only an observed option value or label from `state`, `find`, or a live DOM
+inspection inside the run. Never invent or guess a value. If the requested
+choice is absent or ambiguous, stop at that decision boundary and return
+compact matching candidates instead of waiting on a guessed `selectOption`.
+
 ```bash
 webcmd browser form state                          # sidebar shows [12] <select name=country>
 webcmd browser form find --css "select[name=country]"
 # the compound.options_total is 137, but compound.current is "" — unselected.
-webcmd browser form select 12 "Uruguay"
-webcmd browser form get value 12                   # { value: "uy", match_level: "exact" }
+# Translate the find evidence to this stable locator before the run.
+webcmd browser form run --stdin <<'JS'
+const selector = 'select[name=country]';
+const requestedLabel = 'Uruguay';
+const country = page.locator('select[name=country]');
+const candidates = await page.evaluate((css, requested) => {
+  const select = document.querySelector(css);
+  if (!(select instanceof HTMLSelectElement)) return [];
+  const wanted = requested.trim().toLocaleLowerCase();
+  return Array.from(select.options)
+    .map(option => ({ label: option.text.trim(), value: option.value }))
+    .filter(option => option.label.toLocaleLowerCase() === wanted)
+    .slice(0, 10);
+}, selector, requestedLabel);
+if (candidates.length !== 1) {
+  return { selectionRequired: true, requestedLabel, candidates };
+}
+await country.selectOption(candidates[0].value);
+const value = await country.inputValue();
+if (value !== candidates[0].value) {
+  throw new Error(`country selection did not stick: ${value}`);
+}
+return { label: candidates[0].label, value };
+JS
 ```
+
+Live inspection, a unique known selection, and verification belong to one
+invocation. A missing or ambiguous result is the next reasoning boundary.
 
 ### Pick from a custom React dropdown
 
 Use this for Radix, shadcn, Material UI, Mercury-style category fields, and
 other controls that are not native `<select>`.
 
+Use primitives only for reconnaissance until stable trigger and option semantics
+are known. Then use one `browser run` to open, wait, select, verify, and return
+compact evidence. Keep a boundary only if opening the widget reveals genuinely
+unknown semantics.
+
 ```bash
-webcmd browser mercury state                          # find category trigger ref
-# If the trigger/option is not clear, use AX:
-webcmd browser mercury state --source ax              # look for combobox/button/listbox/option names
-webcmd browser mercury click 7                        # click category trigger
-webcmd browser mercury state --source ax              # fresh refs after the portal/listbox opens
-webcmd browser mercury click 12                       # click option
-webcmd browser mercury get text 7                     # verify visible selected label
+webcmd browser mercury state --source ax  # reconnaissance: identify Category and Analytics semantics
+webcmd browser mercury run --stdin <<'JS'
+const trigger = page.getByRole('combobox', { name: 'Category' });
+await trigger.click();
+const option = page.getByRole('option', { name: 'Analytics' });
+await option.waitFor();
+await option.click();
+const selected = await trigger.innerText();
+if (selected !== 'Analytics') {
+  throw new Error(`category selection did not stick: ${selected}`);
+}
+return { selected };
+JS
 ```
 
 Do not use `browser select` on these widgets. `browser select` is only for
-native `<select>` elements. Custom dropdowns should be driven with
-`state -> click trigger -> state -> click option -> verify`.
-
-### Compare DOM vs AX observation
-
-When deciding whether AX refs are better for a page, collect metrics without
-sharing page contents:
-
-```bash
-webcmd browser compare state --compare-sources
-```
-
-Report `sources.dom.refs`, `sources.ax.refs`, `frame_sections`,
-`approx_tokens`, `elapsed_ms`, and any per-source `error`. Use this before
-arguing that AX should become the default on a site.
+native `<select>` elements.
 
 ### Scrape a list via network instead of DOM
+
+**Unsupported-run-surface exception.** The host cache listing and `--detail`
+commands are not available inside `browser run`. `browser open` populates the
+host cache; `browser network` output is the genuine decision boundary used to
+choose a key, and `--detail` follows only after that decision. Do not treat
+`page.waitForResponse` as equivalent to unknown-endpoint host-cache
+reconnaissance.
 
 ```bash
 webcmd browser hn open "https://news.ycombinator.com"
 webcmd browser hn network --filter "title,score"
 # -> find the /topstories entry, note its key
 webcmd browser hn network --detail topstories-a1b2
-```
-
-### Read a long article in chunks
-
-```bash
-webcmd browser article open "https://blog.example.com/long-post"
-webcmd browser article extract --chunk-size 8000
-# -> content + next_start_char: 8000
-webcmd browser article extract --start 8000 --chunk-size 8000
-# ...until next_start_char is null
 ```
 
 ### Cross-origin iframe
@@ -428,13 +564,15 @@ normal DOM `state`, or navigate/bind directly to the iframe URL when possible.
 
 ## Pitfalls
 
-- **Do not submit forms via `eval "document.forms[0].submit()"`** — modern sites intercept with JS handlers and silently drop the call. Either `click` the submit button via its ref, or (if you know the GET URL) just `open` it directly.
+- **Do not submit forms via `eval "document.forms[0].submit()"`** — modern sites intercept with JS handlers and silently drop the call. Click an isolated submit button via its ref. `browser open` is only an isolated navigation exception; known navigation plus inspection belongs in `page.goto()` inside a run, and known write chains plus verification belong in one run.
 - **Do not reuse refs across a page transition.** `wait` for the new state, then re-`state`. Old refs will either 404 or (worse) `reidentify` onto a similarly-shaped element on the new page.
-- **`match_level: reidentified` is a warning, not an error.** The action went through, but if you are chaining 5 more writes that all depend on that being the right element, verify with a `get text` or `get value` before continuing.
+- **`match_level: reidentified` is a warning, not an error.** The action went through, but a `reidentified` result may remain a genuine reconnaissance boundary. If you are chaining more writes that all depend on that being the right element, verify with a `get text` or `get value` before continuing.
 - **Budget-aware commands silently cap.** `get html --as json` with default budgets will return `truncated: {...}`. If your downstream logic needs the whole subtree, raise `--depth` / `--children-max` or tighten the selector.
 - **`autocomplete: true` on a `type` response is not an error.** It means a suggestion popup is open and your value isn't committed yet. Typically `keys Enter` to accept the first suggestion, or `click` the one you want.
 - **`network --filter` is AND-semantics on path segments.** `--filter "title,score"` keeps entries whose body shape contains *both* `title` and `score` as path segments, at any depth. It is not a regex.
 - **Screenshots are for humans, not for agents.** Use `state` + `find` unless the page is genuinely visual (captcha, chart). Screenshots burn tokens and rarely add signal an agent can act on.
+- **Using `browser run` for one operation supported by a primitive adds code without saving a decision.** Keep the isolated primitive and its specialized envelope.
+- **A browser-run program is not adapter source.** Playwright-style reconnaissance objects are intentionally different from adapter `IPage`.
 
 ---
 
@@ -460,3 +598,4 @@ normal DOM `state`, or navigate/bind directly to the iframe URL when possible.
 - `webcmd-browser-sitemap` — consuming site sitemap context while driving a browser task.
 - `webcmd-sitemap-author` — creating or updating sitemap knowledge when you discover a durable path or stale entry.
 - `webcmd-autofix` — when an existing adapter breaks, this skill walks you through `--trace retain-on-failure` evidence and filing a fix.
+- `references/browser-run-playwright.md` — sandboxed multi-step browser programs.

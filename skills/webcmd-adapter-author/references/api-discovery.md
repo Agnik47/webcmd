@@ -69,6 +69,28 @@ webcmd browser eval "await fetch('<url>', { credentials: 'include' }).then(r => 
 
 If Node-side replay works without page runtime state, prefer `PUBLIC_API` or `COOKIE_API`. If the endpoint only works in page context, document why before selecting `PAGE_FETCH`.
 
+For a request that exists only after a UI action, use `browser run` so the
+listener is attached before the trigger:
+
+```js
+const page = await browser.currentPage();
+const pending = page.waitForResponse(
+  response => response.url().includes('/api/target'),
+);
+await page.getByRole('button', { name: 'Load' }).click();
+const response = await pending;
+return {
+  url: response.url(),
+  method: response.request().method(),
+  status: response.status(),
+  body: await response.json(),
+};
+```
+
+This is recon evidence only. Use `recon-to-ipage.md` to choose direct fetch,
+cookie fetch, page fetch, DOM/UI, or interceptor and rehearse it before writing
+the adapter.
+
 ## Section 2 - State Extraction
 
 Use for Pattern B.
