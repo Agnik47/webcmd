@@ -67,9 +67,44 @@ function testApp(secureCookies = false) {
         session_id: 'movie_fixture',
         message: { role: 'assistant', content: 'ok' },
       }),
+      chatStream: async (_sessionId, _sessionKey, _message, onEvent) => {
+        onEvent({ type: 'assistant.delta', delta: 'ok' });
+        return {
+          object: 'hermes.session.chat.completion',
+          session_id: 'movie_fixture',
+          message: { role: 'assistant', content: 'ok' },
+        };
+      },
     },
   });
   return { db, app };
+}
+
+function parseSse(body: string): Array<{ event: string; data: any }> {
+  return body.split('\n\n').flatMap((block) => {
+    const lines = block.split('\n');
+    const event = lines.find((line) => line.startsWith('event:'))?.slice('event:'.length).trim();
+    if (!event) return [];
+    const data = lines
+      .filter((line) => line.startsWith('data:'))
+      .map((line) => line.slice('data:'.length).trimStart())
+      .join('\n');
+    return [{ event, data: JSON.parse(data) }];
+  });
+}
+
+async function within<T>(promise: Promise<T>, milliseconds = 1_000): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => reject(new Error('timed out waiting for test event')), milliseconds);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 test('serves a minimal unauthenticated health check', async () => {
@@ -358,6 +393,7 @@ test('keeps the default title when chat fails', async () => {
       createSession: async () => 'movie_fixture',
       getMessages: async () => [],
       chat: async () => { throw new Error('Hermes unavailable'); },
+      chatStream: async () => { throw new Error('Hermes unavailable'); },
     },
   });
   const baseUrl = await listen(app);
@@ -416,6 +452,9 @@ test('returns the authenticated booking snapshot completed during a Hermes turn'
           message: { role: 'assistant' as const, content: 'District confirmed DBX123456' },
         };
       },
+      chatStream: async () => {
+        throw new Error('not used');
+      },
     },
   });
   const baseUrl = await listen(app);
@@ -446,6 +485,192 @@ test('returns the authenticated booking snapshot completed during a Hermes turn'
       })),
       [{ status: 'confirmed', districtBookingId: 'DBX123456' }],
     );
+  } finally {
+    await close(app);
+    db.close();
+  }
+});
+
+test('rejects unauthenticated streaming chat before sending SSE headers', async () => {
+  const { db, app } = testApp();
+  const baseUrl = await listen(app);
+
+  try {
+    const response = await fetch(`${baseUrl}/api/conversations/missing/chat/stream`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ message: 'Find Dune' }),
+    });
+
+    assert.equal(response.status, 401);
+    assert.match(response.headers.get('content-type') ?? '', /^application\/json/);
+    assert.deepEqual(await response.json(), { error: 'authentication required' });
+  } finally {
+    await close(app);
+    db.close();
+  }
+});
+
+test('relays safe Hermes events and authoritative streamed completion state', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'movie-demo-server-'));
+  const db = openDatabase(join(directory, 'app.db'));
+  let userId = '';
+  let seenSessionKey = '';
+  const app = createApp({
+    db,
+    hermes: {
+      createSession: async () => 'movie_fixture',
+      getMessages: async () => [],
+      chat: async () => {
+        throw new Error('not used');
+      },
+      chatStream: async (sessionId, sessionKey, message, onEvent) => {
+        assert.equal(sessionId, 'movie_fixture');
+        assert.equal(message, 'Find Dune');
+        seenSessionKey = sessionKey;
+        onEvent({ type: 'assistant.delta', delta: 'Du' });
+        onEvent({ type: 'activity', active: true });
+        onEvent({ type: 'activity', active: false });
+        const attempt = createBookingAttempt(db, userId, {
+          conversationId: null,
+          status: 'pending_payment',
+          movie: 'Dune',
+          cinema: 'PVR Phoenix',
+          showTime: '2026-07-30T19:00:00+05:30',
+          showTarget: 'show-1',
+          formatId: 'imax',
+          contentId: 'dune-2',
+          seats: ['A1', 'A2'],
+          amountPaise: 80000,
+        });
+        recordDistrictBookingResult(db, userId, attempt.id, {
+          status: 'confirmed',
+          bookingId: 'DBX123456',
+        });
+        return {
+          object: 'hermes.session.chat.completion',
+          session_id: sessionId,
+          message: { role: 'assistant', content: 'Dune is playing.' },
+        };
+      },
+    },
+  });
+  const baseUrl = await listen(app);
+
+  try {
+    const cookie = await register(baseUrl, 'alice@example.com');
+    const bootstrap = await request(baseUrl, '/api/bootstrap', { cookie });
+    userId = bootstrap.body.user.id as string;
+    const conversation = await request(baseUrl, '/api/conversations', { method: 'POST', cookie });
+    const response = await fetch(
+      `${baseUrl}/api/conversations/${conversation.body.id as string}/chat/stream`,
+      {
+        method: 'POST',
+        headers: { cookie, 'content-type': 'application/json' },
+        body: JSON.stringify({ message: 'Find Dune' }),
+      },
+    );
+
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('content-type'), 'text/event-stream; charset=utf-8');
+    assert.equal(response.headers.get('cache-control'), 'no-cache');
+    assert.equal(response.headers.get('x-accel-buffering'), 'no');
+    const raw = await response.text();
+    assert.match(raw, /^: connected\n\n/);
+    const events = parseSse(raw);
+    assert.deepEqual(events.slice(0, 3), [
+      { event: 'assistant.delta', data: { delta: 'Du' } },
+      { event: 'activity', data: { active: true } },
+      { event: 'activity', data: { active: false } },
+    ]);
+    assert.equal(events.length, 4);
+    assert.equal(events[3].event, 'chat.completed');
+    assert.deepEqual(Object.keys(events[3].data).sort(), ['bookings', 'conversation', 'message']);
+    assert.deepEqual(events[3].data.message, { role: 'assistant', content: 'Dune is playing.' });
+    assert.equal(events[3].data.conversation.title, 'Find Dune');
+    assert.deepEqual(
+      events[3].data.bookings.map((booking: { status: string; districtBookingId: string }) => ({
+        status: booking.status,
+        districtBookingId: booking.districtBookingId,
+      })),
+      [{ status: 'confirmed', districtBookingId: 'DBX123456' }],
+    );
+    assert.equal(seenSessionKey, `movie-demo:user:${userId}`);
+  } finally {
+    await close(app);
+    db.close();
+  }
+});
+
+test('emits one safe stream error without finalizing a failed turn', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'movie-demo-server-'));
+  const db = openDatabase(join(directory, 'app.db'));
+  const app = createApp({
+    db,
+    hermes: {
+      createSession: async () => 'movie_fixture',
+      getMessages: async () => [],
+      chat: async () => {
+        throw new Error('not used');
+      },
+      chatStream: async () => {
+        throw new Error('upstream secret');
+      },
+    },
+  });
+  const baseUrl = await listen(app);
+
+  try {
+    const cookie = await register(baseUrl, 'alice@example.com');
+    const conversation = await request(baseUrl, '/api/conversations', { method: 'POST', cookie });
+    const response = await fetch(
+      `${baseUrl}/api/conversations/${conversation.body.id as string}/chat/stream`,
+      {
+        method: 'POST',
+        headers: { cookie, 'content-type': 'application/json' },
+        body: JSON.stringify({ message: 'Do not finalize this' }),
+      },
+    );
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(parseSse(await response.text()), [
+      { event: 'error', data: { error: 'Hermes request failed' } },
+    ]);
+    const bootstrap = await request(baseUrl, '/api/bootstrap', { cookie });
+    assert.equal(bootstrap.body.conversations[0].title, 'New chat');
+    assert.equal(bootstrap.body.conversations[0].updatedAt, conversation.body.updatedAt);
+  } finally {
+    await close(app);
+    db.close();
+  }
+});
+
+test('preserves the synchronous chat JSON response', async () => {
+  const { db, app } = testApp();
+  const baseUrl = await listen(app);
+
+  try {
+    const cookie = await register(baseUrl, 'alice@example.com');
+    const conversation = await request(baseUrl, '/api/conversations', { method: 'POST', cookie });
+    const chat = await request(baseUrl, `/api/conversations/${conversation.body.id as string}/chat`, {
+      method: 'POST',
+      cookie,
+      body: { message: 'Find Dune' },
+    });
+
+    assert.equal(chat.response.status, 200);
+    assert.deepEqual(Object.keys(chat.body).sort(), [
+      'bookings',
+      'conversation',
+      'message',
+      'object',
+      'session_id',
+    ]);
+    assert.equal(chat.body.object, 'hermes.session.chat.completion');
+    assert.equal(chat.body.session_id, 'movie_fixture');
+    assert.deepEqual(chat.body.message, { role: 'assistant', content: 'ok' });
+    assert.equal(chat.body.conversation.title, 'Find Dune');
+    assert.deepEqual(chat.body.bookings, []);
   } finally {
     await close(app);
     db.close();
@@ -534,6 +759,14 @@ test('returns 404 when a user requests another user conversation', async () => {
       body: { message: 'Find Dune' },
     });
     assert.equal(chat.response.status, 404);
+
+    const stream = await request(baseUrl, `/api/conversations/${conversationId}/chat/stream`, {
+      method: 'POST',
+      cookie: bobCookie,
+      body: { message: 'Find Dune' },
+    });
+    assert.equal(stream.response.status, 404);
+    assert.match(stream.response.headers.get('content-type') ?? '', /^application\/json/);
   } finally {
     await close(app);
     db.close();
@@ -606,6 +839,194 @@ test('serializes complete Hermes turns for one user', async () => {
   }
 });
 
+test('serializes same-user streaming turns through terminal completion', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'movie-demo-server-'));
+  const db = openDatabase(join(directory, 'app.db'));
+  let arrivals = 0;
+  let firstArrived!: () => void;
+  let releaseFirst!: () => void;
+  const arrived = new Promise<void>((resolve) => { firstArrived = resolve; });
+  const blocked = new Promise<void>((resolve) => { releaseFirst = resolve; });
+  const app = createApp({
+    db,
+    hermes: {
+      createSession: async () => 'movie_fixture',
+      getMessages: async () => [],
+      chat: async () => {
+        throw new Error('not used');
+      },
+      chatStream: async (sessionId, _sessionKey, message, onEvent) => {
+        arrivals += 1;
+        onEvent({ type: 'assistant.delta', delta: message });
+        if (arrivals === 1) {
+          firstArrived();
+          await blocked;
+        }
+        return {
+          object: 'hermes.session.chat.completion',
+          session_id: sessionId,
+          message: { role: 'assistant', content: `${message} complete` },
+        };
+      },
+    },
+  });
+  const baseUrl = await listen(app);
+
+  try {
+    const cookie = await register(baseUrl, 'alice@example.com');
+    const conversation = await request(baseUrl, '/api/conversations', { method: 'POST', cookie });
+    const path = `${baseUrl}/api/conversations/${conversation.body.id as string}/chat/stream`;
+    const firstResponse = await fetch(path, {
+      method: 'POST',
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({ message: 'first' }),
+    });
+    await within(arrived);
+    const secondResponsePromise = fetch(path, {
+      method: 'POST',
+      headers: { cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({ message: 'second' }),
+    });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(arrivals, 1);
+
+    releaseFirst();
+    const secondResponse = await secondResponsePromise;
+    const [firstEvents, secondEvents] = await Promise.all([
+      firstResponse.text().then(parseSse),
+      secondResponse.text().then(parseSse),
+    ]);
+    assert.equal(arrivals, 2);
+    assert.equal(firstEvents.at(-1)?.event, 'chat.completed');
+    assert.equal(firstEvents.at(-1)?.data.message.content, 'first complete');
+    assert.equal(secondEvents.at(-1)?.event, 'chat.completed');
+    assert.equal(secondEvents.at(-1)?.data.message.content, 'second complete');
+  } finally {
+    releaseFirst();
+    await close(app);
+    db.close();
+  }
+});
+
+test('continues accepted Hermes finalization after the streaming client disconnects', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'movie-demo-server-'));
+  const db = openDatabase(join(directory, 'app.db'));
+  let userId = '';
+  let conversationId = '';
+  let sessionNumber = 0;
+  let releaseStream!: () => void;
+  const blocked = new Promise<void>((resolve) => { releaseStream = resolve; });
+  const app = createApp({
+    db,
+    hermes: {
+      createSession: async () => `movie_fixture_${++sessionNumber}`,
+      getMessages: async () => [],
+      chat: async () => {
+        throw new Error('not used');
+      },
+      chatStream: async (sessionId, _sessionKey, _message, onEvent) => {
+        onEvent({ type: 'assistant.delta', delta: 'Du' });
+        await blocked;
+        const attempt = createBookingAttempt(db, userId, {
+          conversationId,
+          status: 'pending_payment',
+          movie: 'Dune',
+          cinema: 'PVR Phoenix',
+          showTime: '2026-07-30T19:00:00+05:30',
+          showTarget: 'show-1',
+          formatId: 'imax',
+          contentId: 'dune-2',
+          seats: ['A1', 'A2'],
+          amountPaise: 80000,
+        });
+        recordDistrictBookingResult(db, userId, attempt.id, {
+          status: 'confirmed',
+          bookingId: 'DBX123456',
+        });
+        return {
+          object: 'hermes.session.chat.completion',
+          session_id: sessionId,
+          message: { role: 'assistant', content: 'Dune is playing.' },
+        };
+      },
+    },
+  });
+  const baseUrl = await listen(app);
+
+  try {
+    const cookie = await register(baseUrl, 'alice@example.com');
+    const bootstrap = await request(baseUrl, '/api/bootstrap', { cookie });
+    userId = bootstrap.body.user.id as string;
+    const first = await request(baseUrl, '/api/conversations', { method: 'POST', cookie });
+    conversationId = first.body.id as string;
+    await new Promise<void>((resolve) => setTimeout(resolve, 2));
+    const second = await request(baseUrl, '/api/conversations', { method: 'POST', cookie });
+
+    await new Promise<void>((resolve, reject) => {
+      const body = JSON.stringify({ message: 'Find Dune' });
+      const outgoing = httpRequest(
+        new URL(`/api/conversations/${conversationId}/chat/stream`, baseUrl),
+        {
+          method: 'POST',
+          headers: {
+            cookie,
+            'content-type': 'application/json',
+            'content-length': Buffer.byteLength(body),
+          },
+        },
+        (incoming) => {
+          let raw = '';
+          incoming.setEncoding('utf8');
+          incoming.on('data', (chunk) => {
+            raw += chunk;
+            if (raw.includes('event: assistant.delta')) {
+              incoming.destroy();
+              outgoing.destroy();
+              resolve();
+            }
+          });
+          incoming.on('end', () => reject(new Error('stream ended before the first assistant delta')));
+        },
+      );
+      outgoing.on('error', (error: NodeJS.ErrnoException) => {
+        if (error.code === 'ECONNRESET') resolve();
+        else reject(error);
+      });
+      outgoing.end(body);
+    });
+
+    releaseStream();
+    const messages = await request(
+      baseUrl,
+      `/api/conversations/${conversationId}/messages`,
+      { cookie },
+    );
+    assert.equal(messages.response.status, 200);
+    const after = await request(baseUrl, '/api/bootstrap', { cookie });
+    assert.deepEqual(
+      after.body.conversations.map((conversation: { id: string; title: string }) => ({
+        id: conversation.id,
+        title: conversation.title,
+      })),
+      [
+        { id: conversationId, title: 'Find Dune' },
+        { id: second.body.id, title: 'New chat' },
+      ],
+    );
+    assert.deepEqual(
+      after.body.bookings.map((booking: { status: string; districtBookingId: string }) => ({
+        status: booking.status,
+        districtBookingId: booking.districtBookingId,
+      })),
+      [{ status: 'confirmed', districtBookingId: 'DBX123456' }],
+    );
+  } finally {
+    releaseStream();
+    await close(app);
+    db.close();
+  }
+});
+
 test('waits for a pending user turn before reading its completed transcript', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'movie-demo-server-'));
   const db = openDatabase(join(directory, 'app.db'));
@@ -637,6 +1058,9 @@ test('waits for a pending user turn before reading its completed transcript', as
           session_id: 'movie_fixture',
           message: transcript[1],
         };
+      },
+      chatStream: async () => {
+        throw new Error('not used');
       },
     },
   });

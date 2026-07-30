@@ -41,7 +41,7 @@ class HttpError extends Error {
 
 export interface AppOptions {
   db: DatabaseSync;
-  hermes: Pick<HermesClient, 'createSession' | 'getMessages' | 'chat'>;
+  hermes: Pick<HermesClient, 'createSession' | 'getMessages' | 'chat' | 'chatStream'>;
   userQueue?: PerUserQueue;
   secureCookies?: boolean;
 }
@@ -131,6 +131,27 @@ function preferencesInput(body: Record<string, unknown>): Preferences {
     formats: formats as string[],
     seatPosition,
     budgetPaise: budgetPaise as number,
+  };
+}
+
+function finalizeTurn(
+  db: DatabaseSync,
+  userId: string,
+  conversationId: string,
+  message: string,
+) {
+  if (findConversation(db, userId, conversationId)?.title === 'New chat') {
+    const title = message.replace(/\s+/gu, ' ').trim();
+    updateConversation(
+      db,
+      userId,
+      conversationId,
+      [...title].slice(0, 60).join('').trimEnd(),
+    );
+  }
+  return {
+    conversation: touchConversation(db, userId, conversationId),
+    bookings: listBookingAttempts(db, userId),
   };
 }
 
@@ -235,7 +256,7 @@ export function createApp({ db, hermes, userQueue = new PerUserQueue(), secureCo
         return;
       }
 
-      const conversationRoute = path.match(/^\/api\/conversations\/([^/]+)\/(messages|chat)$/);
+      const conversationRoute = path.match(/^\/api\/conversations\/([^/]+)\/(messages|chat(?:\/stream)?)$/);
       if (conversationRoute) {
         let conversationId: string;
         try {
@@ -265,23 +286,55 @@ export function createApp({ db, hermes, userQueue = new PerUserQueue(), secureCo
               `movie-demo:user:${user.id}`,
               body.message as string,
             );
-            if (findConversation(db, user.id, conversation.id)?.title === 'New chat') {
-              const title = (body.message as string).replace(/\s+/gu, ' ').trim();
-              updateConversation(
-                db,
-                user.id,
-                conversation.id,
-                [...title].slice(0, 60).join('').trimEnd(),
-              );
-            }
-            const updatedConversation = touchConversation(db, user.id, conversation.id);
             return {
               ...chat,
-              conversation: updatedConversation,
-              bookings: listBookingAttempts(db, user.id),
+              ...finalizeTurn(db, user.id, conversation.id, body.message as string),
             };
           });
           send(response, 200, result);
+          return;
+        }
+
+        if (method === 'POST' && conversationRoute[2] === 'chat/stream') {
+          const body = await readJson(request);
+          if (typeof body.message !== 'string' || !body.message.trim()) {
+            throw new HttpError(400, 'message is required');
+          }
+          response.writeHead(200, {
+            'content-type': 'text/event-stream; charset=utf-8',
+            'cache-control': 'no-cache',
+            connection: 'keep-alive',
+            'x-accel-buffering': 'no',
+          });
+          response.write(': connected\n\n');
+          const writeSse = (event: string, data: unknown): void => {
+            if (response.destroyed || response.writableEnded) return;
+            response.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+          };
+          try {
+            await userQueue.run(user.id, async () => {
+              const chat = await hermes.chatStream(
+                conversation.hermesSessionId,
+                `movie-demo:user:${user.id}`,
+                body.message as string,
+                (event) => {
+                  if (event.type === 'assistant.delta') {
+                    writeSse(event.type, { delta: event.delta });
+                  } else {
+                    writeSse(event.type, { active: event.active });
+                  }
+                },
+              );
+              writeSse('chat.completed', {
+                message: chat.message,
+                ...finalizeTurn(db, user.id, conversation.id, body.message as string),
+              });
+            });
+          } catch {
+            writeSse('error', { error: 'Hermes request failed' });
+          } finally {
+            response.end();
+          }
           return;
         }
       }
