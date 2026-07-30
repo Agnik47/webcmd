@@ -156,6 +156,23 @@ function finalizeTurn(
 }
 
 export function createApp({ db, hermes, userQueue = new PerUserQueue(), secureCookies = false }: AppOptions) {
+  const pendingTurns = new Map<string, number>();
+  const runTurn = async <T>(
+    userId: string,
+    conversationId: string,
+    task: () => Promise<T>,
+  ): Promise<T> => {
+    const key = `${userId}:${conversationId}`;
+    pendingTurns.set(key, (pendingTurns.get(key) ?? 0) + 1);
+    try {
+      return await userQueue.run(userId, task);
+    } finally {
+      const remaining = (pendingTurns.get(key) ?? 1) - 1;
+      if (remaining) pendingTurns.set(key, remaining);
+      else pendingTurns.delete(key);
+    }
+  };
+
   return createServer({ keepAliveTimeout: 620_000 }, async (request, response) => {
     try {
       const method = request.method ?? 'GET';
@@ -268,9 +285,10 @@ export function createApp({ db, hermes, userQueue = new PerUserQueue(), secureCo
         if (!conversation) throw new HttpError(404, 'not found');
 
         if (method === 'GET' && conversationRoute[2] === 'messages') {
-          send(response, 200, await userQueue.run(
-            user.id,
-            () => hermes.getMessages(conversation.hermesSessionId),
+          const readMessages = () => hermes.getMessages(conversation.hermesSessionId);
+          const turnKey = `${user.id}:${conversation.id}`;
+          send(response, 200, await (
+            pendingTurns.has(turnKey) ? userQueue.run(user.id, readMessages) : readMessages()
           ));
           return;
         }
@@ -280,7 +298,7 @@ export function createApp({ db, hermes, userQueue = new PerUserQueue(), secureCo
           if (typeof body.message !== 'string' || !body.message.trim()) {
             throw new HttpError(400, 'message is required');
           }
-          const result = await userQueue.run(user.id, async () => {
+          const result = await runTurn(user.id, conversation.id, async () => {
             const chat = await hermes.chat(
               conversation.hermesSessionId,
               `movie-demo:user:${user.id}`,
@@ -312,7 +330,7 @@ export function createApp({ db, hermes, userQueue = new PerUserQueue(), secureCo
             response.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
           };
           try {
-            await userQueue.run(user.id, async () => {
+            await runTurn(user.id, conversation.id, async () => {
               const chat = await hermes.chatStream(
                 conversation.hermesSessionId,
                 `movie-demo:user:${user.id}`,

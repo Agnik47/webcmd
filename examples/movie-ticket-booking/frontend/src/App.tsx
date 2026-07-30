@@ -524,7 +524,9 @@ function App() {
                 openMobilePanel('details', event.currentTarget)}
             >Details</Button>
           </header>
-          <Show when={appError()}><p class="banner error" role="alert">{appError()}</p></Show>
+          <div class="banner-slot">
+            <Show when={appError()}><p class="banner error" role="alert">{appError()}</p></Show>
+          </div>
           <p class="sr-only" role="status">{chatStatus()}</p>
           <ol ref={transcript} class="transcript" aria-label="Conversation transcript">
             <Show when={!transcriptPending()} fallback={<li class="transcript-loading">Loading conversation…</li>}>

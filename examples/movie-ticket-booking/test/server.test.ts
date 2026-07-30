@@ -1027,6 +1027,77 @@ test('continues accepted Hermes finalization after the streaming client disconne
   }
 });
 
+test('reads another conversation while a streamed turn remains pending', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'movie-demo-server-'));
+  const db = openDatabase(join(directory, 'app.db'));
+  let sessionNumber = 0;
+  let streamArrived!: () => void;
+  let releaseStream!: () => void;
+  const arrived = new Promise<void>((resolve) => { streamArrived = resolve; });
+  const blocked = new Promise<void>((resolve) => { releaseStream = resolve; });
+  const app = createApp({
+    db,
+    hermes: {
+      createSession: async () => `movie_fixture_${++sessionNumber}`,
+      getMessages: async (sessionId) => [
+        { role: 'assistant', content: `Transcript for ${sessionId}` },
+      ],
+      chat: async () => {
+        throw new Error('not used');
+      },
+      chatStream: async (sessionId) => {
+        streamArrived();
+        await blocked;
+        return {
+          object: 'hermes.session.chat.completion',
+          session_id: sessionId,
+          message: { role: 'assistant', content: 'Dune is playing.' },
+        };
+      },
+    },
+  });
+  const baseUrl = await listen(app);
+  let stream: Response | undefined;
+  let messagesRequest: ReturnType<typeof request> | undefined;
+
+  try {
+    const cookie = await register(baseUrl, 'alice@example.com');
+    const first = await request(baseUrl, '/api/conversations', { method: 'POST', cookie });
+    const second = await request(baseUrl, '/api/conversations', { method: 'POST', cookie });
+    stream = await fetch(
+      `${baseUrl}/api/conversations/${first.body.id as string}/chat/stream`,
+      {
+        method: 'POST',
+        headers: { cookie, 'content-type': 'application/json' },
+        body: JSON.stringify({ message: 'Find Dune' }),
+      },
+    );
+    await within(arrived);
+
+    messagesRequest = request(
+      baseUrl,
+      `/api/conversations/${second.body.id as string}/messages`,
+      { cookie },
+    );
+    const messages = await within(messagesRequest);
+    assert.equal(messages.response.status, 200);
+    assert.deepEqual(messages.body, [
+      { role: 'assistant', content: 'Transcript for movie_fixture_2' },
+    ]);
+
+    releaseStream();
+    assert.equal(parseSse(await stream.text()).at(-1)?.event, 'chat.completed');
+  } finally {
+    releaseStream();
+    await Promise.allSettled([
+      messagesRequest,
+      stream?.text(),
+    ]);
+    await close(app);
+    db.close();
+  }
+});
+
 test('waits for a pending user turn before reading its completed transcript', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'movie-demo-server-'));
   const db = openDatabase(join(directory, 'app.db'));

@@ -417,14 +417,24 @@ label {
   display: grid;
   min-width: 0;
   min-height: 0;
-  grid-template-rows: auto auto 1fr auto;
+  grid-template-areas:
+    "header"
+    "banner"
+    "transcript"
+    "composer";
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   background: var(--background-base);
 }
 
 .chat-header {
+  grid-area: header;
   min-height: 70px;
   padding: 0 28px;
   border-bottom: 1px solid var(--border-weak-base);
+}
+
+.banner-slot {
+  grid-area: banner;
 }
 
 .chat-header > div {
@@ -468,6 +478,7 @@ label {
 }
 
 .transcript {
+  grid-area: transcript;
   min-height: 0;
   padding: 34px max(28px, calc((100% - 780px) / 2));
   overflow-y: auto;
@@ -614,6 +625,7 @@ label {
 }
 
 .composer-wrap {
+  grid-area: composer;
   padding: 14px max(28px, calc((100% - 780px) / 2)) 18px;
   background: linear-gradient(to bottom, transparent, var(--background-base) 18%);
 }
@@ -761,6 +773,12 @@ label {
 }
 
 @media (max-width: 820px) {
+  button,
+  input,
+  textarea {
+    min-height: 44px;
+  }
+
   .mobile-only {
     display: inline-flex;
   }
