@@ -161,7 +161,7 @@ export class CloakSessionManager {
         // freshPage must never adopt a leftover tab — its whole point is a clean DOM.
         return !freshPage && existingPages[0] && candidate.pages.size === 0
           ? existingPages[0]
-          : candidate.context.newPage();
+          : this.createPage(candidate.context, input.windowMode);
       },
       (candidate, page) => {
         const pageId = nextPageId();
@@ -238,7 +238,7 @@ export class CloakSessionManager {
     const acquired = await this.createPageWithRecovery(
       profileId,
       input.windowMode,
-      (candidate) => candidate.context.newPage(),
+      (candidate) => this.createPage(candidate.context, input.windowMode),
       (runtime, page) => ({ runtime, page }),
     );
     if (input.url) {
@@ -439,6 +439,27 @@ export class CloakSessionManager {
       throw new Error('Target page, context or browser has been closed');
     }
     return commitPage(runtime, page);
+  }
+
+  private async createPage(context: BrowserContext, windowMode?: BrowserWindowMode): Promise<PlaywrightPage> {
+    if (windowMode !== 'background') return context.newPage();
+
+    const browser = context.browser();
+    if (!browser) throw new Error('Background page creation requires a Chromium browser connection.');
+    const cdp = await browser.newBrowserCDPSession();
+    try {
+      const [page] = await Promise.all([
+        context.waitForEvent('page'),
+        cdp.send('Target.createTarget', {
+          url: 'about:blank',
+          background: true,
+          focus: false,
+        }),
+      ]);
+      return page;
+    } finally {
+      await cdp.detach().catch(() => {});
+    }
   }
 
   private openEntries(runtime: ProfileRuntime): [string, PageEntry][] {
