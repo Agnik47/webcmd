@@ -6,7 +6,7 @@ import { dispatchCloakAction } from './actions.js';
 
 function fakeContext() {
   const listeners = new Map<string, Set<(...args: unknown[]) => void>>();
-  const page = {
+  const fakePage = () => ({
     goto: vi.fn().mockResolvedValue(undefined),
     evaluate: vi.fn().mockResolvedValue('ok'),
     title: vi.fn().mockResolvedValue('Title'),
@@ -14,14 +14,19 @@ function fakeContext() {
     screenshot: vi.fn().mockResolvedValue(Buffer.from('png')),
     isClosed: vi.fn().mockReturnValue(false),
     close: vi.fn().mockResolvedValue(undefined),
-  };
-  const backgroundPage = { ...page };
+  });
+  const page = fakePage();
+  const backgroundPages: ReturnType<typeof fakePage>[] = [];
   const emit = (event: string, ...args: unknown[]) => {
     for (const listener of listeners.get(event) ?? []) listener(...args);
   };
   const cdp = {
     send: vi.fn(async (command: string) => {
-      if (command === 'Target.createTarget') queueMicrotask(() => emit('page', backgroundPage));
+      if (command === 'Target.createTarget') {
+        const backgroundPage = fakePage();
+        backgroundPages.push(backgroundPage);
+        queueMicrotask(() => emit('page', backgroundPage));
+      }
     }),
     detach: vi.fn().mockResolvedValue(undefined),
   };
@@ -43,6 +48,7 @@ function fakeContext() {
       close: vi.fn().mockResolvedValue(undefined),
     },
     page,
+    backgroundPages,
     cdp,
   };
 }
@@ -176,6 +182,32 @@ describe('CloakSessionManager', () => {
 
     expect(launched.context.newPage).toHaveBeenCalledOnce();
     expect(launched.cdp.send).not.toHaveBeenCalled();
+  });
+
+  it('gives concurrent background tabs distinct pages', async () => {
+    const launched = fakeContext();
+    const manager = new CloakSessionManager({
+      baseDir: '/tmp/webcmd-test',
+      launchPersistentContext: vi.fn().mockResolvedValue(launched.context),
+    });
+
+    await manager.getPage({ profileId: 'default', session: 'warm', surface: 'browser' });
+    const firstRequest = manager.newPage({
+      profileId: 'default',
+      session: 'first',
+      surface: 'browser',
+      windowMode: 'background',
+    });
+    const secondRequest = manager.newPage({
+      profileId: 'default',
+      session: 'second',
+      surface: 'browser',
+      windowMode: 'background',
+    });
+    const [first, second] = await Promise.all([firstRequest, secondRequest]);
+
+    expect(first.page).not.toBe(second.page);
+    expect(launched.backgroundPages).toEqual([first.page, second.page]);
   });
 
   it('coalesces concurrent persistent context launches for the same profile', async () => {

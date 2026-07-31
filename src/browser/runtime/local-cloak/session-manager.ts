@@ -109,6 +109,7 @@ export class CloakSessionManager {
   private readonly recoverLockedProfile: RecoverLockedProfile;
   private readonly profiles = new Map<string, ProfileRuntime>();
   private readonly profileLaunches = new Map<string, Promise<ProfileRuntime>>();
+  private readonly pageCreationQueues = new Map<string, Promise<void>>();
 
   constructor(private readonly opts: CloakSessionManagerOptions = {}) {
     this.launchPersistentContext = opts.launchPersistentContext ?? cloakLaunchPersistentContext;
@@ -423,6 +424,20 @@ export class CloakSessionManager {
     windowMode: BrowserWindowMode | undefined,
     createPage: (runtime: ProfileRuntime) => PlaywrightPage | Promise<PlaywrightPage>,
     commitPage: (runtime: ProfileRuntime, page: PlaywrightPage) => T,
+  ): Promise<T> {
+    return this.withPageCreationLock(profileId, () => this.createPageWithRecoveryAttempt(
+      profileId,
+      windowMode,
+      createPage,
+      commitPage,
+    ));
+  }
+
+  private async createPageWithRecoveryAttempt<T>(
+    profileId: string,
+    windowMode: BrowserWindowMode | undefined,
+    createPage: (runtime: ProfileRuntime) => PlaywrightPage | Promise<PlaywrightPage>,
+    commitPage: (runtime: ProfileRuntime, page: PlaywrightPage) => T,
     attempt = 0,
   ): Promise<T> {
     const runtime = await this.getProfileRuntime(profileId, windowMode);
@@ -432,13 +447,30 @@ export class CloakSessionManager {
     } catch (error) {
       if (attempt !== 0 || !isClosedContextError(error)) throw error;
       this.invalidateProfileRuntime(profileId, runtime);
-      return this.createPageWithRecovery(profileId, windowMode, createPage, commitPage, 1);
+      return this.createPageWithRecoveryAttempt(profileId, windowMode, createPage, commitPage, 1);
     }
     if (this.profiles.get(profileId) !== runtime) {
       if (!pageIsClosed(page)) await page.close().catch(() => {});
       throw new Error('Target page, context or browser has been closed');
     }
     return commitPage(runtime, page);
+  }
+
+  private async withPageCreationLock<T>(profileId: string, operation: () => Promise<T>): Promise<T> {
+    const previous = this.pageCreationQueues.get(profileId) ?? Promise.resolve();
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const queue = previous.then(() => released);
+    this.pageCreationQueues.set(profileId, queue);
+    await previous;
+    try {
+      return await operation();
+    } finally {
+      release();
+      if (this.pageCreationQueues.get(profileId) === queue) this.pageCreationQueues.delete(profileId);
+    }
   }
 
   private async createPage(context: BrowserContext, windowMode?: BrowserWindowMode): Promise<PlaywrightPage> {
