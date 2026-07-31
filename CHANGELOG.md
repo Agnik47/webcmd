@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.5.2](https://github.com/agentrhq/webcmd/compare/webcmd-v0.5.1...webcmd-v0.5.2) (2026-07-31)
+
+
+### Bug Fixes
+
+* coalesce concurrent page leases ([e7e5e04](https://github.com/agentrhq/webcmd/commit/e7e5e0416570307644a249bde8fd84af66e53de8))
+* keep background tabs from stealing focus ([eabcd7d](https://github.com/agentrhq/webcmd/commit/eabcd7d8af3dc3c8318a9fd15b06d190d6eff688))
+* keep background tabs from stealing focus ([4e0fc60](https://github.com/agentrhq/webcmd/commit/4e0fc60bb555b1e0cf26f039d4340a8ec4926a4f))
+* serialize background page creation ([b1bf977](https://github.com/agentrhq/webcmd/commit/b1bf9775a5756a0aa2010716158b88be67d8ef84))
+
 ## [0.5.1](https://github.com/agentrhq/webcmd/compare/webcmd-v0.5.0...webcmd-v0.5.1) (2026-07-30)
 
 ### Adapters
