@@ -5,8 +5,8 @@ import { CloakSessionManager } from './session-manager.js';
 import { dispatchCloakAction } from './actions.js';
 
 function fakeContext() {
-  const listeners = new Map<string, Set<() => void>>();
-  const page = {
+  const listeners = new Map<string, Set<(...args: unknown[]) => void>>();
+  const fakePage = () => ({
     goto: vi.fn().mockResolvedValue(undefined),
     evaluate: vi.fn().mockResolvedValue('ok'),
     title: vi.fn().mockResolvedValue('Title'),
@@ -14,23 +14,42 @@ function fakeContext() {
     screenshot: vi.fn().mockResolvedValue(Buffer.from('png')),
     isClosed: vi.fn().mockReturnValue(false),
     close: vi.fn().mockResolvedValue(undefined),
+  });
+  const page = fakePage();
+  const backgroundPages: ReturnType<typeof fakePage>[] = [];
+  const emit = (event: string, ...args: unknown[]) => {
+    for (const listener of listeners.get(event) ?? []) listener(...args);
+  };
+  const cdp = {
+    send: vi.fn(async (command: string) => {
+      if (command === 'Target.createTarget') {
+        const backgroundPage = fakePage();
+        backgroundPages.push(backgroundPage);
+        queueMicrotask(() => emit('page', backgroundPage));
+      }
+    }),
+    detach: vi.fn().mockResolvedValue(undefined),
   };
   return {
     context: {
-      on(event: string, listener: () => void) {
+      on(event: string, listener: (...args: unknown[]) => void) {
         const bucket = listeners.get(event) ?? new Set();
         bucket.add(listener);
         listeners.set(event, bucket);
       },
-      emit(event: string) {
-        for (const listener of listeners.get(event) ?? []) listener();
+      emit,
+      waitForEvent(event: string) {
+        return new Promise((resolve) => this.on(event, resolve));
       },
       pages: vi.fn().mockReturnValue([page]),
       newPage: vi.fn().mockResolvedValue(page),
+      browser: vi.fn().mockReturnValue({ newBrowserCDPSession: vi.fn().mockResolvedValue(cdp) }),
       cookies: vi.fn().mockResolvedValue([{ name: 'sid', value: '1', domain: 'example.com', path: '/' }]),
       close: vi.fn().mockResolvedValue(undefined),
     },
     page,
+    backgroundPages,
+    cdp,
   };
 }
 
@@ -101,8 +120,99 @@ describe('CloakSessionManager', () => {
     expect(activateBackgroundContext).toHaveBeenCalledWith(launched.context);
   });
 
-  it('coalesces concurrent persistent context launches for the same profile', async () => {
+  it('creates a warm background lease tab without focusing Chromium', async () => {
     const launched = fakeContext();
+    const manager = new CloakSessionManager({
+      baseDir: '/tmp/webcmd-test',
+      launchPersistentContext: vi.fn().mockResolvedValue(launched.context),
+    });
+
+    await manager.getPage({ profileId: 'default', session: 'first', surface: 'adapter' });
+    await manager.getPage({
+      profileId: 'default',
+      session: 'second',
+      surface: 'adapter',
+      windowMode: 'background',
+    });
+
+    expect(launched.cdp.send).toHaveBeenCalledWith('Target.createTarget', {
+      url: 'about:blank',
+      background: true,
+      focus: false,
+    });
+    expect(launched.context.newPage).not.toHaveBeenCalled();
+  });
+
+  it('creates an explicit background tab without focusing Chromium', async () => {
+    const launched = fakeContext();
+    const manager = new CloakSessionManager({
+      baseDir: '/tmp/webcmd-test',
+      launchPersistentContext: vi.fn().mockResolvedValue(launched.context),
+    });
+
+    await manager.getPage({ profileId: 'default', session: 'first', surface: 'browser' });
+    await manager.newPage({
+      profileId: 'default',
+      session: 'background',
+      surface: 'browser',
+      windowMode: 'background',
+    });
+
+    expect(launched.cdp.send).toHaveBeenCalledWith('Target.createTarget', {
+      url: 'about:blank',
+      background: true,
+      focus: false,
+    });
+    expect(launched.context.newPage).not.toHaveBeenCalled();
+  });
+
+  it('creates an explicit foreground tab through Playwright', async () => {
+    const launched = fakeContext();
+    const manager = new CloakSessionManager({
+      baseDir: '/tmp/webcmd-test',
+      launchPersistentContext: vi.fn().mockResolvedValue(launched.context),
+    });
+
+    await manager.newPage({
+      profileId: 'default',
+      session: 'foreground',
+      surface: 'browser',
+      windowMode: 'foreground',
+    });
+
+    expect(launched.context.newPage).toHaveBeenCalledOnce();
+    expect(launched.cdp.send).not.toHaveBeenCalled();
+  });
+
+  it('gives concurrent background tabs distinct pages', async () => {
+    const launched = fakeContext();
+    const manager = new CloakSessionManager({
+      baseDir: '/tmp/webcmd-test',
+      launchPersistentContext: vi.fn().mockResolvedValue(launched.context),
+    });
+
+    await manager.getPage({ profileId: 'default', session: 'warm', surface: 'browser' });
+    const firstRequest = manager.newPage({
+      profileId: 'default',
+      session: 'first',
+      surface: 'browser',
+      windowMode: 'background',
+    });
+    const secondRequest = manager.newPage({
+      profileId: 'default',
+      session: 'second',
+      surface: 'browser',
+      windowMode: 'background',
+    });
+    const [first, second] = await Promise.all([firstRequest, secondRequest]);
+
+    expect(first.page).not.toBe(second.page);
+    expect(launched.backgroundPages).toEqual([first.page, second.page]);
+  });
+
+  it('coalesces concurrent same-lease page acquisition', async () => {
+    const launched = fakeContext();
+    launched.context.newPage.mockResolvedValue(fakeContext().page);
     let resolveLaunch!: (context: BrowserContext) => void;
     const launchPersistentContext = vi.fn(() => new Promise<BrowserContext>((resolve) => {
       resolveLaunch = resolve;
@@ -123,6 +233,9 @@ describe('CloakSessionManager', () => {
     expect(first.context).toBe(launched.context);
     expect(second.context).toBe(launched.context);
     expect(first.page).toBe(second.page);
+    expect(first.pageId).toBe(second.pageId);
+    expect(launched.context.newPage).not.toHaveBeenCalled();
+    expect(launched.cdp.send).not.toHaveBeenCalled();
   });
 
   it('evicts a closed runtime and clears every tracked page resource', async () => {
