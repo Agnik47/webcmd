@@ -138,42 +138,44 @@ export class CloakSessionManager {
     const session = requireSession(input.session);
     const surface = normalizeSurface(input.surface);
     const leaseKey = resolveLeaseKey(input);
-    const runtime = await this.getProfileRuntime(profileId, input.windowMode);
     const freshPage = input.freshPage === true;
-    const existing = runtime.pages.get(leaseKey);
-    if (existing && !pageIsClosed(existing.page) && !freshPage) {
-      runtime.lastSeenAt = Date.now();
-      existing.idleTimeout = input.idleTimeout;
-      this.refreshIdleTimer(runtime, leaseKey, existing);
-      return { profileId, leaseKey, context: runtime.context, page: existing.page, pageId: existing.pageId };
-    }
-    if (existing && freshPage) {
-      runtime.pages.delete(leaseKey);
-      this.clearIdleTimer(existing);
-      if (runtime.selectedPageId === existing.pageId) runtime.selectedPageId = undefined;
-      if (!pageIsClosed(existing.page)) await existing.page.close().catch(() => {});
-    }
+    return this.withPageCreationLock(profileId, async () => {
+      const runtime = await this.getProfileRuntime(profileId, input.windowMode);
+      const existing = runtime.pages.get(leaseKey);
+      if (existing && !pageIsClosed(existing.page) && !freshPage) {
+        runtime.lastSeenAt = Date.now();
+        existing.idleTimeout = input.idleTimeout;
+        this.refreshIdleTimer(runtime, leaseKey, existing);
+        return { profileId, leaseKey, context: runtime.context, page: existing.page, pageId: existing.pageId };
+      }
+      if (existing && freshPage) {
+        runtime.pages.delete(leaseKey);
+        this.clearIdleTimer(existing);
+        if (runtime.selectedPageId === existing.pageId) runtime.selectedPageId = undefined;
+        if (!pageIsClosed(existing.page)) await existing.page.close().catch(() => {});
+      }
 
-    return this.createPageWithRecovery(
-      profileId,
-      input.windowMode,
-      (candidate) => {
-        const existingPages = candidate.context.pages();
-        // freshPage must never adopt a leftover tab — its whole point is a clean DOM.
-        return !freshPage && existingPages[0] && candidate.pages.size === 0
-          ? existingPages[0]
-          : this.createPage(candidate.context, input.windowMode);
-      },
-      (candidate, page) => {
-        const pageId = nextPageId();
-        const entry: PageEntry = { page, pageId, session, surface, siteSession: input.siteSession, idleTimeout: input.idleTimeout };
-        candidate.pages.set(leaseKey, entry);
-        this.refreshIdleTimer(candidate, leaseKey, entry);
-        candidate.selectedPageId = pageId;
-        candidate.lastSeenAt = Date.now();
-        return { profileId, leaseKey, context: candidate.context, page, pageId };
-      },
-    );
+      return this.createPageWithRecoveryAttempt(
+        profileId,
+        input.windowMode,
+        (candidate) => {
+          const existingPages = candidate.context.pages();
+          // freshPage must never adopt a leftover tab — its whole point is a clean DOM.
+          return !freshPage && existingPages[0] && candidate.pages.size === 0
+            ? existingPages[0]
+            : this.createPage(candidate.context, input.windowMode);
+        },
+        (candidate, page) => {
+          const pageId = nextPageId();
+          const entry: PageEntry = { page, pageId, session, surface, siteSession: input.siteSession, idleTimeout: input.idleTimeout };
+          candidate.pages.set(leaseKey, entry);
+          this.refreshIdleTimer(candidate, leaseKey, entry);
+          candidate.selectedPageId = pageId;
+          candidate.lastSeenAt = Date.now();
+          return { profileId, leaseKey, context: candidate.context, page, pageId };
+        },
+      );
+    });
   }
 
   findPageById(pageId: string, opts: Pick<SessionKeyInput, 'idleTimeout'> = {}): CloakPageLease | null {

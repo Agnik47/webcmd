@@ -210,8 +210,9 @@ describe('CloakSessionManager', () => {
     expect(launched.backgroundPages).toEqual([first.page, second.page]);
   });
 
-  it('coalesces concurrent persistent context launches for the same profile', async () => {
+  it('coalesces concurrent same-lease page acquisition', async () => {
     const launched = fakeContext();
+    launched.context.newPage.mockResolvedValue(fakeContext().page);
     let resolveLaunch!: (context: BrowserContext) => void;
     const launchPersistentContext = vi.fn(() => new Promise<BrowserContext>((resolve) => {
       resolveLaunch = resolve;
@@ -232,6 +233,9 @@ describe('CloakSessionManager', () => {
     expect(first.context).toBe(launched.context);
     expect(second.context).toBe(launched.context);
     expect(first.page).toBe(second.page);
+    expect(first.pageId).toBe(second.pageId);
+    expect(launched.context.newPage).not.toHaveBeenCalled();
+    expect(launched.cdp.send).not.toHaveBeenCalled();
   });
 
   it('evicts a closed runtime and clears every tracked page resource', async () => {
