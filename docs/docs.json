@@ -43,6 +43,7 @@
             "pages": [
               "index",
               "quickstart",
+              "agent-setup",
               "agent-prompts"
             ]
           },
