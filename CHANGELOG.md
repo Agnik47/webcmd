@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.3](https://github.com/agentrhq/webcmd/compare/webcmd-v0.5.2...webcmd-v0.5.3) (2026-08-03)
+
+### Fixes
+- Pin the local Cloak browser runtime to `0.3.32`, the last non-Pro Cloak line.
+
+### Contributors
+[@beubax](https://github.com/beubax)
+
 ## [0.5.2](https://github.com/agentrhq/webcmd/compare/webcmd-v0.5.1...webcmd-v0.5.2) (2026-07-31)
 
 ### Improvements
