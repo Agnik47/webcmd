@@ -237,6 +237,23 @@ function pageTitle(html) {
   return text(html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i)?.[1] || '');
 }
 
+function detailSections(html) {
+  const sections = [];
+  for (const match of html.matchAll(/<div class="foldable-text-teaser">([\s\S]*?)<\/article>\s*<\/div>/gi)) {
+    const header = text(match[1].match(/<h[2-4]\b[^>]*content__wrapper__header[^>]*>([\s\S]*?)<\/h[2-4]>/i)?.[1] || '');
+    const body = text(match[1].match(/<div\b[^>]*content__foldable-text__content[^>]*>([\s\S]*?)<\/div>/i)?.[1] || '');
+    if (header && body) sections.push({ header, body });
+  }
+  return sections;
+}
+
+function entryRequirements(html) {
+  const picked = detailSections(html)
+    .filter(({ header }) => /zulassung|voraussetzung|admission|requirement/i.test(header))
+    .map(({ header, body }) => `${header}: ${body}`);
+  return picked.join(' | ');
+}
+
 function monthsFromDuration(value = '') {
   const fullTime = value.match(/(\d+(?:[.,]\d+)?)\s*Semester/i)?.[1];
   return fullTime ? String(Number(fullTime.replace(',', '.')) * 6) : '';
@@ -272,6 +289,7 @@ async function enrichCourse(course) {
       duration: monthsFromDuration(facts.regelstudienzeit || ''),
       studyOption: facts.regelstudienzeit || '',
       application,
+      entryRequirements: entryRequirements(html),
       intake: intakeFromApplication(application),
       isReplaced: isReplacedLegacyCourse(course, application),
       detailError: '',
@@ -284,6 +302,7 @@ async function enrichCourse(course) {
       duration: '',
       studyOption: '',
       application: '',
+      entryRequirements: '',
       intake: '',
       isReplaced: false,
       detailError: error.message,
@@ -326,7 +345,7 @@ function normalizeRecord(course) {
   row['IELTS \n(Overall & Subscores)'] = isEnglishTaught(course)
     ? 'Not available as a single value on official programme page'
     : 'Not applicable; programme is taught in German';
-  row['Main Entry \nRequirements'] = course.application;
+  row['Main Entry \nRequirements'] = course.entryRequirements || 'Not available on official HFT programme page';
   row['Status'] = 'Official listing active';
   row['Intake status(open/close)\n(eg: Fall (september)-Open\nSpring(January)- Closed)'] = course.application;
   row['Remarks (if any)'] = [...remarks, 'Application fees, score thresholds, waivers, and MOI acceptance are not available in the official shared or programme pages.'].join(' | ');

@@ -13,6 +13,8 @@ const REQUIREMENTS = 'https://www.admissions.uc.edu/apply/graduate/requirements.
 const GRAD_ADMISSION = 'https://www.admissions.uc.edu/apply/graduate.html';
 const DEGREE_LEVELS = new Set(['all', 'masters', 'certificate', 'diploma', 'professional', 'doctorate']);
 const REQUEST_TIMEOUT_MS = 25000;
+const DETAIL_CONCURRENCY = 10;
+const UC_ENGLISH_WAIVER_COUNTRIES = 'Anguilla | Antigua and Barbuda | Australia | Bahamas | Barbados | Belize | Bermuda | Botswana | Cameroon | Canada (except Quebec) | Cayman Islands | Denmark | Dominica | Fiji | Finland | Gambia | Ghana | Gibraltar | Grenada | Guyana | Ireland | Jamaica | Kenya | Lesotho | Liberia | Malawi | Malta | Mauritius | Montserrat | Namibia | Netherlands | New Zealand | Nigeria | Norway | Papua New Guinea | Rwanda | Scotland | Seychelles | Sierra Leone | Singapore | Solomon Islands | South Africa | St. Kitts and Nevis | St. Lucia | St. Vincent and the Grenadines | Swaziland | Sweden | Tanzania | Tonga | Trinidad and Tobago | Turks and Caicos Islands | Uganda | United States | United Kingdom | Vanuatu | Virgin Islands | Wales | Zambia | Zimbabwe';
 
 const COLUMNS = [
   'Course Name',
@@ -151,6 +153,30 @@ function applicationFee(program) {
   return 'USD 65 domestic / USD 70 international for most graduate degree programs';
 }
 
+async function fetchText(url, marker = '') {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Webcmd Cincinnati public data export)' },
+      redirect: 'follow',
+      signal: controller.signal,
+    });
+    const contentType = response.headers.get('content-type') || '';
+    if (!response.ok || !contentType.includes('text/html')) {
+      throw new CommandExecutionError(`UC page request failed for ${url}: HTTP ${response.status}, ${contentType || 'unknown content type'}`);
+    }
+    const html = await response.text();
+    if (marker && !html.includes(marker)) throw new CommandExecutionError(`UC page structure changed for ${url}: missing ${marker}`);
+    return { html, finalUrl: response.url };
+  } catch (error) {
+    if (error instanceof CommandExecutionError) throw error;
+    throw new CommandExecutionError(`UC page request failed for ${url}: ${error.message}`);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function fetchPrograms() {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -177,24 +203,144 @@ async function fetchPrograms() {
   }
 }
 
+function absoluteUcUrl(value, baseUrl) {
+  try {
+    return canonicalUrl(new URL(decodeHtml(value), baseUrl).href);
+  } catch {
+    return '';
+  }
+}
+
+function linksFrom(html, baseUrl) {
+  return [...String(html).matchAll(/<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)]
+    .map((match) => ({ url: absoluteUcUrl(match[1], baseUrl), label: text(match[2]) }))
+    .filter((link) => link.url && link.label);
+}
+
+function blocks(html) {
+  return decodeHtml(String(html)
+    .replace(/<h([1-6])\b[^>]*>([\s\S]*?)<\/h\1>/gi, (_, level, content) => `\n\n@@H${level} ${text(content)}\n`)
+    .replace(/<li\b[^>]*>/gi, '\n- ')
+    .replace(/<\/(?:p|div|section|tr|table)>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' '))
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n[ \t]+/g, '\n')
+    .trim();
+}
+
+function sectionFrom(blockText, headingPattern) {
+  const lines = blockText.split(/\n+/).map((line) => line.trim()).filter(Boolean);
+  const start = lines.findIndex((line) => /^@@H[1-6]\s+/.test(line) && headingPattern.test(line.replace(/^@@H[1-6]\s+/, '')));
+  if (start < 0) return '';
+  const section = [];
+  for (const line of lines.slice(start + 1)) {
+    if (/^@@H[1-6]\s+/.test(line)) break;
+    section.push(line);
+  }
+  return section.join(' | ').replace(/\s+/g, ' ').trim();
+}
+
+function firstMatch(value, pattern) {
+  return String(value || '').match(pattern)?.[0]?.trim() || '';
+}
+
+function programSpecificEnglish(sourceText) {
+  const t = String(sourceText || '');
+  return {
+    ielts: firstMatch(t, /IELTS:?\s*(?:minimum score of\s*)?6\.5 overall band/i),
+    toefl: firstMatch(t, /TOEFL:?\s*(?:minimum score of\s*)?4\.5 \(on the 1-6 scale\) or 80 iBT \(on the 0-120 scale\)/i),
+    pte: firstMatch(t, /PTE:?\s*(?:minimum score of\s*)?54/i),
+    duolingo: firstMatch(t, /Duolingo \(DET\):?\s*(?:minimum score of\s*)?110/i),
+  };
+}
+
+function programSpecificFees(sourceText) {
+  const fees = String(sourceText || '').split('|')
+    .map((line) => line.replace(/^-\s*/, '').replace(/\s+/g, ' ').trim())
+    .filter((line) => /(?:application fee|matriculation fee)/i.test(line) && /\$[0-9]/.test(line));
+  return [...new Set(fees)].join(' | ');
+}
+
+function deadlineSummary(sourceText) {
+  const textValue = String(sourceText || '');
+  const rows = [...textValue.matchAll(/(Spring|Summer|Fall)\s+20\d{2}\s+\|\s+[^|]+\|\s+[^|]+\|\s+[^|]+/gi)]
+    .map((match) => match[0].replace(/\s+/g, ' ').trim());
+  return rows.slice(0, 4).join(' | ');
+}
+
+function admissionLinkFor(html, detailUrl) {
+  const detail = new URL(detailUrl);
+  const detailDir = detail.pathname.replace(/\/[^/]*$/, '/');
+  const candidates = linksFrom(html, detailUrl)
+    .filter((link) => /admission|deadline|requirement/i.test(link.label) && !/apply$/i.test(link.label))
+    .map((link) => ({
+      ...link,
+      score:
+        (new URL(link.url).pathname.startsWith(detailDir) ? 10 : 0)
+        + (/learn about admissions|view application deadlines/i.test(link.label) ? 5 : 0)
+        + (/admissions?\.html$/i.test(link.url) ? 2 : 0),
+    }))
+    .sort((a, b) => b.score - a.score);
+  return candidates[0];
+}
+
+async function enrichProgram(program) {
+  const detailUrl = canonicalUrl(program.learnMorePath);
+  if (!detailUrl) return { ...program, detailUrl: '', admissionUrl: '', detailText: '', admissionText: '', detailError: 'Missing official program detail URL' };
+  try {
+    const detail = await fetchText(detailUrl, '<h1');
+    const finalDetailUrl = canonicalUrl(detail.finalUrl) || detailUrl;
+    const detailBlock = blocks(detail.html);
+    const admissionLink = admissionLinkFor(detail.html, finalDetailUrl);
+    let admissionUrl = admissionLink?.url || '';
+    let admissionBlock = '';
+    if (admissionUrl) {
+      const admission = await fetchText(admissionUrl, '<h1');
+      admissionUrl = canonicalUrl(admission.finalUrl) || admissionUrl;
+      admissionBlock = blocks(admission.html);
+    }
+    return { ...program, detailUrl: finalDetailUrl, admissionUrl, detailText: detailBlock, admissionText: admissionBlock, detailError: '' };
+  } catch (error) {
+    return { ...program, detailUrl, admissionUrl: '', detailText: '', admissionText: '', detailError: error.message };
+  }
+}
+
+async function enrichPrograms(programs) {
+  const rows = [];
+  for (let index = 0; index < programs.length; index += DETAIL_CONCURRENCY) {
+    rows.push(...await Promise.all(programs.slice(index, index + DETAIL_CONCURRENCY).map(enrichProgram)));
+  }
+  return rows;
+}
+
 function normalizeRecord(program) {
   const row = Object.fromEntries(COLUMNS.map((column) => [column, '']));
-  const url = canonicalUrl(program.learnMorePath);
+  const url = program.detailUrl || canonicalUrl(program.learnMorePath);
   const interestAreas = (program.generalInterestAreas || []).map((area) => area.name).filter(Boolean);
   const degree = [program.degreeBucket, program.degree ? `(${program.degree})` : ''].filter(Boolean).join(' ');
+  const admissionRequirements = sectionFrom(program.admissionText, /^Admission Requirements$/i);
+  const applicationProcess = sectionFrom(program.admissionText, /^Application Process$/i);
+  const deadlines = sectionFrom(program.admissionText, /^Application Deadlines$/i);
+  const combinedAdmissionText = [program.admissionText, program.detailText].filter(Boolean).join(' | ');
+  const english = programSpecificEnglish(combinedAdmissionText);
+  const feeDetails = programSpecificFees(combinedAdmissionText);
   const references = [
     `Course: ${url}`,
+    program.admissionUrl ? `Program admissions/deadlines: ${program.admissionUrl}` : '',
     `Graduate Program Finder: ${PROGRAM_FINDER}`,
     `Program JSON: ${PROGRAM_JSON}`,
     `Graduate Admission: ${GRAD_ADMISSION}`,
     `Graduate Requirements: ${REQUIREMENTS}`,
-  ];
+  ].filter(Boolean);
 
   row['Course Name'] = text(program.planDescription);
   row['Course URL'] = url;
   row['University \nname'] = UNIVERSITY;
   row['Substream/\nSpecialisation'] = interestAreas.join(' | ');
-  row['App fees'] = applicationFee(program);
+  row['App fees'] = feeDetails || applicationFee(program);
   row['Degree Level'] = degree;
   row['Study Level'] = 'PG';
   row['Duration\n(in months)'] = durationMonths(program.duration, program.durationUnit);
@@ -202,24 +348,25 @@ function normalizeRecord(program) {
   row['Program Type'] = text(program.organizationDescription);
   row['Tution fees \n(per year)'] = 'Not available as a single value in official UC program data';
   row['Total Tution \nFees'] = 'Not available as an official total in UC program data';
-  row['IELTS \n(Overall & Subscores)'] = '6.5 overall band';
-  row['TOEFL\n(Overall & Subscores)'] = '80 iBT or 4.5 on TOEFL 1-6 scale';
-  row['PTE\n(Overall & Subscores)'] = '54';
-  row['Duolingo\n(Overall & Subscores)'] = '110';
+  row['IELTS \n(Overall & Subscores)'] = english.ielts || 'UC minimum: IELTS 6.5 overall band; program page did not publish a higher value';
+  row['TOEFL\n(Overall & Subscores)'] = english.toefl || 'UC minimum: TOEFL 80 iBT or 4.5 on TOEFL 1-6 scale; program page did not publish a higher value';
+  row['PTE\n(Overall & Subscores)'] = english.pte || 'UC minimum: PTE 54; program page did not publish a higher value';
+  row['Duolingo\n(Overall & Subscores)'] = english.duolingo || 'UC minimum: Duolingo English Test 110; program page did not publish a higher value';
   row['Is Waiver \nProvided?'] = 'Yes';
   row['Waiver Info'] = 'Automatic English-proficiency waiver for listed English-speaking countries; additional waiver options include qualifying English-instructing institution documentation.';
-  row['Is MOI \naccepted?'] = 'Yes, with documentation that the institution is entirely English-instructing';
-  row['Share list, if any'] = 'Bermuda | Botswana | Cameroon | Canada (except Quebec) | Cayman Islands | Denmark | Dominica | Fiji | Finland | Gambia | Ghana | Gibraltar | Grenada | Guyana | Ireland | Jamaica | Kenya | Lesotho | Liberia | Malawi | Malta | Mauritius | Montserrat | Namibia | Netherlands | New Zealand | Nigeria | Norway | Papua New Guinea | Rwanda | Scotland | Seychelles | Sierra Leone | Singapore | Solomon Islands | South Africa | St. Kitts and Nevis | St. Lucia | St. Vincent and the Grenadines | Swaziland | Sweden | Tanzania | Tonga | Trinidad and Tobago | Turks and Caicos Islands | Uganda | United States | United Kingdom | Vanuatu | Virgin Islands | Wales | Zambia | Zimbabwe';
+  row['Is MOI \naccepted?'] = 'Waiver may be requested with documentation that the entire institution is English-instructing';
+  row['Share list, if any'] = UC_ENGLISH_WAIVER_COUNTRIES;
   row['GRE Required'] = 'Not available as a single value on official program page';
   row['GMAT Required'] = 'Not available as a single value on official program page';
   row['GRE/GMAT Scores'] = 'Not available as a single value on official program page';
   row['12th scores'] = 'Not applicable (graduate admission)';
   row['Min UG score'] = "Bachelor's degree or higher; at least a B average is recommended";
   row['15 years of\nEducation Allowed?'] = 'Reduced-credit bachelor’s degrees may be accepted; determination is at the program level';
-  row['Work \nExperience \nRequired?'] = 'Not available as a single value on official program page';
-  row['Main Entry \nRequirements'] = "Bachelor's degree or higher from an accredited institution or international equivalent | Application and fee | Transcripts | Program-specific requirements and deadlines";
+  row['Work \nExperience \nRequired?'] = /resume|cv/i.test(applicationProcess) ? 'Resume/CV required by official program admissions page' : 'Not available as a single value on official program page';
+  row['Main Entry \nRequirements'] = [admissionRequirements, applicationProcess].filter(Boolean).join(' | ')
+    || "Bachelor's degree or higher from an accredited institution or international equivalent | Application and fee | Transcripts | Program-specific requirements and deadlines";
   row['Status'] = 'Active';
-  row['Intake status(open/close)\n(eg: Fall (september)-Open\nSpring(January)- Closed)'] = 'Not available as a single value on official program page';
+  row['Intake status(open/close)\n(eg: Fall (september)-Open\nSpring(January)- Closed)'] = deadlineSummary(deadlines) || 'Not available as a single value on official program page';
   const notPublished = 'Not available on official UC program page';
   for (const column of [
     'Substream/\nSpecialisation',
@@ -246,7 +393,11 @@ function normalizeRecord(program) {
   ]) {
     if (!row[column]) row[column] = column === 'Partner' ? 'Not applicable unless listed by official program source' : notPublished;
   }
-  row['Remarks (if any)'] = `Checked ${CHECKED_DATE}; official UC program-finder JSON plus UC graduate admissions requirements. Exact test subscores, intake months, gap years, and backlogs are not available university-wide.`;
+  row['Remarks (if any)'] = [
+    `Checked ${CHECKED_DATE}; official UC program-finder JSON, program detail page, linked program admissions/deadline pages, and UC graduate admissions requirements.`,
+    program.detailError ? `Program detail enrichment unavailable: ${program.detailError}` : '',
+    'University-wide English scores are used only when the official program page does not publish a higher/specific value. Exact test subscores, gap years, and backlogs are not available university-wide.',
+  ].filter(Boolean).join(' | ');
   row['Reference Links (if any)'] = references.join(' | ');
   return row;
 }
@@ -280,16 +431,20 @@ cli({
     const { degreeLevel, count } = parseOptions(args);
     const selected = [];
     const seen = new Set();
+    const candidates = [];
     for (const program of await fetchPrograms()) {
       const tags = degreeTags(program);
       if (!tags.length || (degreeLevel !== 'all' && !tags.includes(degreeLevel))) continue;
+      candidates.push(program);
+      if (count !== null && candidates.length >= count) break;
+    }
+    for (const program of await enrichPrograms(candidates)) {
       const row = validateRecord(normalizeRecord(program));
       if (seen.has(row['Course URL'])) continue;
       seen.add(row['Course URL']);
       selected.push(CSV_OUTPUT
         ? Object.fromEntries(COLUMNS.map((column, index) => [OUTPUT_COLUMNS[index], row[column]]))
         : row);
-      if (count !== null && selected.length >= count) break;
     }
     return selected;
   },

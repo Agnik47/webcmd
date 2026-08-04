@@ -209,6 +209,61 @@ function canonicalizeProgramUrl(value) {
   return url.href;
 }
 
+function officialHeidelbergUrl(value, base = BASE) {
+  try {
+    const url = new URL(value, base);
+    if (url.protocol !== 'https:' || !url.hostname.endsWith('.uni-heidelberg.de')) return '';
+    if (/\/download(?:$|[/?#])/.test(url.pathname)) return '';
+    url.hash = '';
+    return url.href;
+  } catch {
+    return '';
+  }
+}
+
+function officialCourseLinks(html, baseUrl) {
+  const links = [];
+  for (const match of html.matchAll(/<a\b[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi)) {
+    const label = text(match[2]);
+    const url = officialHeidelbergUrl(match[1], baseUrl);
+    if (
+      url
+      && !url.includes('/en/study/all-subjects/')
+      && !/^(University|Research|Study|Transfer|Home|Facebook|Instagram|LinkedIn|YouTube)$/i.test(label)
+      && !links.some((link) => link.url === url)
+    ) {
+      links.push({ label, url });
+    }
+  }
+  return links
+    .sort((a, b) => Number(/admission|center|centre|institute|department|programme|program/i.test(b.label)) - Number(/admission|center|centre|institute|department|programme|program/i.test(a.label)))
+    .slice(0, 3);
+}
+
+function sectionByHeading(html, headingPattern) {
+  const heading = html.match(/<h[2-3]\b[^>]*>([\s\S]*?)<\/h[2-3]>/gi)?.find((candidate) => headingPattern.test(text(candidate)));
+  if (!heading) return '';
+  const start = html.indexOf(heading);
+  const next = html.slice(start + heading.length).search(/<h[2-3]\b/i);
+  const block = next === -1 ? html.slice(start) : html.slice(start, start + heading.length + next);
+  return text(block).replace(/\s+/g, ' ').trim();
+}
+
+async function linkedAdmissionInfo(html, baseUrl) {
+  for (const link of officialCourseLinks(html, baseUrl)) {
+    try {
+      const { html: linkedHtml, finalUrl } = await fetchHtml(link.url, '<html');
+      const admission = sectionByHeading(linkedHtml, /admission|application/i);
+      if (/\b(BA|Bachelor|TOEFL|IELTS|credit|transcript|degree|deadline)\b/i.test(admission)) {
+        return { text: admission, url: finalUrl, label: link.label };
+      }
+    } catch {
+      // Ignore auxiliary-page misses; the main programme page remains the source of truth.
+    }
+  }
+  return { text: '', url: '', label: '' };
+}
+
 function classifyVariant(variantName, degree = '') {
   const haystack = `${variantName} ${degree}`.toLowerCase();
   const tags = new Set();
@@ -292,11 +347,23 @@ function totalFees(fees = '', duration = '') {
   return `${total.toFixed(2)} € (official semester contribution over standard period)`;
 }
 
+function languageScores(source = '') {
+  const ielts = source.match(/IELTS:?\s*([0-9.]+)[^|.]*?(?:at least|minimum)\s*([0-9.]+)/i);
+  const toefl = source.match(/TOEFL iBT:?\s*([0-9]+)[^|.]*?(?:at least|minimum)\s*([0-9]+)/i);
+  return {
+    ieltsOverall: ielts?.[1] || '',
+    ieltsSub: ielts?.[2] || '',
+    toeflOverall: toefl?.[1] || '',
+    toeflSub: toefl?.[2] || '',
+  };
+}
+
 async function enrichProgram(program) {
   try {
     const { html, finalUrl } = await fetchHtml(program.url, 'Facts & Formalities');
     const facts = extractFacts(html);
     const degree = fact(facts, 'degree');
+    const linkedAdmission = await linkedAdmissionInfo(html, finalUrl);
     return {
       ...program,
       url: canonicalizeProgramUrl(finalUrl) || program.url,
@@ -307,6 +374,7 @@ async function enrichProgram(program) {
       language: fact(facts, 'language(s) of instruction'),
       fees: fact(facts, 'fees and contributions'),
       application: fact(facts, 'application procedure'),
+      linkedAdmission,
       deadlines: fact(facts, 'application deadlines'),
       detailError: '',
       tags: classifyVariant(program.variantName, degree || program.variantName),
@@ -320,6 +388,7 @@ async function enrichProgram(program) {
       language: '',
       fees: '',
       application: '',
+      linkedAdmission: { text: '', url: '', label: '' },
       deadlines: '',
       detailError: error.message,
     };
@@ -360,11 +429,30 @@ function normalizeRecord(program) {
   row['Program Type'] = program.type || program.variantName;
   row['Tution fees \n(per year)'] = program.fees;
   row['Total Tution \nFees'] = totalFees(program.fees, program.duration);
-  row['Main Entry \nRequirements'] = program.application;
+  row['Main Entry \nRequirements'] = program.linkedAdmission?.text || program.application;
+  const scores = languageScores(row['Main Entry \nRequirements']);
+  if (scores.ieltsOverall) {
+    row['IELTS \n(Overall & Subscores)'] = `Overall ${scores.ieltsOverall}; each subcategory at least ${scores.ieltsSub}`;
+    row['ielts_reading_score'] = scores.ieltsSub;
+    row['ielts_writing_score'] = scores.ieltsSub;
+    row['ielts_listening_score'] = scores.ieltsSub;
+    row['ielts_speaking_score'] = scores.ieltsSub;
+  }
+  if (scores.toeflOverall) {
+    row['TOEFL\n(Overall & Subscores)'] = `TOEFL iBT ${scores.toeflOverall}; each subcategory at least ${scores.toeflSub}`;
+    row['toefl_reading_score'] = scores.toeflSub;
+    row['toefl_writing_score'] = scores.toeflSub;
+    row['toefl_listening_score'] = scores.toeflSub;
+    row['toefl_speaking_score'] = scores.toeflSub;
+  }
   row['Status'] = 'Official listing active';
   row['Intake status(open/close)\n(eg: Fall (september)-Open\nSpring(January)- Closed)'] = program.deadlines;
   row['Remarks (if any)'] = remarks.join(' | ');
-  row['Reference Links (if any)'] = `Course: ${program.url} | Catalogue: ${CATALOGUE_URL}`;
+  row['Reference Links (if any)'] = [
+    `Course: ${program.url}`,
+    program.linkedAdmission?.url ? `Admission source: ${program.linkedAdmission.url}` : '',
+    `Catalogue: ${CATALOGUE_URL}`,
+  ].filter(Boolean).join(' | ');
   const unavailable = 'Not available on official Heidelberg study-finder/detail page';
   for (const column of [
     'Substream/\nSpecialisation',
@@ -438,10 +526,10 @@ cli({
     const { html } = await fetchHtml(CATALOGUE_URL, 'studyFinderTable');
     const filtered = parseCatalogue(html)
       .filter((program) => degreeLevel === 'all' || program.tags.includes(degreeLevel));
-    const enriched = await enrichPrograms(filtered);
+    const limited = filtered.slice(0, count === null ? undefined : count);
+    const enriched = await enrichPrograms(limited);
     const selected = enriched
-      .filter((program) => !/^undergraduate$/i.test(program.type))
-      .slice(0, count === null ? undefined : count);
+      .filter((program) => !/^undergraduate$/i.test(program.type));
     return selected.map((program) => {
       const row = validateRecord(normalizeRecord(program));
       return CSV_OUTPUT

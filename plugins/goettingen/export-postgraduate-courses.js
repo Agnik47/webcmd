@@ -109,6 +109,72 @@ async function fetchCourses() {
   return data.courses;
 }
 
+async function fetchDetail(course) {
+  const response = await fetch(urlFor(course), {
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Webcmd Goettingen public data export)' },
+    dispatcher: DNS_DISPATCHER,
+  });
+  if (!response.ok) throw new CommandExecutionError(`Göttingen detail page failed for ${urlFor(course)}: HTTP ${response.status}`);
+  const html = await response.text();
+  return html;
+}
+
+function htmlText(value = '') {
+  return String(value)
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<h[1-6]\b[^>]*>([\s\S]*?)<\/h[1-6]>/gi, (_, heading) => `\n@@ ${heading.replace(/<[^>]+>/g, ' ')}\n`)
+    .replace(/<li\b[^>]*>/gi, '\n- ')
+    .replace(/<\/(?:p|div|section|tr|table)>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#0*39;|&apos;|&rsquo;/gi, "'")
+    .replace(/\s+\n/g, '\n')
+    .replace(/[ \t]+/g, ' ')
+    .trim();
+}
+
+function detailSummary(html) {
+  const text = htmlText(html).split(/\n+/).map((line) => line.trim()).filter(Boolean);
+  const fieldLabels = ['Name:', 'Degree:', 'Standard period of study:', 'Start of studies:', 'Teaching language:', 'Admission:'];
+  const facts = [];
+  for (const label of fieldLabels) {
+    const at = text.findIndex((line) => line === label);
+    if (at >= 0 && text[at + 1]) facts.push(`${label} ${text[at + 1]}`);
+  }
+  const featureAt = text.findIndex((line, index) => line === 'Features' && index > 10);
+  const feature = featureAt >= 0 ? text.slice(featureAt + 1).find((line) => line.length > 80) : '';
+  const keep = [];
+  let capture = false;
+  for (const line of text) {
+    if (/^@@\s*(Details|Structure|Admission|Application|Requirements)/i.test(line)) capture = true;
+    else if (/^@@\s*(Get to know us|Related degree|Study profiles|Contact|Footer)/i.test(line)) capture = false;
+    else if (capture) keep.push(line.replace(/^@@\s*/, ''));
+    if (keep.join(' | ').length > 1800) break;
+  }
+  return [...facts, feature, ...keep].filter(Boolean).join(' | ').replace(/\s+/g, ' ').slice(0, 1800).trim();
+}
+
+async function enrichCourse(course) {
+  try {
+    const html = await fetchDetail(course);
+    return { ...course, detailSummary: detailSummary(html), detailError: '' };
+  } catch (error) {
+    return { ...course, detailSummary: '', detailError: error.message };
+  }
+}
+
+async function enrichCourses(courses) {
+  const rows = [];
+  for (let index = 0; index < courses.length; index += 8) {
+    rows.push(...await Promise.all(courses.slice(index, index + 8).map(enrichCourse)));
+  }
+  return rows;
+}
+
 function urlFor(course) {
   return `${BASE}/en/${course.page_id}.html`;
 }
@@ -166,9 +232,13 @@ function normalize(course) {
   row['Duration\n(in months)'] = durationMonths(course);
   row['Study option'] = languages(course).length ? `Teaching language: ${languages(course).join(' | ')}` : '';
   row['Program Type'] = degreeNames(course).join(' | ') || course.diploma?.name || '';
-  row['Main Entry \nRequirements'] = admission(course);
+  row['Main Entry \nRequirements'] = course.detailSummary || admission(course);
   row['Status'] = course.valid_until ? 'Ending/limited in official API' : 'Official listing active';
-  row['Remarks (if any)'] = `Checked ${CHECKED_DATE}; official Göttingen A-Z degree-programme API. Teaching language and admission route are populated from the API. Fees/application charges, language-test scores, GRE/GMAT, school/UG-score conventions, gaps, backlogs, work experience, waivers, and MOI acceptance are not available as programme-safe values in this official API.`;
+  row['Remarks (if any)'] = [
+    `Checked ${CHECKED_DATE}; official Göttingen A-Z degree-programme API plus each official programme detail page.`,
+    course.detailError ? `Programme detail page unavailable: ${course.detailError}` : '',
+    'Teaching language and admission route are populated from official API/detail data. Fees/application charges, language-test scores, GRE/GMAT, school/UG-score conventions, gaps, backlogs, work experience, waivers, and MOI acceptance are not available as programme-safe values on the official programme pages/API.',
+  ].filter(Boolean).join(' | ');
   row['Reference Links (if any)'] = refs.join(' | ');
   const unavailable = 'Not available as a programme-safe value in official Göttingen API';
   for (const column of [
@@ -245,17 +315,21 @@ cli({
     const { degreeLevel, count } = parseOptions(args);
     const seen = new Set();
     const rows = [];
+    const candidates = [];
     for (const course of await fetchCourses()) {
       const tags = tagsFor(course);
       if (!tags.length || (degreeLevel !== 'all' && !tags.includes(degreeLevel))) continue;
       const url = urlFor(course);
       if (seen.has(url)) continue;
       seen.add(url);
+      candidates.push(course);
+      if (count !== null && candidates.length >= count) break;
+    }
+    for (const course of await enrichCourses(candidates)) {
       const row = validate(normalize(course));
       rows.push(CSV_OUTPUT
         ? Object.fromEntries(COLUMNS.map((column, index) => [OUTPUT_COLUMNS[index], row[column]]))
         : row);
-      if (count !== null && rows.length >= count) break;
     }
     return rows;
   },

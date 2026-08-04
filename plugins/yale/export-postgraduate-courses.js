@@ -314,10 +314,30 @@ function greRequirement(admissionText = '') {
   return '';
 }
 
-async function enrichGsasProgram(program) {
-  if (program.school !== 'Graduate School of Arts and Sciences' || !program.url.startsWith(`${GSAS_PROGRAMS_URL}/`)) return program;
+function pageSummary(html, programName = '') {
+  const value = text(String(html)
+    .replace(/<nav\b[^>]*>[\s\S]*?<\/nav>/gi, ' ')
+    .replace(/<footer\b[^>]*>[\s\S]*?<\/footer>/gi, ' ')
+    .replace(/<header\b[^>]*>[\s\S]*?<\/header>/gi, ' ')
+    .replace(/<h[1-6]\b[^>]*>/gi, ' | ')
+    .replace(/<\/(?:p|li|h[1-6]|div|section)>/gi, ' | '));
+  const needle = programName.split(/\s+/).slice(0, 3).join(' ');
+  const at = needle ? value.toLowerCase().indexOf(needle.toLowerCase()) : -1;
+  return (at >= 0 ? value.slice(at) : value).replace(/\s*\|\s*/g, ' | ').slice(0, 1800).trim();
+}
+
+async function enrichProgram(program) {
   try {
     const html = await fetchHtml(program.url);
+    if (program.school !== 'Graduate School of Arts and Sciences' || !program.url.startsWith(`${GSAS_PROGRAMS_URL}/`)) {
+      return {
+        ...program,
+        admissionText: pageSummary(html, program.name),
+        greRequired: greRequirement(pageSummary(html, program.name)),
+        englishRequirement: '',
+        detailError: '',
+      };
+    }
     const admissionText = sectionText(html, 'admission-requirements');
     return {
       ...program,
@@ -334,7 +354,7 @@ async function enrichGsasProgram(program) {
 async function enrichPrograms(programs) {
   const rows = [];
   for (let index = 0; index < programs.length; index += DETAIL_CONCURRENCY) {
-    rows.push(...await Promise.all(programs.slice(index, index + DETAIL_CONCURRENCY).map(enrichGsasProgram)));
+    rows.push(...await Promise.all(programs.slice(index, index + DETAIL_CONCURRENCY).map(enrichProgram)));
   }
   return rows;
 }
@@ -371,6 +391,9 @@ function normalizeRecord(program) {
     row['GMAT Required'] = /Management/i.test(program.name) ? 'GMAT accepted in lieu of GRE for Management PhD' : 'No';
     row['GRE/GMAT Scores'] = program.greRequired === 'No' ? 'GRE not accepted' : program.greRequired ? 'Minimum score not available on official GSAS page' : '';
     row['Main Entry \nRequirements'] = program.admissionText;
+  } else if (program.admissionText) {
+    row['Main Entry \nRequirements'] = program.admissionText;
+    row['GRE Required'] = program.greRequired || '';
   }
   row['Remarks (if any)'] = remarks.join(' ');
   row['Reference Links (if any)'] = refs.join(' | ');

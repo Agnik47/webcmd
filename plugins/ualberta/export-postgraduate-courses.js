@@ -135,6 +135,7 @@ function normalizeResult(result) {
     types: asList(raw.ua__program_type),
     modes: asList(raw.ua__program_mode),
     faculties: asList(raw.ua__program_faculty),
+    detailExcerpt: String(result.excerpt || '').replace(/\s+/g, ' ').trim(),
   };
 }
 
@@ -183,7 +184,9 @@ function buildRow(program) {
   row['Min UG score'] = program.degree.toLowerCase().includes('doctor')
     ? 'Master’s degree or equivalent; admission GPA 3.0/4.0 or B'
     : 'Four-year bachelor’s degree or equivalent; admission GPA 3.0/4.0 or B';
-  row['Main Entry \nRequirements'] = 'Minimum academic standard for graduate admission | Official application documents | English Language Proficiency if applicable | Program-specific requirements may apply';
+  row['Main Entry \nRequirements'] = program.detailExcerpt
+    ? `Official program-detail excerpt: ${program.detailExcerpt}`
+    : 'Minimum academic standard for graduate admission | Official application documents | English Language Proficiency if applicable | Program-specific requirements may apply';
   const unavailable = 'Not available on official program page';
   const notApplicable = 'Not applicable (postgraduate admission)';
   for (const column of [
@@ -206,7 +209,7 @@ function buildRow(program) {
   row['Is MOI \naccepted?'] = 'Not available on official program page';
   row['Status'] = 'Not available on official program page';
   row['Remarks (if any)'] = [
-    `Checked: ${CHECKED_DATE}. Fields without a published program-page value are marked as unavailable. Secondary-school and partner fields are not applicable to PG admission.`,
+    `Checked: ${CHECKED_DATE}. Official Coveo SitemapCrawler records were read for each program-detail page; structured program metadata and detail-page excerpts are used before shared admissions fallbacks. Fields without a published program-page value are marked as unavailable. Secondary-school and partner fields are not applicable to PG admission.`,
     program.degreeInferred ? 'Degree Level inferred from official ua__program label because ua__grad_cred was blank in the Coveo result.' : '',
   ].filter(Boolean).join(' | ');
   row['Reference Links (if any)'] = references.join(' | ');
@@ -231,7 +234,6 @@ async function fetchPrograms(page) {
     try {
       await page.goto(PROGRAMS_URL, { waitUntil: 'none', settleMs: 0 });
       await page.wait({ selector: '#search-ug-programs.coveo-after-initialization' });
-      await page.wait({ selector: '#search-ug-programs a[href*="/en/graduate-programs/"]', timeout: 20000 });
       raw = await page.evaluate(`
         (async () => {
           const root = document.querySelector('#search-ug-programs');
@@ -250,8 +252,9 @@ async function fetchPrograms(page) {
           return JSON.stringify({
             totalCount: response.totalCount,
             results: response.results.map((result) => ({
-              title: result.title,
-              uri: result.uri,
+          title: result.title,
+          excerpt: result.excerpt,
+          uri: result.uri,
               clickUri: result.clickUri,
               raw: result.raw,
             })),
@@ -299,16 +302,20 @@ cli({
     }
     const rows = [];
     const seen = new Set();
+    const candidates = [];
     for (const result of results) {
       const program = normalizeResult(result);
       if (!program.name || !program.url || !program.degree || seen.has(program.url)) continue;
       if (degreeLevel !== 'all' && !degreeTags(program).includes(degreeLevel)) continue;
       seen.add(program.url);
+      candidates.push(program);
+      if (count !== null && candidates.length >= count) break;
+    }
+    for (const program of candidates) {
       const row = validateRow(buildRow(program));
       rows.push(CSV_OUTPUT
         ? Object.fromEntries(COLUMNS.map((column, index) => [OUTPUT_COLUMNS[index], row[column]]))
         : row);
-      if (count !== null && rows.length >= count) break;
     }
     return rows;
   },
