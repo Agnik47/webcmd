@@ -22,7 +22,7 @@ export default defineConfig({
       {
         test: {
           name: 'e2e-fixed-port',
-          include: ['tests/e2e/browser-tabs.test.ts'],
+          include: ['tests/e2e/browser-tabs.test.ts', 'tests/e2e/browser-run.test.ts'],
           fileParallelism: false,
           sequence: { groupOrder: 2 },
         },
