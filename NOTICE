@@ -3,3 +3,9 @@ webcmd is based on opencli (https://github.com/jackwener/opencli), Copyright 202
 The browser-run QuickJS lifecycle is derived from dev-browser
 (https://github.com/SawyerHood/dev-browser), Copyright Sawyer Hood,
 licensed under the MIT License.
+
+The browser-run Playwright QuickJS client includes Playwright code from
+https://github.com/microsoft/playwright, licensed under the MIT License.
+
+The browser-run structural diff is derived from Libretto
+(https://github.com/Skyvern-AI/libretto), licensed under the MIT License.
