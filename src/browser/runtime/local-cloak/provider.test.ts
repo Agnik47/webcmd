@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LocalCloakRuntimeProvider } from './provider.js';
+import { BrowserRunError } from '../../run/types.js';
 
 const runBrowserProgram = vi.hoisted(() => vi.fn());
 
@@ -150,6 +151,41 @@ describe('LocalCloakRuntimeProvider', () => {
     }), expect.stringContaining('return page.url()'), expect.objectContaining({
       observe: 'none',
     }));
+  });
+
+  it('preserves structured browser-run error details', async () => {
+    const { provider } = makeProviderWithFakePage();
+    runBrowserProgram.mockRejectedValue(new BrowserRunError(
+      'BROWSER_RUN_TIMEOUT',
+      'Timed out',
+      undefined,
+      {
+        logs: [{ level: 'warn', args: ['started'] }],
+        page: { id: 'page-1', url: 'https://example.com/', title: 'Example' },
+        artifacts: [],
+        warnings: [{
+          code: 'BROWSER_RUN_SIDE_EFFECTS_MAY_HAVE_OCCURRED',
+          message: 'Already-issued browser actions were not rolled back.',
+        }],
+        limits: { outputTruncated: false, snapshotTruncated: false },
+      },
+    ));
+
+    await expect(provider.dispatch({
+      id: 'run',
+      action: 'run',
+      session: 'work',
+      surface: 'browser',
+      source: 'return null;',
+      profileId: 'default',
+    })).resolves.toMatchObject({
+      ok: false,
+      errorCode: 'BROWSER_RUN_TIMEOUT',
+      details: {
+        logs: [{ level: 'warn', args: ['started'] }],
+        page: { id: 'page-1', url: 'https://example.com/', title: 'Example' },
+      },
+    });
   });
 
   it('rejects oversized run source even when the daemon is called directly', async () => {

@@ -210,13 +210,14 @@ export async function runBrowserProgram(
   let capturedLogChars = 0;
   let logOutputTruncated = false;
 
+  let timedOut = false;
   const pageMetadata = async () => ({
     id: input.pageId,
     url: redactUrl(input.page.url()),
-    title: redactText(await input.page.title().catch(() => '')),
+    title: timedOut ? '' : redactText(await input.page.title().catch(() => '')),
   });
   const details = async (): Promise<BrowserRunFailureDetails> => {
-    if (savedSnapshotDiff === undefined && observe !== 'none') {
+    if (!timedOut && savedSnapshotDiff === undefined && observe !== 'none') {
       const observation = await captureObservation(
         input.page,
         input.pageId,
@@ -303,7 +304,12 @@ export async function runBrowserProgram(
         __webcmdMaxLogChars: maxOutputChars,
       },
       onHostCall: async (name, args) => {
-        if (name !== 'writeArtifact' || typeof args[0] !== 'string' || typeof args[1] !== 'string') {
+        if (
+          name !== 'writeArtifact'
+          || typeof args[0] !== 'string'
+          || typeof args[1] !== 'string'
+          || (args[2] !== undefined && typeof args[2] !== 'string')
+        ) {
           throw new BrowserRunError(
             'BROWSER_RUN_INVALID_INPUT',
             'Browser-run requested an invalid logical artifact write.',
@@ -311,7 +317,7 @@ export async function runBrowserProgram(
         }
         const receipt = await artifactSink.write({
           filename: args[0],
-          contentType: artifactContentType(args[0]),
+          contentType: args[2] ?? artifactContentType(args[0]),
           bytes: Buffer.from(args[1], 'base64'),
         });
         artifacts.push(receipt);
@@ -346,9 +352,24 @@ export async function runBrowserProgram(
   input.context.on('page', registerNewPage);
 
   let timeout: ReturnType<typeof setTimeout> | undefined;
-  let timeoutCancellation: Promise<void> | undefined;
-  let wallTimedOut = false;
+  let timeoutCleanup: Promise<void> | undefined;
   let execution: Promise<unknown> | undefined;
+  const disposeTimedOutRun = (timeoutError: BrowserRunError): void => {
+    if (timeoutCleanup) return;
+    host.cancelPending(timeoutError);
+    void transport.cancel(timeoutError);
+    timeoutCleanup = host.callFunction(
+      '__webcmdCancelPlaywright',
+      timeoutError.message,
+    )
+      .catch(() => undefined)
+      .then(async () => { await execution?.catch(() => undefined); })
+      .finally(() => {
+        host.dispose();
+        void transport.dispose(timeoutError);
+        input.context.off('page', registerNewPage);
+      });
+  };
   try {
     await host.executeScript(`
       (() => {
@@ -415,10 +436,10 @@ export async function runBrowserProgram(
         globalThis.__webcmdTransportReceive = message => {
           connection.dispatch(JSON.parse(message));
         };
-        globalThis.__webcmdWriteArtifact = async (filename, bytes) => {
+        globalThis.__webcmdWriteArtifact = async (filename, bytes, contentType) => {
           await __webcmdHostCall(
             'writeArtifact',
-            JSON.stringify([filename, __webcmdEncodeBase64(bytes)]),
+            JSON.stringify([filename, __webcmdEncodeBase64(bytes), contentType]),
           );
         };
         __WebcmdPlaywrightClient.quickjsPlatform.fs().promises.readFile = () => (
@@ -433,6 +454,19 @@ export async function runBrowserProgram(
           if (!selectedPage) throw new Error('Selected Playwright page is unavailable.');
           const selectedContext = selectedPage.context();
           const selectedBrowser = selectedContext.browser();
+          const screenshot = selectedPage.screenshot.bind(selectedPage);
+          selectedPage.screenshot = async options => {
+            if (!options?.path) return screenshot(options);
+            const { path, type, ...rest } = options;
+            const resolvedType = type || (/\.jpe?g$/i.test(path) ? 'jpeg' : 'png');
+            const bytes = await screenshot({ ...rest, type: resolvedType });
+            await __webcmdWriteArtifact(
+              path,
+              bytes,
+              resolvedType === 'jpeg' ? 'image/jpeg' : 'image/png',
+            );
+            return bytes;
+          };
           globalThis.page = selectedPage;
           globalThis.context = selectedContext;
           globalThis.browser = selectedBrowser;
@@ -474,19 +508,13 @@ export async function runBrowserProgram(
     });
     const deadline = new Promise<never>((_resolve, reject) => {
       timeout = setTimeout(() => {
-        wallTimedOut = true;
+        timedOut = true;
         const timeoutError = new BrowserRunError(
           'BROWSER_RUN_TIMEOUT',
           `Browser-run execution exceeded ${timeoutMs}ms.`,
           'Split the task into a smaller run or increase --timeout.',
         );
-        host.cancelPending(timeoutError);
-        timeoutCancellation = transport.cancel(timeoutError).then(async () => {
-          await host.callFunction(
-            '__webcmdCancelPlaywright',
-            timeoutError.message,
-          ).catch(() => undefined);
-        });
+        disposeTimedOutRun(timeoutError);
         reject(timeoutError);
       }, timeoutMs);
     });
@@ -541,25 +569,29 @@ export async function runBrowserProgram(
     };
   } catch (error) {
     const normalized = normalizeExecutionError(error);
-    if (wallTimedOut) {
-      await timeoutCancellation;
-      await execution?.catch(() => undefined);
+    if (normalized instanceof BrowserRunError && normalized.code === 'BROWSER_RUN_TIMEOUT') {
+      timedOut = true;
+      disposeTimedOutRun(normalized);
     }
     throw await failure(normalized);
   } finally {
     if (timeout) clearTimeout(timeout);
-    const completionError = new BrowserRunError(
-      'BROWSER_RUN_CANCELLED',
-      'Browser-run execution has ended.',
-    );
-    host.cancelPending(completionError);
-    await transport.cancel(completionError);
-    await host.callFunction(
-      '__webcmdCancelPlaywright',
-      completionError.message,
-    ).catch(() => undefined);
-    await transport.dispose(completionError);
-    host.dispose();
-    input.context.off('page', registerNewPage);
+    if (timedOut) {
+      void timeoutCleanup;
+    } else {
+      const completionError = new BrowserRunError(
+        'BROWSER_RUN_CANCELLED',
+        'Browser-run execution has ended.',
+      );
+      host.cancelPending(completionError);
+      await transport.cancel(completionError);
+      await host.callFunction(
+        '__webcmdCancelPlaywright',
+        completionError.message,
+      ).catch(() => undefined);
+      await transport.dispose(completionError);
+      host.dispose();
+      input.context.off('page', registerNewPage);
+    }
   }
 }

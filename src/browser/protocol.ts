@@ -82,6 +82,7 @@ export interface BrowserRuntimeResult {
   error?: string;
   errorCode?: string;
   errorHint?: string;
+  details?: unknown;
   page?: string;
 }
 

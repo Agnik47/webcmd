@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { createRequire } from 'node:module';
 import {
   afterAll,
   afterEach,
@@ -15,7 +16,12 @@ import {
   type Page,
 } from 'playwright-core';
 import { BrowserRunObservationStore } from './observation.js';
+import { QuickJSHost } from './quickjs-host.js';
 import { runBrowserProgram } from './runner.js';
+
+const playwrightServer = createRequire(import.meta.url)(
+  'playwright-core/lib/coreBundle',
+) as { server: { RootDispatcher: { prototype: { stopPendingOperations(error: Error): Promise<void> } } } };
 
 let browser: Browser;
 let context: BrowserContext;
@@ -319,6 +325,17 @@ describe('runBrowserProgram', () => {
     expect(JSON.stringify(output.artifacts)).not.toContain('iVBOR');
   });
 
+  it('uses an explicit screenshot type for its artifact receipt', async () => {
+    const output = await run(`
+      await page.screenshot({ path: 'shot.png', type: 'jpeg' });
+      return null;
+    `);
+
+    expect(output.artifacts).toEqual([
+      expect.objectContaining({ filename: 'shot.png', contentType: 'image/jpeg' }),
+    ]);
+  });
+
   it.each(['/tmp/shot.png', '../shot.png', 'nested/../../shot.png'])(
     'rejects non-logical screenshot path %s',
     async (artifactPath) => {
@@ -356,6 +373,28 @@ describe('runBrowserProgram', () => {
     });
     expect(browser.isConnected()).toBe(true);
     expect(page.isClosed()).toBe(false);
+  });
+
+  it('returns a wall timeout and disposes QuickJS without waiting for protocol cleanup', async () => {
+    const root = playwrightServer.server.RootDispatcher.prototype;
+    const stopPendingOperations = root.stopPendingOperations;
+    const dispose = QuickJSHost.prototype.dispose;
+    let disposed = false;
+    root.stopPendingOperations = () => new Promise<void>(() => undefined);
+    QuickJSHost.prototype.dispose = function disposeTimedOutHost() {
+      disposed = true;
+      return dispose.call(this);
+    };
+
+    try {
+      await expect(run('await page.waitForEvent("popup");', { timeoutMs: 25 }))
+        .rejects.toMatchObject({ code: 'BROWSER_RUN_TIMEOUT' });
+      await new Promise(resolve => setTimeout(resolve, 0));
+      expect(disposed).toBe(true);
+    } finally {
+      root.stopPendingOperations = stopPendingOperations;
+      QuickJSHost.prototype.dispose = dispose;
+    }
   });
 
   it('redacts page metadata and execution errors', async () => {

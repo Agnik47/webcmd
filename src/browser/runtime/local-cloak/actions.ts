@@ -330,12 +330,14 @@ export async function dispatchCloakAction(manager: CloakSessionManager, command:
       const hint = 'hint' in err && typeof err.hint === 'string'
         ? err.hint
         : undefined;
+      const details = 'details' in err ? err.details : undefined;
       return {
         id: command.id,
         ok: false,
         errorCode: err.code,
         error: err.message,
         ...(hint && { errorHint: hint }),
+        ...(details !== undefined ? { details } : {}),
       };
     }
     return { id: command.id, ok: false, errorCode: 'runtime_command_failed', error: err instanceof Error ? err.message : String(err) };
