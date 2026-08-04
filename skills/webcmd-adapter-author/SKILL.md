@@ -60,7 +60,7 @@ Why not simpler:
 | `COOKIE_API` | stable | Node-side `fetch` plus `page.getCookies()` / header helper can get the data | cookie/CSRF source is clear and replay is non-empty |
 | `UI_SELECTOR` | visible-ui | publish/upload/click/form flows, or page semantics are more stable than internal APIs | selector has a semantic anchor; failure path is a typed error |
 | `DOM_STATE` | visible-ui | data is in hydration state, bootstrap JSON, or SSR HTML | state key, script JSON, or HTML structure is clear |
-| `PAGE_FETCH` | internal-unstable | only page-context `fetch` can reuse same-origin/session/runtime state | `webcmd browser eval fetch(...)` is non-empty; explain why the internal endpoint is unavoidable |
+| `PAGE_FETCH` | internal-unstable | only page-context `fetch` can reuse same-origin/session/runtime state | a browser run returns a non-empty page-context fetch result; explain why the internal endpoint is unavoidable |
 | `INTERCEPT` | internal-unstable | request signing is complex but the page can naturally issue the request | target response is captured after triggering UI; explain why UI/DOM is insufficient |
 
 Selection rule: prefer `PUBLIC_API` / `COOKIE_API`. If UI/DOM semantics are stable, do not force an upgrade to `PAGE_FETCH` / `INTERCEPT`. Pay the maintenance cost of uncontracted internal endpoints only when public/official APIs are unavailable and UI/DOM cannot express the target data or operation.

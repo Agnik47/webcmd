@@ -171,6 +171,10 @@ describe('webcmd skills content', () => {
       ),
       'utf8',
     );
+    const siteReconReference = fs.readFileSync(
+      path.join(process.cwd(), 'skills', 'webcmd-adapter-author', 'references', 'site-recon.md'),
+      'utf8',
+    );
     expect(usage).toMatch(/existing adapter command first[\s\S]{0,160}load `webcmd-browser` and run Playwright/i);
     expect(browser).toMatch(/`tabs`, `bind --page`, `run`, and `close`/i);
     expect(browser).toContain('webcmd browser work tabs');
@@ -201,6 +205,9 @@ describe('webcmd skills content', () => {
     expect(browserRunReference).not.toContain('browser.currentPage()');
     expect(browserRunReference).not.toContain('--observe');
     expect(browserRunReference).not.toContain('--tab');
+    expect(siteReconReference).toContain("webcmd browser recon run --stdin <<'JS'");
+    expect(siteReconReference).toContain('page.waitForResponse(');
+    expect(siteReconReference).not.toMatch(/webcmd browser \S+ (?:open|state|click|type|select|find|extract|network|wait|eval)/i);
   });
 
   it('adds bundled skills once and refreshes them after package updates', () => {

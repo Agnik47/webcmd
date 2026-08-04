@@ -35,9 +35,17 @@ then run the dependent recon steps together:
 webcmd browser recon tabs
 webcmd browser recon bind --page page-123
 webcmd browser recon run --stdin <<'JS'
+const responsePromise = page.waitForResponse(
+  response => response.url().includes('/api/path-fragment'),
+);
 await page.goto('https://example.com');
 await page.waitForLoadState('domcontentloaded');
-return { url: page.url(), snapshot: await page.snapshotForAI() };
+const response = await responsePromise;
+return {
+  url: page.url(),
+  endpoint: { url: response.url(), status: response.status() },
+  snapshot: await page.snapshotForAI(),
+};
 JS
 ```
 
@@ -51,7 +59,8 @@ Use the snapshot and any response evidence collected in the run to classify the 
 | API exists but returns 401/403 or signature errors | **D. Token / CSRF auth** | Pattern A plus auth headers or page-sourced tokens |
 | `Content-Type: text/event-stream` or WebSocket handshake | **E. Streaming** | Live feed, chat, or tick data |
 
-If data is loaded asynchronously, `wait time 2` may not be enough. Prefer `webcmd browser wait xhr '/api/path-fragment'` for a specific interface over blind `wait time 5`.
+If data is loaded asynchronously, arm `page.waitForResponse(...)` before the
+navigation or UI trigger in the same run. Do not use a separate browser wait.
 
 When classification needs a dependent UI trigger plus a request/response
 waiter, use one sandboxed `browser run` program and arm the waiter before the
