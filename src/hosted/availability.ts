@@ -21,11 +21,6 @@ export function deriveHostedAvailability(command: HostedAvailabilityMetadata): H
 }
 
 export function deriveBrowserAvailability(command: string): HostedAvailability {
-  if (command === 'bind') {
-    return { mode: 'local-only', reason: 'browser-bind' };
-  }
-  if (command === 'run') {
-    return { mode: 'local-only', reason: 'local-tool' };
-  }
+  void command;
   return { mode: 'hosted' };
 }

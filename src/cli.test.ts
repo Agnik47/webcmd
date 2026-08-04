@@ -20,6 +20,7 @@ const {
   mockBrowserConnect,
   mockBrowserClose,
   mockBindTab,
+  mockListExistingBrowserTabs,
   mockSendCommand,
   mockExecFileSync,
   browserState,
@@ -27,6 +28,7 @@ const {
   mockBrowserConnect: vi.fn(),
   mockBrowserClose: vi.fn(),
   mockBindTab: vi.fn(),
+  mockListExistingBrowserTabs: vi.fn(),
   mockSendCommand: vi.fn(),
   mockExecFileSync: vi.fn(),
   browserState: { page: null as IPage | null },
@@ -47,6 +49,7 @@ vi.mock('./browser/daemon-client.js', async () => {
   return {
     ...actual,
     bindTab: mockBindTab,
+    listExistingBrowserTabs: mockListExistingBrowserTabs,
     sendCommand: mockSendCommand,
   };
 });
@@ -69,8 +72,7 @@ describe('createProgram root help descriptions', () => {
   it('summarizes built-in command groups with their subcommands', () => {
     const program = createProgram('', '');
 
-    expect(descriptionFor(program, 'browser')).toContain('open');
-    expect(descriptionFor(program, 'browser')).toContain('type');
+    expect(descriptionFor(program, 'browser')).toContain('tabs');
     expect(descriptionFor(program, 'browser')).toContain('verify');
     expect(descriptionFor(program, 'browser')).not.toContain('Browser control');
     expect(descriptionFor(program, 'auth')).toBe('refresh, status');
@@ -630,23 +632,16 @@ name: 'search',
 
       expect(data.namespace).toBe('browser');
       expect(data.command).toBe('webcmd browser');
-      expect(data.description).toBe('Browser control — navigate, click, type, extract, wait (no LLM needed)');
-      expect(data.command_count).toBeGreaterThan(20);
-      expect(data.commands.map((cmd: any) => cmd.name)).toContain('bind');
+      expect(data.description).toBe('Run Playwright programs against named browser sessions');
+      expect(data.command_count).toBe(6);
+      expect(data.commands.map((cmd: any) => cmd.name)).toEqual(['bind', 'close', 'init', 'run', 'tabs', 'verify']);
       // `--session` is now a hidden internal option; user-facing surface is the
       // <session> positional declared via `.usage()`. Structured help drops
       // hidden options, so namespace_options shouldn't expose it.
       expect(data.namespace_options).not.toEqual(expect.arrayContaining([
         expect.objectContaining({ name: 'session' }),
       ]));
-      expect(data.namespace_options).toEqual(expect.arrayContaining([
-        expect.objectContaining({
-          name: 'window',
-          flags: '--window <mode>',
-          help: 'Browser window mode: foreground or background (default: background)',
-          takes_value: 'required',
-        }),
-      ]));
+      expect(data.namespace_options).toEqual([]);
       expect(data.usage).toBe('webcmd browser <session> <command> [options]');
       expect(data.global_options).toEqual(expect.arrayContaining([
         expect.objectContaining({
@@ -660,29 +655,16 @@ name: 'search',
         }),
       ]));
 
-      const click = data.commands.find((cmd: any) => cmd.name === 'click');
+      const bind = data.commands.find((cmd: any) => cmd.name === 'bind');
       // Structured help command/usage paths include the <session> positional so
       // agents construct the correct full invocation. `name` is the leaf
       // identifier (placeholder positionals are stripped).
-      expect(click).toMatchObject({
-        command: 'webcmd browser <session> click',
-        usage: 'webcmd browser <session> click [target] [options]',
-        positionals: [{ name: 'target' }],
+      expect(bind).toMatchObject({
+        command: 'webcmd browser <session> bind',
+        usage: 'webcmd browser <session> bind [options]',
+        positionals: [],
       });
-      expect(click.command_options.map((option: any) => option.name)).toEqual(['role', 'name', 'label', 'text', 'testid', 'nth', 'tab']);
-
-      const tabList = data.commands.find((cmd: any) => cmd.name === 'tab list');
-      expect(tabList).toMatchObject({
-        command: 'webcmd browser <session> tab list',
-        usage: 'webcmd browser <session> tab list [options]',
-        command_options: [],
-      });
-
-      const getText = data.commands.find((cmd: any) => cmd.name === 'get text');
-      expect(getText).toMatchObject({
-        command: 'webcmd browser <session> get text',
-        positionals: [{ name: 'target' }],
-      });
+      expect(bind.command_options.map((option: any) => option.name)).toEqual(['page']);
       expect(data.structured_help).toMatchObject({
         formats: ['yaml', 'json'],
         usage: 'webcmd browser --help -f yaml',
@@ -692,7 +674,7 @@ name: 'search',
     }
   });
 
-  it('renders nested browser parent structured help for a subtree', () => {
+  it.skip('renders nested browser parent structured help for a subtree', () => {
     const argv = process.argv;
     try {
       const program = createProgram('', '');
@@ -732,7 +714,7 @@ name: 'search',
     }
   });
 
-  it('renders browser command structured help without needing the full namespace dump', () => {
+  it.skip('renders browser command structured help without needing the full namespace dump', () => {
     const argv = process.argv;
     try {
       const program = createProgram('', '');
@@ -1236,7 +1218,84 @@ describe('profile list', () => {
   });
 });
 
-describe('browser tab targeting commands', () => {
+describe('browser raw session commands', () => {
+  const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+  const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+
+  beforeEach(() => {
+    process.exitCode = undefined;
+    consoleLogSpy.mockClear();
+    stderrSpy.mockClear();
+    mockBrowserConnect.mockClear();
+    mockListExistingBrowserTabs.mockReset().mockResolvedValue([]);
+    mockSendCommand.mockReset().mockResolvedValue({ ok: true });
+  });
+
+  it('lists tabs without allocating a local browser runtime', async () => {
+    const program = createProgram('', '');
+
+    await program.parseAsync(['node', 'webcmd', 'browser', '--session', 'test', 'tabs']);
+
+    expect(mockBrowserConnect).not.toHaveBeenCalled();
+    expect(mockSendCommand).not.toHaveBeenCalled();
+    expect(mockListExistingBrowserTabs).toHaveBeenCalledWith('test', {});
+    expect(consoleLogSpy).toHaveBeenLastCalledWith('[]');
+  });
+
+  it('sends tabs directly when a runtime already exists', async () => {
+    mockListExistingBrowserTabs.mockResolvedValue([{ page: 'page-123' }]);
+    const program = createProgram('', '');
+
+    await program.parseAsync(['node', 'webcmd', 'browser', '--session', 'test', 'tabs']);
+
+    expect(mockBrowserConnect).not.toHaveBeenCalled();
+    expect(mockListExistingBrowserTabs).toHaveBeenCalledWith('test', {});
+  });
+
+  it('binds only an explicit stable page id', async () => {
+    const program = createProgram('', '');
+
+    await program.parseAsync(['node', 'webcmd', 'browser', '--session', 'test', 'bind', '--page', 'page-123']);
+
+    expect(mockSendCommand).toHaveBeenCalledWith('bind', {
+      session: 'test', surface: 'browser', page: 'page-123',
+    });
+    await expect(program.parseAsync(['node', 'webcmd', 'browser', '--session', 'test', 'bind', '--index', '0']))
+      .rejects.toThrow(/process\.exit unexpectedly called/);
+  });
+
+  it('reads program files for run and rejects mutually exclusive input', async () => {
+    const sourcePath = path.join(os.tmpdir(), `webcmd-run-${Date.now()}.js`);
+    fs.writeFileSync(sourcePath, 'return 42;', 'utf8');
+    try {
+      const program = createProgram('', '');
+      await program.parseAsync(['node', 'webcmd', 'browser', '--session', 'test', 'run', '--file', sourcePath]);
+      expect(mockSendCommand).toHaveBeenCalledWith('run', {
+        session: 'test', surface: 'browser', source: 'return 42;',
+      });
+
+      await program.parseAsync(['node', 'webcmd', 'browser', '--session', 'test', 'run', '--stdin', '--file', sourcePath]);
+      expect(mockSendCommand).toHaveBeenCalledTimes(1);
+      expect(process.exitCode).toBeDefined();
+
+      process.exitCode = undefined;
+      fs.writeFileSync(sourcePath, '', 'utf8');
+      await program.parseAsync(['node', 'webcmd', 'browser', '--session', 'test', 'run', '--file', sourcePath]);
+      expect(mockSendCommand).toHaveBeenCalledTimes(1);
+      expect(process.exitCode).toBeDefined();
+    } finally {
+      fs.rmSync(sourcePath, { force: true });
+    }
+  });
+
+  it('closes the named session through the daemon', async () => {
+    const program = createProgram('', '');
+    await program.parseAsync(['node', 'webcmd', 'browser', '--session', 'test', 'close']);
+    expect(mockSendCommand).toHaveBeenCalledWith('close-window', { session: 'test', surface: 'browser' });
+  });
+});
+
+describe.skip('removed browser tab targeting commands', () => {
   const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
   const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
 
@@ -2046,7 +2105,7 @@ describe('browser tab targeting commands', () => {
   });
 });
 
-describe('browser network command', () => {
+describe.skip('removed browser network command', () => {
   const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
   function getNetworkCachePath(cacheDir: string): string {
@@ -2565,7 +2624,7 @@ describe('browser network command', () => {
   });
 });
 
-describe('browser console command', () => {
+describe.skip('removed browser console command', () => {
   const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
   beforeEach(() => {
@@ -2606,7 +2665,7 @@ describe('browser console command', () => {
   });
 });
 
-describe('browser get html command', () => {
+describe.skip('removed browser get html command', () => {
   const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
   function lastLogArg(): unknown {
@@ -2803,7 +2862,7 @@ function installSelectorFirstTestHarness(label: string, pageOverrides: () => Par
   return { lastJsonLog };
 }
 
-describe('browser find command', () => {
+describe.skip('removed browser find command', () => {
   const { lastJsonLog } = installSelectorFirstTestHarness('find', () => ({
     evaluate: vi.fn(),
   }));
@@ -2909,7 +2968,7 @@ describe('browser find command', () => {
   });
 });
 
-describe('browser get text/value/attributes commands', () => {
+describe.skip('removed browser get text/value/attributes commands', () => {
   const { lastJsonLog } = installSelectorFirstTestHarness('get-sel', () => ({
     evaluate: vi.fn(),
   }));
@@ -3033,7 +3092,7 @@ describe('browser get text/value/attributes commands', () => {
   });
 });
 
-describe('browser click/type commands', () => {
+describe.skip('removed browser click/type commands', () => {
   const { lastJsonLog } = installSelectorFirstTestHarness('click-type', () => ({
     evaluate: vi.fn().mockResolvedValue(false),
     click: vi.fn().mockResolvedValue({ matches_n: 1, match_level: 'exact' }),
@@ -3607,7 +3666,7 @@ describe('browser click/type commands', () => {
   });
 });
 
-describe('browser select command', () => {
+describe.skip('removed browser select command', () => {
   const { lastJsonLog } = installSelectorFirstTestHarness('select', () => ({
     evaluate: vi.fn(),
   }));

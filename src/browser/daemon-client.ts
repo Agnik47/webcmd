@@ -287,3 +287,13 @@ export async function releaseSiteSessionLease(runId: string): Promise<void> {
 export async function bindTab(session: string, opts: { contextId?: string; preferredContextId?: string; page?: string; index?: number; windowMode?: BrowserWindowMode } = {}): Promise<unknown> {
   return sendCommand('bind', { session, surface: 'browser', ...opts });
 }
+
+/** List existing pages without starting a daemon or browser runtime. */
+export async function listExistingBrowserTabs(
+  session: string,
+  opts: { contextId?: string; preferredContextId?: string } = {},
+): Promise<unknown> {
+  const status = await fetchDaemonStatus({ contextId: opts.contextId });
+  if (!status?.runtimeConnected) return [];
+  return sendCommand('tabs', { session, surface: 'browser', ...opts, op: 'list' });
+}

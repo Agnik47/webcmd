@@ -34,20 +34,15 @@ export function parseHostedBrowserStructure(argv: readonly string[]): ParsedHost
   const browser = root
     .command('browser')
     .addOption(new Option('--session <name>', 'Internal — set automatically from the <session> positional').hideHelp())
-    .option('--window <mode>', 'Browser window mode: foreground or background (default: background)')
-    .description('Browser control — navigate, click, type, extract, wait (no LLM needed)')
+    .description('Run Playwright programs against named browser sessions')
     .usage('<session> <command> [options]')
     .addHelpText('after', `
 <session> is a required positional: pass the name of the browser session every subcommand should operate on. Reuse the same name across calls to keep the tab/state alive; pick a different name to isolate parallel browser work.
 
 Examples:
-  $ webcmd browser work open https://x.com
-  $ webcmd browser work open https://x.com --window foreground
-  $ webcmd browser work click 12
-  $ webcmd browser work state
-  $ webcmd browser work tab list
+  $ webcmd browser work tabs
   $ webcmd browser work bind --page page-123
-  $ webcmd browser work unbind  # compatibility command; releases the Cloak session
+  $ printf 'await page.goto("https://example.com")' | webcmd browser work run --stdin
 `);
 
   let parsed: ParsedHostedBrowserStructure | undefined;
@@ -87,6 +82,7 @@ Examples:
         continue;
       }
       const commanderOption = new Option(flags, option.description);
+      if (option.required) commanderOption.makeOptionMandatory();
       if (option.choices?.length) commanderOption.choices(option.choices);
       if (option.default !== undefined) commanderOption.default(String(option.default));
       const valueParser = browserOptionValueParser(contract.command, option.name);

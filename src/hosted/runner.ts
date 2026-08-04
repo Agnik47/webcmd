@@ -489,7 +489,7 @@ function parseHostedBrowserInvocation(argv: string[], profile: string | undefine
   if (!structure.commandName) {
     throw new ConfigError(
       'Hosted browser command is required.',
-      'Use: webcmd browser <session> open <url>, state, screenshot, tab list, or eval <js>.',
+      'Use: webcmd browser <session> tabs, bind --page <id>, run --stdin|--file <path>, or close.',
     );
   }
 
@@ -523,23 +523,20 @@ function parseBrowserLeaf(
 } {
   const contract = hostedBrowserCommandsByPath.get(leaf);
   if (!contract || !contract.action) {
-    if (leaf === 'bind') {
-      throw new ConfigError(
-        'Browser bind is not supported in hosted mode.',
-        'Use browser state or browser tabs to inspect the active hosted page.',
-      );
-    }
-    if (contract?.sessionPolicy === 'local-only') {
-      throw new ConfigError(
-        `Browser ${leaf} is local-only and is not available in hosted mode.`,
-        'Switch Webcmd to local mode to use this command.',
-      );
-    }
     throw new ConfigError(`Hosted browser command is not supported yet: ${leaf}`);
   }
 
   const localPath = leaf === 'screenshot' ? positionals[0] : undefined;
   const args = browserActionArgs(contract, positionals, options);
+  if (contract.command === 'run') {
+    const hasStdin = args.stdin === true;
+    const file = typeof args.file === 'string' ? args.file.trim() : '';
+    if (hasStdin === Boolean(file)) {
+      throw new ConfigError(
+        'Browser run requires exactly one program input: --stdin or --file <path>.',
+      );
+    }
+  }
   return {
     commandName: leaf,
     action: contract.action as HostedBrowserActionName,

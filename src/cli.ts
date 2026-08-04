@@ -38,7 +38,7 @@ import { browserOptionValueParser } from './browser/command-catalog.js';
 import { registerAuthCommands } from './commands/auth.js';
 import { daemonRestart, daemonStatus, daemonStop } from './commands/daemon.js';
 import { isVerbose, log } from './logger.js';
-import { bindTab, BrowserCommandError, sendCommand } from './browser/daemon-client.js';
+import { BrowserCommandError, listExistingBrowserTabs, sendCommand } from './browser/daemon-client.js';
 import { fetchDaemonStatus } from './browser/daemon-transport.js';
 import { aliasForContextId, loadProfileConfig, profileRouteParams, renameProfile, resolveProfileSelection, setDefaultProfile, type ProfileSelection } from './browser/profile.js';
 import { formatDaemonVersion, isDaemonStale } from './browser/daemon-version.js';
@@ -950,20 +950,15 @@ export function createProgram(BUILTIN_CLIS: string, USER_CLIS: string): Command 
     // program.parseAsync callers (tests). User-facing surface is the <session>
     // positional; main.ts argv preprocessor rewrites positional -> --session.
     .addOption(new Option('--session <name>', 'Internal — set automatically from the <session> positional').hideHelp())
-    .option('--window <mode>', 'Browser window mode: foreground or background (default: background)')
-    .description('Browser control — navigate, click, type, extract, wait (no LLM needed)')
+    .description('Run Playwright programs against named browser sessions')
     .usage('<session> <command> [options]')
     .addHelpText('after', `
 <session> is a required positional: pass the name of the browser session every subcommand should operate on. Reuse the same name across calls to keep the tab/state alive; pick a different name to isolate parallel browser work.
 
 Examples:
-  $ webcmd browser work open https://x.com
-  $ webcmd browser work open https://x.com --window foreground
-  $ webcmd browser work click 12
-  $ webcmd browser work state
-  $ webcmd browser work tab list
+  $ webcmd browser work tabs
   $ webcmd browser work bind --page page-123
-  $ webcmd browser work unbind  # compatibility command; releases the Cloak session
+  $ printf 'await page.goto("https://example.com")' | webcmd browser work run --stdin
 `);
   const originalBrowserDescription = browser.description();
 
@@ -1149,7 +1144,7 @@ Examples:
         throw new BrowserCommandError('--index must be a non-negative integer.', 'invalid_request');
       }
       const index = rawIndex === undefined ? undefined : Number.parseInt(rawIndex, 10);
-      const data = await bindTab(session, { ...routing, ...(page && { page }), ...(index !== undefined && { index }), windowMode });
+      const data = await sendCommand('bind', { session, surface: 'browser', ...routing, ...(page && { page }), ...(index !== undefined && { index }), windowMode });
       saveBrowserTargetState(undefined, getBrowserScope(session, contextId));
       console.log(JSON.stringify({ session, ...((data && typeof data === 'object') ? data as Record<string, unknown> : { data }) }, null, 2));
     }));
@@ -3091,13 +3086,85 @@ cli({
       }
     });
 
-  // ── Session ──
+  // Keep adapter authoring commands, but expose only the four raw session primitives.
+  const browserAuthoringCommands = browser.commands.filter(command => ['init', 'verify'].includes(command.name()));
+  (browser.commands as Command[]).splice(0, browser.commands.length);
 
-  browser.command('close').description('Release the current browser session tab lease')
-    .action(browserAction(async (page) => {
-      await page.closeWindow?.();
-      console.log('Browser session tab lease released');
-    }));
+  function rawBrowserAction(fn: (session: string, routing: { contextId?: string; preferredContextId?: string }, opts: Record<string, unknown>) => Promise<unknown>) {
+    return async (opts: Record<string, unknown>, command: Command) => {
+      try {
+        const session = getBrowserSession(command);
+        const routing = profileRouteParams(getBrowserProfileSelection(command));
+        console.log(JSON.stringify(await fn(session, routing, opts), null, 2));
+      } catch (error) {
+        if (error instanceof BrowserCommandError && error.code) {
+          console.log(JSON.stringify({
+            error: {
+              code: error.code,
+              message: error.message,
+              ...(error.hint ? { hint: error.hint } : {}),
+              ...(error.details !== undefined ? { details: error.details } : {}),
+            },
+          }, null, 2));
+        }
+        log.error(error instanceof Error ? error.message : String(error));
+        process.exitCode = EXIT_CODES.GENERIC_ERROR;
+      }
+    };
+  }
+
+  browser.addCommand(new Command('tabs')
+    .description('List pages in the existing browser session')
+    .action(rawBrowserAction((session, routing) => listExistingBrowserTabs(session, routing))));
+
+  browser.addCommand(new Command('bind')
+    .description('Bind this session to an existing page')
+    .addOption(new Option('--page <id>', 'Stable page id returned by tabs').makeOptionMandatory())
+    .action(rawBrowserAction((session, routing, opts) => sendCommand('bind', {
+      session,
+      surface: 'browser',
+      ...routing,
+      page: String(opts.page).trim(),
+    }))));
+
+  const runCommand = new Command('run')
+    .description('Run JavaScript with Playwright')
+    .option('--stdin', 'Read the program from stdin')
+    .option('--file <path>', 'Read the program from a file')
+    .addOption(new Option('--timeout <seconds>', 'Execution timeout in seconds').argParser(browserOptionValueParser('run', 'timeout')!))
+    .addOption(new Option('--max-output <characters>', 'Maximum returned characters').argParser(browserOptionValueParser('run', 'maxOutput')!))
+    .option('--snapshot-diff', 'Return the before/after semantic diff');
+  runCommand.action(rawBrowserAction(async (session, routing, opts) => {
+    let source: string;
+    try {
+      source = await loadBrowserRunSource({ stdin: opts.stdin === true, file: typeof opts.file === 'string' ? opts.file : undefined });
+    } catch (error) {
+      if (error instanceof BrowserRunError) throw new BrowserCommandError(error.message, error.code, error.hint);
+      throw error;
+    }
+    const timeout = typeof opts.timeout === 'number' ? opts.timeout : undefined;
+    const maxOutput = typeof opts.maxOutput === 'number' ? opts.maxOutput : undefined;
+    return sendCommand('run', {
+      session,
+      surface: 'browser',
+      ...routing,
+      source,
+      ...(timeout !== undefined ? { timeoutMs: timeout * 1000, timeout: timeout + 5 } : {}),
+      ...(maxOutput !== undefined ? { maxOutputChars: maxOutput } : {}),
+      ...(opts.snapshotDiff === true ? { snapshotDiff: true } : {}),
+    });
+  }));
+  browser.addCommand(runCommand);
+
+  browser.addCommand(new Command('close')
+    .description('Close or detach this browser session')
+    .action(rawBrowserAction((session, routing) => sendCommand('close-window', {
+      session,
+      surface: 'browser',
+      ...routing,
+    }))));
+
+  for (const command of browserAuthoringCommands) browser.addCommand(command);
 
   // ── Built-in: doctor / completion ──────────────────────────────────────────
 
