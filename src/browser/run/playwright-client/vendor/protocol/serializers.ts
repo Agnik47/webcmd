@@ -139,7 +139,7 @@ function innerSerializeValue(value: any, handleSerializer: (value: any) => Handl
 
   const typedArrayKind = constructorToTypedArrayKind.get(value.constructor);
   if (typedArrayKind)
-    return { ta: { b: Buffer.from(value.buffer, value.byteOffset, value.byteLength), k: typedArrayKind } };
+    return { ta: { b: new Uint8Array(value.buffer, value.byteOffset, value.byteLength), k: typedArrayKind } };
 
   const id = visitorInfo.visited.get(value);
   if (id)

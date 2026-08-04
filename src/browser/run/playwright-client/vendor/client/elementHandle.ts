@@ -21,7 +21,6 @@ import { getMimeTypeForPath } from '@isomorphic/mimeType';
 import { Frame } from './frame';
 import { JSHandle, parseResult, serializeArgument } from './jsHandle';
 import { fileUploadSizeLimit, mkdirIfNeeded } from './fileUtils';
-import { WritableStream } from './writableStream';
 
 import type { BrowserContext } from './browserContext';
 import type { ChannelOwner } from './channelOwner';
@@ -257,59 +256,11 @@ function filePayloadExceedsSizeLimit(payloads: FilePayload[]) {
   return payloads.reduce((size, item) => size + (item.buffer ? item.buffer.byteLength : 0), 0) >= fileUploadSizeLimit;
 }
 
-async function resolvePathsAndDirectoryForInputFiles(platform: Platform, items: string[]): Promise<[string[] | undefined, string | undefined]> {
-  let localPaths: string[] | undefined;
-  let localDirectory: string | undefined;
-  for (const item of items) {
-    const stat = await platform.fs().promises.stat(item as string);
-    if (stat.isDirectory()) {
-      if (localDirectory)
-        throw new Error('Multiple directories are not supported');
-      localDirectory = platform.path().resolve(item as string);
-    } else {
-      localPaths ??= [];
-      localPaths.push(platform.path().resolve(item as string));
-    }
-  }
-  if (localPaths?.length && localDirectory)
-    throw new Error('File paths must be all files or a single directory');
-  return [localPaths, localDirectory];
-}
-
 export async function convertInputFiles(platform: Platform, files: string | FilePayload | string[] | FilePayload[], context: BrowserContext): Promise<SetInputFilesFiles> {
   const items: (string | FilePayload)[] = Array.isArray(files) ? files.slice() : [files];
 
   if (items.some(item => typeof item === 'string')) {
-    if (!items.every(item => typeof item === 'string'))
-      throw new Error('File paths cannot be mixed with buffers');
-
-    const [localPaths, localDirectory] = await resolvePathsAndDirectoryForInputFiles(platform, items);
-
-    if (context._connection.isRemote()) {
-      const files = localDirectory ? (await platform.fs().promises.readdir(localDirectory, { withFileTypes: true, recursive: true })).filter(f => f.isFile()).map(f => platform.path().join(f.parentPath, f.name)) : localPaths!;
-      const { writableStreams, rootDir } = await context._wrapApiCall(async () => context._channel.createTempFiles({
-        rootDirName: localDirectory ? platform.path().basename(localDirectory) : undefined,
-        items: await Promise.all(files.map(async file => {
-          const lastModifiedMs = (await platform.fs().promises.stat(file)).mtimeMs;
-          return {
-            name: localDirectory ? platform.path().relative(localDirectory, file) : platform.path().basename(file),
-            lastModifiedMs
-          };
-        })),
-      }), { internal: true });
-      for (let i = 0; i < files.length; i++) {
-        const writable = WritableStream.from(writableStreams[i]);
-        await platform.streamFile(files[i], writable.stream());
-      }
-      return {
-        directoryStream: rootDir,
-        streams: localDirectory ? undefined : writableStreams,
-      };
-    }
-    return {
-      localPaths,
-      localDirectory,
-    };
+    throw new Error('File paths are unavailable in the QuickJS sandbox; use in-memory file payloads.');
   }
 
   const payloads = items as FilePayload[];

@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+import { quickjsEncoding } from '../../quickjs-platform';
+
 export class ValidationError extends Error {}
 export type Validator = (arg: any, path: string, context: ValidatorContext) => any;
 export type ValidatorContext = {
@@ -77,20 +79,20 @@ export const tString: Validator = (arg: any, path: string, context: ValidatorCon
 export const tBinary: Validator = (arg: any, path: string, context: ValidatorContext) => {
   if (context.binary === 'fromBase64') {
     if (arg instanceof String)
-      return Buffer.from(arg.valueOf(), 'base64');
+      return quickjsEncoding.decodeBase64(arg.valueOf());
     if (typeof arg === 'string')
-      return Buffer.from(arg, 'base64');
+      return quickjsEncoding.decodeBase64(arg);
     throw new ValidationError(`${path}: expected base64-encoded buffer, got ${typeof arg}`);
   }
   if (context.binary === 'toBase64') {
-    if (!(arg instanceof Buffer))
-      throw new ValidationError(`${path}: expected Buffer, got ${typeof arg}`);
-    return (arg as Buffer).toString('base64');
+    if (!(arg instanceof Uint8Array))
+      throw new ValidationError(`${path}: expected Uint8Array, got ${typeof arg}`);
+    return quickjsEncoding.encodeBase64(arg);
   }
   if (context.binary === 'buffer') {
     // TODO: support custom binary types.
-    if (!(arg instanceof Buffer) && !(arg instanceof Object))
-      throw new ValidationError(`${path}: expected Buffer, got ${typeof arg}`);
+    if (!(arg instanceof Uint8Array) && !(arg instanceof Object))
+      throw new ValidationError(`${path}: expected Uint8Array, got ${typeof arg}`);
     return arg;
   }
   throw new ValidationError(`Unsupported binary behavior "${context.binary}"`);

@@ -28,25 +28,11 @@ export class Artifact extends ChannelOwner<channels.ArtifactChannel> {
   }
 
   async pathAfterFinished(): Promise<string> {
-    if (this._connection.isRemote())
-      throw new Error(`Path is not available when connecting remotely. Use saveAs() to save a local copy.`);
-    return (await this._channel.pathAfterFinished()).value;
+    throw new Error(`Path is not available in the QuickJS sandbox. Use saveAs() to save a logical artifact.`);
   }
 
   async saveAs(path: string): Promise<void> {
-    if (!this._connection.isRemote()) {
-      await this._channel.saveAs({ path });
-      return;
-    }
-
-    const result = await this._channel.saveAsStream();
-    const stream = Stream.from(result.stream);
-    await mkdirIfNeeded(this._platform, path);
-    await new Promise((resolve, reject) => {
-      stream.stream().pipe(this._platform.fs().createWriteStream(path))
-          .on('finish' as any, resolve)
-          .on('error' as any, reject);
-    });
+    await this._platform.fs().promises.writeFile(path, await this.readIntoBuffer());
   }
 
   async failure(): Promise<string | null> {
@@ -54,23 +40,27 @@ export class Artifact extends ChannelOwner<channels.ArtifactChannel> {
   }
 
   async createReadStream(): Promise<Readable> {
-    const result = await this._channel.stream();
-    const stream = Stream.from(result.stream);
-    return stream.stream();
+    throw new Error('Readable streams are not available in the QuickJS sandbox');
   }
 
-  async readIntoBuffer(): Promise<Buffer> {
-    const stream = (await this.createReadStream())!;
-    return await new Promise((resolve, reject) => {
-      const chunks: Buffer[] = [];
-      stream.on('data', (chunk: Buffer) => {
-        chunks.push(chunk);
-      });
-      stream.on('end', () => {
-        resolve(Buffer.concat(chunks));
-      });
-      stream.on('error', reject);
-    });
+  async readIntoBuffer(): Promise<Uint8Array> {
+    const result = await this._channel.saveAsStream();
+    const stream = Stream.from(result.stream);
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    while (true) {
+      const { binary } = await stream._channel.read({ size: 64 * 1024 });
+      if (!binary.byteLength) break;
+      chunks.push(binary);
+      size += binary.byteLength;
+    }
+    const bytes = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    return bytes;
   }
 
   async cancel(): Promise<void> {

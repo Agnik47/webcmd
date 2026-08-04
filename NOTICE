@@ -5,7 +5,7 @@ The browser-run QuickJS lifecycle is derived from dev-browser
 licensed under the MIT License.
 
 The browser-run Playwright QuickJS client includes Playwright code from
-https://github.com/microsoft/playwright, licensed under the MIT License.
+https://github.com/microsoft/playwright, licensed under Apache-2.0.
 
 The browser-run structural diff is derived from Libretto
 (https://github.com/Skyvern-AI/libretto), licensed under the MIT License.

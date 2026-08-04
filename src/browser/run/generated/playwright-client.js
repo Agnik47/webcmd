@@ -1,4 +1,4 @@
-/* Webcmd Playwright QuickJS client: Playwright v1.61.1 (39e3553a4f283a41134d75d7e404484bd9e6865a) */
+/* Webcmd Playwright QuickJS client: Playwright v1.61.1 (39e3553a4f283a41134d75d7e404484bd9e6865a, Apache-2.0) */
 "use strict";
 var __WebcmdPlaywrightClient = (() => {
   var __defProp = Object.defineProperty;
@@ -22,8 +22,10 @@ var __WebcmdPlaywrightClient = (() => {
   // src/browser/run/playwright-client/bundle-entry.ts
   var bundle_entry_exports = {};
   __export(bundle_entry_exports, {
+    convertInputFiles: () => convertInputFiles,
     createConnection: () => createConnection,
-    quickjsPlatform: () => quickjsPlatform
+    quickjsPlatform: () => quickjsPlatform,
+    tBinary: () => tBinary
   });
 
   // src/browser/run/playwright-client/vendor/isomorphic/stackTrace.ts
@@ -1035,6 +1037,98 @@ ${lines.join("\n")}`;
     return methodMetainfo.get(metadata.type + "." + metadata.method);
   }
 
+  // src/browser/run/playwright-client/vendor/isomorphic/colors.ts
+  var webColors = {
+    enabled: true,
+    reset: (text) => applyStyle(0, 0, text),
+    bold: (text) => applyStyle(1, 22, text),
+    dim: (text) => applyStyle(2, 22, text),
+    italic: (text) => applyStyle(3, 23, text),
+    underline: (text) => applyStyle(4, 24, text),
+    inverse: (text) => applyStyle(7, 27, text),
+    hidden: (text) => applyStyle(8, 28, text),
+    strikethrough: (text) => applyStyle(9, 29, text),
+    black: (text) => applyStyle(30, 39, text),
+    red: (text) => applyStyle(31, 39, text),
+    green: (text) => applyStyle(32, 39, text),
+    yellow: (text) => applyStyle(33, 39, text),
+    blue: (text) => applyStyle(34, 39, text),
+    magenta: (text) => applyStyle(35, 39, text),
+    cyan: (text) => applyStyle(36, 39, text),
+    white: (text) => applyStyle(37, 39, text),
+    gray: (text) => applyStyle(90, 39, text),
+    grey: (text) => applyStyle(90, 39, text)
+  };
+  var applyStyle = (open, close, text) => `\x1B[${open}m${text}\x1B[${close}m`;
+
+  // src/browser/run/playwright-client/quickjs-platform.ts
+  var sandbox = globalThis;
+  var noopZone = {
+    push: () => noopZone,
+    pop: () => noopZone,
+    run: (callback) => callback(),
+    data: () => void 0
+  };
+  function injected(name) {
+    const value = sandbox[name];
+    if (typeof value !== "function") throw new Error(`${String(name)} is unavailable in the QuickJS sandbox`);
+    return value;
+  }
+  var quickjsEncoding = {
+    encodeBase64: (bytes) => injected("__webcmdEncodeBase64")(bytes),
+    decodeBase64: (value) => injected("__webcmdDecodeBase64")(value),
+    encodeText: (value) => injected("__webcmdEncodeText")(value),
+    decodeText: (bytes) => injected("__webcmdDecodeText")(bytes)
+  };
+  var sendTransport = (message) => injected("__webcmdTransportSend")(message);
+  var sandboxFs = {
+    promises: {
+      mkdir: async () => void 0,
+      writeFile: async (path, bytes) => injected("__webcmdWriteArtifact")(path, bytes)
+    }
+  };
+  var sandboxPath = {
+    dirname: () => "",
+    isAbsolute: (path) => path.startsWith("/"),
+    resolve: (...paths) => paths.join("/")
+  };
+  var quickjsPlatform = {
+    name: "empty",
+    boxedStackPrefixes: () => [],
+    calculateSha1: async (text) => {
+      let hash = 2166136261;
+      for (let index = 0; index < text.length; index++) hash = Math.imul(hash ^ text.charCodeAt(index), 16777619);
+      return (hash >>> 0).toString(16).padStart(8, "0");
+    },
+    colors: webColors,
+    createGuid: () => "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (token) => {
+      const value = Math.floor(Math.random() * 16);
+      return (token === "x" ? value : value & 3 | 8).toString(16);
+    }),
+    defaultMaxListeners: () => 10,
+    env: {},
+    fs: () => sandboxFs,
+    inspectCustom: void 0,
+    isDebugMode: () => false,
+    isJSDebuggerAttached: () => false,
+    isLogEnabled: () => false,
+    isUnderTest: () => false,
+    log: () => void 0,
+    path: () => sandboxPath,
+    pathSeparator: "/",
+    showInternalStackFrames: () => false,
+    streamFile: async () => {
+      throw new Error("Streams are unavailable in the QuickJS sandbox");
+    },
+    streamReadable: () => {
+      throw new Error("Streams are unavailable in the QuickJS sandbox");
+    },
+    streamWritable: () => {
+      throw new Error("Streams are unavailable in the QuickJS sandbox");
+    },
+    zones: { empty: noopZone, current: () => noopZone }
+  };
+
   // src/browser/run/playwright-client/vendor/protocol/validatorPrimitives.ts
   var ValidationError = class extends Error {
   };
@@ -1085,19 +1179,19 @@ ${lines.join("\n")}`;
   var tBinary = (arg, path, context) => {
     if (context.binary === "fromBase64") {
       if (arg instanceof String)
-        return Buffer.from(arg.valueOf(), "base64");
+        return quickjsEncoding.decodeBase64(arg.valueOf());
       if (typeof arg === "string")
-        return Buffer.from(arg, "base64");
+        return quickjsEncoding.decodeBase64(arg);
       throw new ValidationError(`${path}: expected base64-encoded buffer, got ${typeof arg}`);
     }
     if (context.binary === "toBase64") {
-      if (!(arg instanceof Buffer))
-        throw new ValidationError(`${path}: expected Buffer, got ${typeof arg}`);
-      return arg.toString("base64");
+      if (!(arg instanceof Uint8Array))
+        throw new ValidationError(`${path}: expected Uint8Array, got ${typeof arg}`);
+      return quickjsEncoding.encodeBase64(arg);
     }
     if (context.binary === "buffer") {
-      if (!(arg instanceof Buffer) && !(arg instanceof Object))
-        throw new ValidationError(`${path}: expected Buffer, got ${typeof arg}`);
+      if (!(arg instanceof Uint8Array) && !(arg instanceof Object))
+        throw new ValidationError(`${path}: expected Uint8Array, got ${typeof arg}`);
       return arg;
     }
     throw new ValidationError(`Unsupported binary behavior "${context.binary}"`);
@@ -4732,7 +4826,7 @@ ${lines.join("\n")}`;
       return { r: { p: value.source, f: value.flags } };
     const typedArrayKind = constructorToTypedArrayKind.get(value.constructor);
     if (typedArrayKind)
-      return { ta: { b: Buffer.from(value.buffer, value.byteOffset, value.byteLength), k: typedArrayKind } };
+      return { ta: { b: new Uint8Array(value.buffer, value.byteOffset, value.byteLength), k: typedArrayKind } };
     const id = visitorInfo.visited.get(value);
     if (id)
       return { ref: id };
@@ -5188,55 +5282,41 @@ ${lines.join("\n")}`;
     }
   };
 
-  // src/browser/run/playwright-client/vendor/client/fileUtils.ts
-  var fileUploadSizeLimit = 50 * 1024 * 1024;
-  async function mkdirIfNeeded(platform, filePath) {
-    await platform.fs().promises.mkdir(platform.path().dirname(filePath), { recursive: true }).catch(() => {
-    });
-  }
-
   // src/browser/run/playwright-client/vendor/client/artifact.ts
   var Artifact = class extends ChannelOwner {
     static from(channel) {
       return channel._object;
     }
     async pathAfterFinished() {
-      if (this._connection.isRemote())
-        throw new Error(`Path is not available when connecting remotely. Use saveAs() to save a local copy.`);
-      return (await this._channel.pathAfterFinished()).value;
+      throw new Error(`Path is not available in the QuickJS sandbox. Use saveAs() to save a logical artifact.`);
     }
     async saveAs(path) {
-      if (!this._connection.isRemote()) {
-        await this._channel.saveAs({ path });
-        return;
-      }
-      const result = await this._channel.saveAsStream();
-      const stream = Stream.from(result.stream);
-      await mkdirIfNeeded(this._platform, path);
-      await new Promise((resolve, reject) => {
-        stream.stream().pipe(this._platform.fs().createWriteStream(path)).on("finish", resolve).on("error", reject);
-      });
+      await this._platform.fs().promises.writeFile(path, await this.readIntoBuffer());
     }
     async failure() {
       return (await this._channel.failure()).error || null;
     }
     async createReadStream() {
-      const result = await this._channel.stream();
-      const stream = Stream.from(result.stream);
-      return stream.stream();
+      throw new Error("Readable streams are not available in the QuickJS sandbox");
     }
     async readIntoBuffer() {
-      const stream = await this.createReadStream();
-      return await new Promise((resolve, reject) => {
-        const chunks = [];
-        stream.on("data", (chunk) => {
-          chunks.push(chunk);
-        });
-        stream.on("end", () => {
-          resolve(Buffer.concat(chunks));
-        });
-        stream.on("error", reject);
-      });
+      const result = await this._channel.saveAsStream();
+      const stream = Stream.from(result.stream);
+      const chunks = [];
+      let size = 0;
+      while (true) {
+        const { binary } = await stream._channel.read({ size: 64 * 1024 });
+        if (!binary.byteLength) break;
+        chunks.push(binary);
+        size += binary.byteLength;
+      }
+      const bytes = new Uint8Array(size);
+      let offset = 0;
+      for (const chunk of chunks) {
+        bytes.set(chunk, offset);
+        offset += chunk.byteLength;
+      }
+      return bytes;
     }
     async cancel() {
       return await this._channel.cancel();
@@ -8730,6 +8810,13 @@ ${"=".repeat(headerLength)}`;
     }
   };
 
+  // src/browser/run/playwright-client/vendor/client/fileUtils.ts
+  var fileUploadSizeLimit = 50 * 1024 * 1024;
+  async function mkdirIfNeeded(platform, filePath) {
+    await platform.fs().promises.mkdir(platform.path().dirname(filePath), { recursive: true }).catch(() => {
+    });
+  }
+
   // src/browser/run/playwright-client/vendor/client/fetch.ts
   var APIRequest = class {
     _playwright;
@@ -10199,19 +10286,6 @@ before the end of the test to ignore remaining routes in flight.`);
     return waitUntil;
   }
 
-  // src/browser/run/playwright-client/vendor/client/writableStream.ts
-  var WritableStream = class extends ChannelOwner {
-    static from(Stream2) {
-      return Stream2._object;
-    }
-    constructor(parent, type, guid, initializer) {
-      super(parent, type, guid, initializer);
-    }
-    stream() {
-      return this._platform.streamWritable(this._channel);
-    }
-  };
-
   // src/browser/run/playwright-client/vendor/client/elementHandle.ts
   var ElementHandle = class _ElementHandle extends JSHandle {
     _frame;
@@ -10390,55 +10464,10 @@ before the end of the test to ignore remaining routes in flight.`);
   function filePayloadExceedsSizeLimit(payloads) {
     return payloads.reduce((size, item) => size + (item.buffer ? item.buffer.byteLength : 0), 0) >= fileUploadSizeLimit;
   }
-  async function resolvePathsAndDirectoryForInputFiles(platform, items) {
-    let localPaths;
-    let localDirectory;
-    for (const item of items) {
-      const stat = await platform.fs().promises.stat(item);
-      if (stat.isDirectory()) {
-        if (localDirectory)
-          throw new Error("Multiple directories are not supported");
-        localDirectory = platform.path().resolve(item);
-      } else {
-        localPaths ??= [];
-        localPaths.push(platform.path().resolve(item));
-      }
-    }
-    if (localPaths?.length && localDirectory)
-      throw new Error("File paths must be all files or a single directory");
-    return [localPaths, localDirectory];
-  }
   async function convertInputFiles(platform, files, context) {
     const items = Array.isArray(files) ? files.slice() : [files];
     if (items.some((item) => typeof item === "string")) {
-      if (!items.every((item) => typeof item === "string"))
-        throw new Error("File paths cannot be mixed with buffers");
-      const [localPaths, localDirectory] = await resolvePathsAndDirectoryForInputFiles(platform, items);
-      if (context._connection.isRemote()) {
-        const files2 = localDirectory ? (await platform.fs().promises.readdir(localDirectory, { withFileTypes: true, recursive: true })).filter((f) => f.isFile()).map((f) => platform.path().join(f.parentPath, f.name)) : localPaths;
-        const { writableStreams, rootDir } = await context._wrapApiCall(async () => context._channel.createTempFiles({
-          rootDirName: localDirectory ? platform.path().basename(localDirectory) : void 0,
-          items: await Promise.all(files2.map(async (file) => {
-            const lastModifiedMs = (await platform.fs().promises.stat(file)).mtimeMs;
-            return {
-              name: localDirectory ? platform.path().relative(localDirectory, file) : platform.path().basename(file),
-              lastModifiedMs
-            };
-          }))
-        }), { internal: true });
-        for (let i = 0; i < files2.length; i++) {
-          const writable = WritableStream.from(writableStreams[i]);
-          await platform.streamFile(files2[i], writable.stream());
-        }
-        return {
-          directoryStream: rootDir,
-          streams: localDirectory ? void 0 : writableStreams
-        };
-      }
-      return {
-        localPaths,
-        localDirectory
-      };
+      throw new Error("File paths are unavailable in the QuickJS sandbox; use in-memory file payloads.");
     }
     const payloads = items;
     if (filePayloadExceedsSizeLimit(payloads))
@@ -12960,6 +12989,19 @@ ${value}`;
     }
   };
 
+  // src/browser/run/playwright-client/vendor/client/writableStream.ts
+  var WritableStream = class extends ChannelOwner {
+    static from(Stream2) {
+      return Stream2._object;
+    }
+    constructor(parent, type, guid, initializer) {
+      super(parent, type, guid, initializer);
+    }
+    stream() {
+      return this._platform.streamWritable(this._channel);
+    }
+  };
+
   // src/browser/run/playwright-client/vendor/client/connection.ts
   var Root = class extends ChannelOwner {
     constructor(connection) {
@@ -13188,95 +13230,10 @@ ${platform.colors.dim(log.join("\n"))}
 `;
   }
 
-  // src/browser/run/playwright-client/vendor/isomorphic/colors.ts
-  var webColors = {
-    enabled: true,
-    reset: (text) => applyStyle(0, 0, text),
-    bold: (text) => applyStyle(1, 22, text),
-    dim: (text) => applyStyle(2, 22, text),
-    italic: (text) => applyStyle(3, 23, text),
-    underline: (text) => applyStyle(4, 24, text),
-    inverse: (text) => applyStyle(7, 27, text),
-    hidden: (text) => applyStyle(8, 28, text),
-    strikethrough: (text) => applyStyle(9, 29, text),
-    black: (text) => applyStyle(30, 39, text),
-    red: (text) => applyStyle(31, 39, text),
-    green: (text) => applyStyle(32, 39, text),
-    yellow: (text) => applyStyle(33, 39, text),
-    blue: (text) => applyStyle(34, 39, text),
-    magenta: (text) => applyStyle(35, 39, text),
-    cyan: (text) => applyStyle(36, 39, text),
-    white: (text) => applyStyle(37, 39, text),
-    gray: (text) => applyStyle(90, 39, text),
-    grey: (text) => applyStyle(90, 39, text)
-  };
-  var applyStyle = (open, close, text) => `\x1B[${open}m${text}\x1B[${close}m`;
-
-  // src/browser/run/playwright-client/quickjs-platform.ts
-  var sandbox = globalThis;
-  var noopZone = {
-    push: () => noopZone,
-    pop: () => noopZone,
-    run: (callback) => callback(),
-    data: () => void 0
-  };
-  function injected(name) {
-    const value = sandbox[name];
-    if (typeof value !== "function") throw new Error(`${String(name)} is unavailable in the QuickJS sandbox`);
-    return value;
-  }
-  var sendTransport = (message) => injected("__webcmdTransportSend")(message);
-  var sandboxFs = {
-    promises: {
-      mkdir: async () => void 0,
-      writeFile: async (path, bytes) => injected("__webcmdWriteArtifact")(path, bytes)
-    }
-  };
-  var sandboxPath = {
-    dirname: () => "",
-    isAbsolute: (path) => path.startsWith("/"),
-    resolve: (...paths) => paths.join("/")
-  };
-  var quickjsPlatform = {
-    name: "empty",
-    boxedStackPrefixes: () => [],
-    calculateSha1: async (text) => {
-      let hash = 2166136261;
-      for (let index = 0; index < text.length; index++) hash = Math.imul(hash ^ text.charCodeAt(index), 16777619);
-      return (hash >>> 0).toString(16).padStart(8, "0");
-    },
-    colors: webColors,
-    createGuid: () => "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (token) => {
-      const value = Math.floor(Math.random() * 16);
-      return (token === "x" ? value : value & 3 | 8).toString(16);
-    }),
-    defaultMaxListeners: () => 10,
-    env: {},
-    fs: () => sandboxFs,
-    inspectCustom: void 0,
-    isDebugMode: () => false,
-    isJSDebuggerAttached: () => false,
-    isLogEnabled: () => false,
-    isUnderTest: () => false,
-    log: () => void 0,
-    path: () => sandboxPath,
-    pathSeparator: "/",
-    showInternalStackFrames: () => false,
-    streamFile: async () => {
-      throw new Error("Streams are unavailable in the QuickJS sandbox");
-    },
-    streamReadable: () => {
-      throw new Error("Streams are unavailable in the QuickJS sandbox");
-    },
-    streamWritable: () => {
-      throw new Error("Streams are unavailable in the QuickJS sandbox");
-    },
-    zones: { empty: noopZone, current: () => noopZone }
-  };
-
   // src/browser/run/playwright-client/bundle-entry.ts
   function createConnection() {
     const connection = new Connection(quickjsPlatform);
+    connection.markAsRemote();
     connection.onmessage = (message) => sendTransport(JSON.stringify(message));
     return connection;
   }
