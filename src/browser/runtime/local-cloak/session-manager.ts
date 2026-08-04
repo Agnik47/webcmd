@@ -356,10 +356,11 @@ export class CloakSessionManager {
     const runtime = this.profiles.get(profileId);
     if (!runtime) return;
     const leaseKey = resolveLeaseKey(input);
-    const exactEntry = runtime.pages.get(leaseKey);
-    const entries = exactEntry
-      ? [[leaseKey, exactEntry] as const]
-      : this.openEntries(runtime).filter(([, entry]) => entry.session === requireSession(input.session) && entry.surface === normalizeSurface(input.surface));
+    const entries = this.openEntries(runtime)
+      .filter(([key, entry]) => key === leaseKey || (
+        entry.session === requireSession(input.session)
+        && entry.surface === normalizeSurface(input.surface)
+      ));
     for (const [key, entry] of entries) {
       runtime.pages.delete(key);
       this.clearIdleTimer(entry);

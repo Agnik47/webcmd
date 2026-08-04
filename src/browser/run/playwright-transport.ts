@@ -131,6 +131,7 @@ export class PlaywrightTransport {
   readonly #hostPages = new Set<Page>();
   #cancellation: Promise<void> | undefined;
   #disposed = false;
+  #browserWaitMs = 0;
 
   constructor(
     input: { browser: Browser; context: BrowserContext; page: Page },
@@ -195,7 +196,14 @@ export class PlaywrightTransport {
       this.#unsupported(parsed.id, `${dispatcher?._type}.${method}`);
       return;
     }
-    void this.#connection.dispatch(parsed);
+    const startedAt = Date.now();
+    void this.#connection.dispatch(parsed).finally(() => {
+      this.#browserWaitMs += Math.max(0, Date.now() - startedAt);
+    });
+  }
+
+  get browserWaitMs(): number {
+    return this.#browserWaitMs;
   }
 
   async snapshotForAI(guid: string): Promise<string> {

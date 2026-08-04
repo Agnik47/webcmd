@@ -43,6 +43,14 @@ export interface BrowserRunLimits {
   snapshotTruncated: boolean;
 }
 
+export interface BrowserRunTimings {
+  quickjs_boot_ms?: number;
+  client_bundle_init_ms?: number;
+  program_ms?: number;
+  browser_wait_ms?: number;
+  snapshot_ms?: number;
+}
+
 export interface BrowserRunFailureDetails {
   logs: BrowserRunLogEntry[];
   page: BrowserRunPageMetadata;
@@ -50,6 +58,7 @@ export interface BrowserRunFailureDetails {
   artifacts: BrowserRunArtifactReceipt[];
   warnings: BrowserRunWarning[];
   limits: BrowserRunLimits;
+  timings?: BrowserRunTimings;
 }
 
 export class BrowserRunError extends Error {
@@ -91,4 +100,5 @@ export interface BrowserRunResult {
   artifacts: BrowserRunArtifactReceipt[];
   warnings: BrowserRunWarning[];
   limits: BrowserRunLimits;
+  timings: BrowserRunTimings;
 }

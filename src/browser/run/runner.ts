@@ -24,6 +24,7 @@ import {
   type BrowserRunLogEntry,
   type BrowserRunOptions,
   type BrowserRunResult,
+  type BrowserRunTimings,
   type BrowserRunWarning,
 } from './types.js';
 
@@ -151,6 +152,7 @@ export async function runBrowserProgram(
   const logs: BrowserRunLogEntry[] = [];
   const artifacts: BrowserRunArtifactReceipt[] = [];
   const warnings: BrowserRunWarning[] = [];
+  const timings: BrowserRunTimings = {};
   let maxOutputChars = BROWSER_RUN_DEFAULT_MAX_OUTPUT_CHARS;
   let savedSnapshotDiff: string | undefined;
   let snapshotTruncated = false;
@@ -181,6 +183,7 @@ export async function runBrowserProgram(
         outputTruncated: logOutputTruncated || bounded.truncated,
         snapshotTruncated,
       },
+      ...(Object.keys(timings).length > 0 && { timings }),
     };
   };
   const failure = async (error: unknown): Promise<Error> => {
@@ -232,6 +235,7 @@ export async function runBrowserProgram(
   const transport = new PlaywrightTransport(input, message => (
     host.deliverTransport(message)
   ));
+  const quickjsBootStartedAt = Date.now();
   try {
     host = await QuickJSHost.create({
       memoryLimitBytes,
@@ -282,8 +286,11 @@ export async function runBrowserProgram(
     });
     host.installHostCall();
   } catch (error) {
+    timings.quickjs_boot_ms = Math.max(0, Date.now() - quickjsBootStartedAt);
     await transport.dispose(error instanceof Error ? error : new Error(String(error)));
     throw await failure(error);
+  } finally {
+    timings.quickjs_boot_ms = Math.max(0, Date.now() - quickjsBootStartedAt);
   }
   const knownPages = new Set(input.context.pages());
   for (const page of knownPages) transport.registerPage(page);
@@ -315,6 +322,8 @@ export async function runBrowserProgram(
       });
   };
   try {
+    const clientBundleInitStartedAt = Date.now();
+    try {
     await host.executeScript(`
       (() => {
         const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
@@ -448,28 +457,37 @@ export async function runBrowserProgram(
       })()
     `, { filename: 'browser-run-bootstrap.js' });
     await host.callFunction('__webcmdInitializePlaywright', transport.pageGuid);
+    } finally {
+      timings.client_bundle_init_ms = Math.max(0, Date.now() - clientBundleInitStartedAt);
+    }
     const timeoutError = () => new BrowserRunError(
       'BROWSER_RUN_TIMEOUT',
       `Browser-run execution exceeded ${timeoutMs}ms.`,
       'Split the task into a smaller run or increase --timeout.',
     );
     const snapshot = async () => {
+      const snapshotStartedAt = Date.now();
       const remaining = deadlineAt - Date.now();
-      if (remaining <= 0) throw timeoutError();
-      let snapshotTimeout: ReturnType<typeof setTimeout> | undefined;
       try {
-        const value = await Promise.race([
-          transport.snapshotForAI(transport.pageGuid),
-          new Promise<never>((_resolve, reject) => {
-            snapshotTimeout = setTimeout(() => reject(timeoutError()), remaining);
-          }),
-        ]);
-        return redactText(value, { maxStringLength: maxOutputChars * 2 });
+        if (remaining <= 0) throw timeoutError();
+        let snapshotTimeout: ReturnType<typeof setTimeout> | undefined;
+        try {
+          const value = await Promise.race([
+            transport.snapshotForAI(transport.pageGuid),
+            new Promise<never>((_resolve, reject) => {
+              snapshotTimeout = setTimeout(() => reject(timeoutError()), remaining);
+            }),
+          ]);
+          return redactText(value, { maxStringLength: maxOutputChars * 2 });
+        } finally {
+          if (snapshotTimeout) clearTimeout(snapshotTimeout);
+        }
       } finally {
-        if (snapshotTimeout) clearTimeout(snapshotTimeout);
+        timings.snapshot_ms = (timings.snapshot_ms ?? 0) + Math.max(0, Date.now() - snapshotStartedAt);
       }
     };
     const beforeSnapshot = options.snapshotDiff ? await snapshot() : undefined;
+    const programStartedAt = Date.now();
     execution = host.executeScript(`
       __webcmdRun(${javascriptStringLiteral(source)})
     `, {
@@ -486,7 +504,13 @@ export async function runBrowserProgram(
       }, remainingMs);
     });
     execution.catch(() => {});
-    const serialized = await Promise.race([execution, deadline]);
+    let serialized: unknown;
+    try {
+      serialized = await Promise.race([execution, deadline]);
+    } finally {
+      timings.program_ms = Math.max(0, Date.now() - programStartedAt);
+      timings.browser_wait_ms = transport.browserWaitMs;
+    }
     if (timeout) {
       clearTimeout(timeout);
       timeout = undefined;
@@ -543,6 +567,7 @@ export async function runBrowserProgram(
         outputTruncated: logOutputTruncated || bounded.truncated,
         snapshotTruncated,
       },
+      timings,
     };
   } catch (error) {
     const normalized = normalizeExecutionError(error);
