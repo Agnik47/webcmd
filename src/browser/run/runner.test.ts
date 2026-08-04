@@ -153,9 +153,30 @@ describe('runBrowserProgram', () => {
     expect(output.result).toBe('hello.txt');
   });
 
+  it('exposes only the supplied context from a shared browser', async () => {
+    const sibling = await browser.newContext();
+    try {
+      const siblingPage = await sibling.newPage();
+      await siblingPage.setContent('<title>Sibling secret</title>');
+
+      const output = await run(`
+        return {
+          contexts: browser.contexts().length,
+          pages: browser.contexts().flatMap(item => item.pages()).length,
+        };
+      `);
+
+      expect(output.result).toEqual({ contexts: 1, pages: 1 });
+    } finally {
+      await sibling.close();
+    }
+  });
+
   it.each([
     ['browser.close()', 'await browser.close();'],
     ['browser.newContext()', 'await browser.newContext();'],
+    ['context.close()', 'await context.close();'],
+    ['page.close()', 'await page.close();'],
     ['browserType.launch()', 'await browser.browserType().launch();'],
     ['browserType.connect()', 'await browser.browserType().connect("ws://localhost");'],
     ['browserType.connectOverCDP()', 'await browser.browserType().connectOverCDP("http://localhost");'],
@@ -164,6 +185,17 @@ describe('runBrowserProgram', () => {
       code: 'BROWSER_RUN_API_UNSUPPORTED',
     });
     expect(browser.isConnected()).toBe(true);
+  });
+
+  it.each([
+    ['browser.newBrowserCDPSession()', 'await browser.newBrowserCDPSession();'],
+    ['context.newCDPSession()', 'await context.newCDPSession(page);'],
+  ])('rejects CDP escape route %s', async (_name, source) => {
+    await expect(run(source)).rejects.toMatchObject({
+      code: 'BROWSER_RUN_API_UNSUPPORTED',
+    });
+    expect(browser.isConnected()).toBe(true);
+    expect(page.isClosed()).toBe(false);
   });
 
   it('does not expose imports, require, process, or filesystem globals', async () => {
@@ -185,6 +217,51 @@ describe('runBrowserProgram', () => {
     expect(fs.existsSync(target)).toBe(false);
   });
 
+  it.each([
+    ['page.addScriptTag()', 'await page.addScriptTag({ path: "/etc/passwd" });'],
+    ['locator.setInputFiles()', 'await page.locator("input").setInputFiles("/etc/passwd");'],
+  ])('returns a typed denial for host-path API %s', async (_name, source) => {
+    await expect(run(source)).rejects.toMatchObject({
+      code: 'BROWSER_RUN_API_UNSUPPORTED',
+    });
+  });
+
+  it('cancels an in-flight protocol wait without closing browser state', async () => {
+    await expect(run(`
+      await page.waitForEvent('popup');
+    `, { timeoutMs: 25 })).rejects.toMatchObject({
+      code: 'BROWSER_RUN_TIMEOUT',
+    });
+    expect(browser.isConnected()).toBe(true);
+    expect(page.isClosed()).toBe(false);
+  });
+
+  it('cancels an in-flight popup operation without closing the popup', async () => {
+    const popupPromise = page.waitForEvent('popup');
+    await page.getByRole('link', { name: 'Popup' }).click();
+    const popup = await popupPromise;
+
+    await expect(run(`
+      const popup = context.pages()[1];
+      await popup.waitForEvent('download');
+    `, { timeoutMs: 25 })).rejects.toMatchObject({
+      code: 'BROWSER_RUN_TIMEOUT',
+    });
+    expect(page.isClosed()).toBe(false);
+    expect(popup.isClosed()).toBe(false);
+  });
+
+  it('disposes an unawaited protocol wait without closing browser state', async () => {
+    const output = await run(`
+      page.waitForEvent('popup');
+      return 'done';
+    `);
+
+    expect(output.result).toBe('done');
+    expect(browser.isConnected()).toBe(true);
+    expect(page.isClosed()).toBe(false);
+  });
+
   it('creates a fresh QuickJS runtime for every run', async () => {
     await run('globalThis.fromPreviousRun = true; return null;');
     const output = await run('return typeof fromPreviousRun;');
@@ -201,6 +278,9 @@ describe('runBrowserProgram', () => {
     await expect(run('return 1n;')).rejects.toMatchObject({
       code: 'BROWSER_RUN_SERIALIZATION_ERROR',
     });
+    await expect(run('return new ArrayBuffer(64 * 1024 * 1024);', {
+      memoryLimitBytes: 16 * 1024 * 1024,
+    })).rejects.toMatchObject({ code: 'BROWSER_RUN_MEMORY_LIMIT' });
 
     const output = await run(`
       console.log('ready');
@@ -208,5 +288,30 @@ describe('runBrowserProgram', () => {
     `);
     expect(output.logs).toEqual([{ level: 'log', args: ['ready'] }]);
     expect(output.result).toEqual({ token: '[REDACTED]', value: 'safe' });
+  });
+
+  it('bounds log accumulation before returning it', async () => {
+    const output = await run(`
+      for (let index = 0; index < 100; index += 1) console.log('x'.repeat(100));
+      return null;
+    `, { maxOutputChars: 200 });
+
+    expect(JSON.stringify(output.logs).length).toBeLessThanOrEqual(200);
+    expect(output.limits.outputTruncated).toBe(true);
+  });
+
+  it('redacts page metadata and execution errors', async () => {
+    await context.route('**/*', route => route.fulfill({ body: '<title>Private</title>' }));
+    await page.goto('https://alice:secret@example.test/path?token=secret');
+
+    const output = await run('return null;');
+    expect(output.page.url).toBe(
+      'https://[REDACTED]@example.test/path?token=[REDACTED]',
+    );
+    await expect(run(`
+      throw new Error('failed https://alice:secret@example.test/path?token=secret');
+    `)).rejects.toMatchObject({
+      message: expect.not.stringContaining('secret'),
+    });
   });
 });

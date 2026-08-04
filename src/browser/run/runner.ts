@@ -83,7 +83,8 @@ function normalizeExecutionError(error: unknown): Error {
   }
   const message = error instanceof Error ? error.message : String(error);
   const errorKind = error instanceof Error ? error.name : '';
-  const unsupported = message.match(/BROWSER_RUN_API_UNSUPPORTED:\s*(.*)/s);
+  const unsupported = message.match(/BROWSER_RUN_API_UNSUPPORTED:\s*(.*)/s)
+    ?? message.match(/(File paths? are unavailable in the QuickJS sandbox[^.]*)/i);
   if (unsupported) {
     return new BrowserRunError(
       'BROWSER_RUN_API_UNSUPPORTED',
@@ -242,7 +243,7 @@ export async function runBrowserProgram(
       },
     });
   } catch (error) {
-    transport.dispose();
+    await transport.dispose(error instanceof Error ? error : new Error(String(error)));
     throw error;
   }
   const knownPages = new Set(input.context.pages());
@@ -254,6 +255,7 @@ export async function runBrowserProgram(
   input.context.on('page', registerNewPage);
 
   let timeout: ReturnType<typeof setTimeout> | undefined;
+  let timeoutCancellation: Promise<void> | undefined;
   let wallTimedOut = false;
   let execution: Promise<unknown> | undefined;
   try {
@@ -312,26 +314,23 @@ export async function runBrowserProgram(
     await host.executeScript(`
       (() => {
         const connection = __WebcmdPlaywrightClient.createConnection();
-        globalThis.__webcmdTransportReceive = message => {
-          connection.dispatch(JSON.parse(message));
-        };
-        globalThis.__webcmdWriteArtifact = () => {
+        const unsupported = api => {
           const error = new Error(
-            'BROWSER_RUN_API_UNSUPPORTED: Host filesystem access is unavailable in browser run.'
+            'BROWSER_RUN_API_UNSUPPORTED: ' + api + ' is unavailable in browser run.'
           );
           error.name = 'BrowserRunError';
           throw error;
         };
+        globalThis.__webcmdTransportReceive = message => {
+          connection.dispatch(JSON.parse(message));
+        };
+        globalThis.__webcmdWriteArtifact = () => unsupported('Host filesystem access');
+        __WebcmdPlaywrightClient.quickjsPlatform.fs().promises.readFile = () => (
+          unsupported('Host filesystem reads')
+        );
         globalThis.__webcmdInitializePlaywright = async pageGuid => {
           const playwright = await connection.initializePlaywright();
           const suppliedBrowser = playwright._preLaunchedBrowser();
-          const unsupported = api => {
-            const error = new Error(
-              'BROWSER_RUN_API_UNSUPPORTED: ' + api + ' is unavailable in browser run.'
-            );
-            error.name = 'BrowserRunError';
-            throw error;
-          };
           const browserType = suppliedBrowser.browserType();
           browserType.connect = () => unsupported('BrowserType.connect');
           const selectedPage = connection.getObjectWithKnownName(pageGuid);
@@ -342,9 +341,22 @@ export async function runBrowserProgram(
           globalThis.context = selectedContext;
           globalThis.browser = selectedBrowser;
         };
+        let rejectRun;
+        globalThis.__webcmdCancelPlaywright = message => {
+          connection.close(message);
+          rejectRun?.(new Error(message));
+        };
         globalThis.__webcmdRun = async source => {
           const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
-          const value = await new AsyncFunction(source)();
+          let value;
+          try {
+            const cancellation = new Promise((_resolve, reject) => {
+              rejectRun = reject;
+            });
+            value = await Promise.race([new AsyncFunction(source)(), cancellation]);
+          } finally {
+            rejectRun = undefined;
+          }
           try {
             const serialized = JSON.stringify(value);
             if (serialized === undefined) throw new TypeError('Result is not JSON serializable.');
@@ -373,7 +385,12 @@ export async function runBrowserProgram(
           'Split the task into a smaller run or increase --timeout.',
         );
         host.cancelPending(timeoutError);
-        transport.cancel(timeoutError);
+        timeoutCancellation = transport.cancel(timeoutError).then(async () => {
+          await host.callFunction(
+            '__webcmdCancelPlaywright',
+            timeoutError.message,
+          ).catch(() => undefined);
+        });
         reject(timeoutError);
       }, timeoutMs);
     });
@@ -429,7 +446,8 @@ export async function runBrowserProgram(
     };
   } catch (error) {
     if (wallTimedOut) {
-      transport.cancel(error instanceof Error ? error : new Error(String(error)));
+      await timeoutCancellation;
+      await execution?.catch(() => undefined);
     }
     throw normalizeExecutionError(error);
   } finally {
@@ -439,8 +457,12 @@ export async function runBrowserProgram(
       'Browser-run execution has ended.',
     );
     host.cancelPending(completionError);
-    transport.cancel(completionError);
-    transport.dispose();
+    await transport.cancel(completionError);
+    await host.callFunction(
+      '__webcmdCancelPlaywright',
+      completionError.message,
+    ).catch(() => undefined);
+    await transport.dispose(completionError);
     host.dispose();
     input.context.off('page', registerNewPage);
   }

@@ -1,6 +1,9 @@
 import { createRequire } from 'node:module';
 import type { Browser, BrowserContext, Page } from 'playwright-core';
-import { BrowserRunError } from './types.js';
+import {
+  BROWSER_RUN_PLAYWRIGHT_VERSION,
+  BrowserRunError,
+} from './types.js';
 
 interface DispatcherConnection {
   onmessage: (message: Record<string, unknown>) => void;
@@ -32,20 +35,27 @@ interface PlaywrightClientObject {
   _guid?: string;
 }
 
-const { server } = createRequire(import.meta.url)(
+const coreBundle = createRequire(import.meta.url)(
   'playwright-core/lib/coreBundle',
-) as { server: PlaywrightServer };
+) as { getPlaywrightVersion(): string; server: PlaywrightServer };
+const { server } = coreBundle;
+if (coreBundle.getPlaywrightVersion() !== BROWSER_RUN_PLAYWRIGHT_VERSION) {
+  throw new Error(
+    `Browser-run Playwright protocol requires ${BROWSER_RUN_PLAYWRIGHT_VERSION}.`,
+  );
+}
 
 const DENIED_METHODS = new Map<string, Set<string>>([
   ['Browser', new Set([
     'close',
     'killForTests',
+    'newBrowserCDPSession',
     'newContext',
     'newContextForReuse',
     'startServer',
     'stopServer',
   ])],
-  ['BrowserContext', new Set(['close'])],
+  ['BrowserContext', new Set(['close', 'newCDPSession'])],
   ['Page', new Set(['close'])],
   ['Playwright', new Set(['newRequest'])],
 ]);
@@ -62,11 +72,46 @@ function implementation<T>(object: T): unknown {
   return value;
 }
 
+function scopedBrowser(browser: object, context: object): object {
+  const contextListeners = new WeakMap<Function, Function>();
+  let proxy: object;
+  proxy = new Proxy(browser, {
+    get(target, property) {
+      if (property === 'contexts') return () => [context];
+      if (property === 'on' || property === 'addListener') {
+        return (event: string, listener: Function) => {
+          let registered = listener;
+          if (event === 'context') {
+            registered = (candidate: object, ...args: unknown[]) => {
+              if (candidate === context) listener(candidate, ...args);
+            };
+            contextListeners.set(listener, registered);
+          }
+          Reflect.apply(Reflect.get(target, property), target, [event, registered]);
+          return proxy;
+        };
+      }
+      if (property === 'off' || property === 'removeListener') {
+        return (event: string, listener: Function) => {
+          const registered = contextListeners.get(listener) ?? listener;
+          Reflect.apply(Reflect.get(target, property), target, [event, registered]);
+          contextListeners.delete(listener);
+          return proxy;
+        };
+      }
+      const value = Reflect.get(target, property, target);
+      return typeof value === 'function' ? value.bind(target) : value;
+    },
+  });
+  return proxy;
+}
+
 export class PlaywrightTransport {
   readonly pageGuid: string;
   readonly #connection: DispatcherConnection;
   readonly #root: RootDispatcher;
   readonly #deliver: (message: string) => void;
+  #cancellation: Promise<void> | undefined;
   #disposed = false;
 
   constructor(
@@ -83,8 +128,8 @@ export class PlaywrightTransport {
       );
     }
 
-    const browser = implementation(input.browser);
-    implementation(input.context);
+    const browser = implementation(input.browser) as object;
+    const context = implementation(input.context) as object;
     const page = implementation(input.page) as { guid?: string };
     this.pageGuid = page.guid
       ?? (input.page as Page & PlaywrightClientObject)._guid
@@ -101,7 +146,7 @@ export class PlaywrightTransport {
         server.createPlaywright({ sdkLanguage, isServer: true }),
         {
           denyLaunch: true,
-          preLaunchedBrowser: browser,
+          preLaunchedBrowser: scopedBrowser(browser, context),
           sharedBrowser: true,
         },
       ),
@@ -136,13 +181,15 @@ export class PlaywrightTransport {
     void this.#connection.dispatch(parsed);
   }
 
-  cancel(error: Error): void {
-    if (this.#disposed) return;
-    void this.#root.stopPendingOperations(error);
+  cancel(error: Error): Promise<void> {
+    if (this.#disposed) return Promise.resolve();
+    this.#cancellation ??= this.#root.stopPendingOperations(error).catch(() => undefined);
+    return this.#cancellation;
   }
 
-  dispose(): void {
+  async dispose(error: Error = new Error('Browser run ended')): Promise<void> {
     if (this.#disposed) return;
+    await this.cancel(error);
     this.#disposed = true;
     this.#connection.onmessage = () => undefined;
     this.#root._dispose();

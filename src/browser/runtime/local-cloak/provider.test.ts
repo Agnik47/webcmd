@@ -1,44 +1,22 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LocalCloakRuntimeProvider } from './provider.js';
 
+const runBrowserProgram = vi.hoisted(() => vi.fn());
+
 vi.mock('../../run/runner.js', () => ({
-  runBrowserProgram: async (
-    input: {
-      page: Record<string, unknown>;
-      pageId: string;
-      registerPage?: (page: never) => string;
-    },
-    source: string,
-  ) => {
-    const selectedPage = new Proxy(input.page, {
-      get(target, property, receiver) {
-        if (property === 'waitForEvent') {
-          return async (...args: unknown[]) => {
-            const popup = await (target.waitForEvent as (...values: unknown[]) => Promise<never>)(...args);
-            input.registerPage?.(popup);
-            return popup;
-          };
-        }
-        const value = Reflect.get(target, property, receiver);
-        return typeof value === 'function' ? value.bind(target) : value;
-      },
-    });
-    const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor as new (
-      ...args: string[]
-    ) => (...args: unknown[]) => Promise<unknown>;
-    const result = await new AsyncFunction('browser', source)({
-      currentPage: async () => selectedPage,
-    });
-    return {
-      ok: true,
-      result,
-      logs: [],
-      page: { id: input.pageId, url: '', title: '' },
-      observation: { mode: 'none' },
-      limits: { outputTruncated: false, observationTruncated: false },
-    };
-  },
+  runBrowserProgram,
 }));
+
+function runOutput(result: unknown) {
+  return {
+    ok: true as const,
+    result,
+    logs: [],
+    page: { id: 'page-1', url: '', title: '' },
+    observation: { mode: 'none' as const },
+    limits: { outputTruncated: false, observationTruncated: false },
+  };
+}
 
 function fakePage(url: string, initialViewport: { width: number; height: number } | null = { width: 1280, height: 720 }) {
   let closed = false;
@@ -87,10 +65,14 @@ function makeProviderWithFakePage(initialViewport: { width: number; height: numb
     baseDir: '/tmp/webcmd-test',
     launchPersistentContext: vi.fn().mockResolvedValue(context),
   });
-  return { provider, page: pages[0], pages, context, cdpSession };
+  return { provider, browser, page: pages[0], pages, context, cdpSession };
 }
 
 describe('LocalCloakRuntimeProvider', () => {
+  beforeEach(() => {
+    runBrowserProgram.mockReset();
+  });
+
   it('reports a runtime-named connected status before any profile launches', async () => {
     const provider = new LocalCloakRuntimeProvider({ baseDir: '/tmp/webcmd-test' });
     await expect(provider.status()).resolves.toMatchObject({
@@ -138,7 +120,8 @@ describe('LocalCloakRuntimeProvider', () => {
   });
 
   it('runs Playwright-style source against the selected Cloak page', async () => {
-    const { provider } = makeProviderWithFakePage();
+    const { provider, browser, context, page } = makeProviderWithFakePage();
+    runBrowserProgram.mockResolvedValue(runOutput('https://example.com/'));
 
     await expect(provider.dispatch({
       id: 'run',
@@ -146,7 +129,6 @@ describe('LocalCloakRuntimeProvider', () => {
       session: 'work',
       surface: 'browser',
       source: `
-        const page = await browser.currentPage();
         return page.url();
       `,
       observe: 'none',
@@ -161,6 +143,13 @@ describe('LocalCloakRuntimeProvider', () => {
         observation: { mode: 'none' },
       },
     });
+    expect(runBrowserProgram).toHaveBeenCalledWith(expect.objectContaining({
+      browser,
+      context,
+      page,
+    }), expect.stringContaining('return page.url()'), expect.objectContaining({
+      observe: 'none',
+    }));
   });
 
   it('rejects oversized run source even when the daemon is called directly', async () => {
@@ -197,6 +186,10 @@ describe('LocalCloakRuntimeProvider', () => {
 
   it('serializes run and primitive commands for the same local session', async () => {
     const { provider, page } = makeProviderWithFakePage();
+    runBrowserProgram.mockImplementationOnce(async () => {
+      await new Promise(resolve => setTimeout(resolve, 30));
+      return runOutput(1);
+    });
     const first = provider.dispatch({
       id: 'run',
       action: 'run',
@@ -223,6 +216,10 @@ describe('LocalCloakRuntimeProvider', () => {
 
   it('serializes commands by the resolved page lease when explicit page metadata differs', async () => {
     const { provider, page } = makeProviderWithFakePage();
+    runBrowserProgram.mockImplementationOnce(async () => {
+      await new Promise(resolve => setTimeout(resolve, 30));
+      return runOutput(1);
+    });
     const nav = await provider.dispatch({
       id: 'nav',
       action: 'navigate',
@@ -264,6 +261,12 @@ describe('LocalCloakRuntimeProvider', () => {
     const popup = fakePage('https://popup.example/');
     pages.push(popup);
     page.waitForEvent.mockResolvedValue(popup);
+    runBrowserProgram.mockImplementationOnce(async (input) => {
+      const registeredPopup = await input.page.waitForEvent('popup');
+      input.registerPage?.(registeredPopup);
+      await new Promise(resolve => setTimeout(resolve, 30));
+      return runOutput(null);
+    });
     const nav = await provider.dispatch({
       id: 'nav',
       action: 'navigate',
@@ -285,7 +288,6 @@ describe('LocalCloakRuntimeProvider', () => {
       session: 'misleading-session',
       surface: 'adapter',
       source: `
-        const page = await browser.currentPage();
         await page.waitForEvent("popup");
         await new Promise(resolve => setTimeout(resolve, 30));
         return null;
