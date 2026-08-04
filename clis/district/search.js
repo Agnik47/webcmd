@@ -152,6 +152,7 @@ function rowFor(item, index) {
 cli({
   site: 'district',
   name: 'search',
+  tags: ['search'],
   aliases: ['s'],
   access: 'read',
   description: 'Search District by Zomato across movies, events, dining, stores, activities, and play',

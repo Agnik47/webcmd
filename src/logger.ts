@@ -5,8 +5,9 @@
  * this module so that verbosity levels are respected consistently.
  */
 
-function isVerbose(): boolean {
-  return !!process.env.WEBCMD_VERBOSE;
+export function isVerbose(): boolean {
+  const value = (process.env.WEBCMD_VERBOSE ?? '').trim().toLowerCase();
+  return value !== '' && value !== '0' && value !== 'false' && value !== 'no' && value !== 'off';
 }
 
 export const log = {

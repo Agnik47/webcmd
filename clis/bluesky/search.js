@@ -2,6 +2,7 @@ import { cli, Strategy } from '@agentrhq/webcmd/registry';
 cli({
     site: 'bluesky',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search Bluesky users',
     domain: 'public.api.bsky.app',

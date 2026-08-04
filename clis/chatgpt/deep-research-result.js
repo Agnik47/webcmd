@@ -25,6 +25,7 @@ function hasDeepResearchProgress(result) {
 export const deepResearchResultCommand = cli({
     site: 'chatgpt',
     name: 'deep-research-result',
+    tags: ['search'],
     access: 'read',
     description: 'Read a ChatGPT Deep Research report or progress from the conversation payload',
     domain: CHATGPT_DOMAIN,

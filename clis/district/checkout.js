@@ -17,6 +17,13 @@ import {
 } from './_lib.js';
 
 const DEFAULT_TIMEOUT_SECONDS = 45;
+const PAYMENT_MODES = new Set(['upi-qr', 'review']);
+
+function parsePaymentMode(raw) {
+  const mode = String(raw || 'upi-qr').trim().toLowerCase();
+  if (!PAYMENT_MODES.has(mode)) throw new ArgumentError('payment must be one of: upi-qr, review');
+  return mode;
+}
 
 function parseSeatList(raw) {
   const seats = String(raw || '')
@@ -64,7 +71,14 @@ async function selectRequestedSeats(page, requestedSeats, timeout) {
         };
         const candidates = [...document.querySelectorAll('#available-seat,[id="selected-seat"] span,[aria-label*="seat"]')];
         const target = candidates.map((el) => ({ el, parsed: parse(el) })).find((item) => item.parsed.label === wanted);
-        if (!target) return { ok: false, code: 'not_found', message: wanted + ' was not found in the rendered seat map' };
+        if (!target) {
+          const text = document.body?.innerText || '';
+          const hiddenCount = Number((text.match(/Selected\\s+(\\d+)\\s+Seats?/i) || [])[1] || 0);
+          const proceedVisible = [...document.querySelectorAll('button,[role="button"],a')]
+            .some((el) => /^Proceed$/i.test(((el.innerText || el.getAttribute('aria-label') || '')).replace(/\\s+/g, ' ').trim()));
+          if (hiddenCount > 0 && proceedVisible) return { ok: true, action: 'hidden_selection' };
+          return { ok: false, code: 'not_found', message: wanted + ' was not found in the rendered seat map' };
+        }
         if (target.parsed.seatState === 'selected') return { ok: true, action: 'already_selected' };
         if (target.parsed.seatState !== 'available') return { ok: false, code: 'unavailable', message: wanted + ' is not available' };
         target.el.click();
@@ -85,8 +99,14 @@ async function selectRequestedSeats(page, requestedSeats, timeout) {
           const number = (el.querySelector('label')?.innerText || el.innerText || '').replace(/\\s+/g, '').trim();
           return row && number ? row + number : '';
         }).filter(Boolean);
-        const bodyText = document.body ? document.body.innerText.replace(/\\s+/g, ' ').trim().slice(0, 240) : '';
-        return { ok: selectedSeats.includes(wanted), message: bodyText };
+        const bodyText = document.body ? document.body.innerText.replace(/\\s+/g, ' ').trim() : '';
+        const hiddenCount = Number((bodyText.match(/Selected\\s+(\\d+)\\s+Seats?/i) || [])[1] || 0);
+        const proceedVisible = [...document.querySelectorAll('button,[role="button"],a')]
+          .some((el) => /^Proceed$/i.test(((el.innerText || el.getAttribute('aria-label') || '')).replace(/\\s+/g, ' ').trim()));
+        return {
+          ok: selectedSeats.includes(wanted) || (hiddenCount > 0 && proceedVisible),
+          message: bodyText.slice(0, 240)
+        };
       })()
     `);
     selected.push(seat);
@@ -97,15 +117,30 @@ async function selectRequestedSeats(page, requestedSeats, timeout) {
 async function readSelectedSeats(page) {
   const seats = await page.evaluate(`
     (() => {
-      return [...document.querySelectorAll('#selected-seat span,[aria-label^="selected class"]')].map((el) => {
+      const parseSeat = (el) => {
         const aria = el.getAttribute('aria-label') || '';
         const row = ((aria.match(/row\\s+([^,\\s]+)/i) || [])[1] || '').trim().toUpperCase();
         const number = (el.querySelector('label')?.innerText || el.innerText || '').replace(/\\s+/g, '').trim();
         return row && number ? row + number : '';
-      }).filter(Boolean);
+      };
+      const explicit = [...document.querySelectorAll('#selected-seat span,[aria-label^="selected class"]')]
+        .map(parseSeat)
+        .filter(Boolean);
+      if (explicit.length) return explicit;
+
+      // District can keep a previously selected seat held in the current order
+      // while rendering it as unavailable in the map and only exposing
+      // "Selected 1 Seat" plus the Proceed affordance. In that case the exact
+      // seat is verified later on the order-review page; returning [] here
+      // would make checkout toggle unrelated food/add controls or time out.
+      const text = document.body?.innerText || '';
+      const selectedCount = Number((text.match(/Selected\\s+(\\d+)\\s+Seats?/i) || [])[1] || 0);
+      return selectedCount ? { selectedCount, labelsHidden: true } : [];
     })()
   `);
-  return Array.isArray(seats) ? seats : [];
+  if (Array.isArray(seats)) return seats;
+  if (seats && seats.labelsHidden) return seats;
+  return [];
 }
 
 async function toggleSeat(page, seat) {
@@ -139,6 +174,12 @@ async function reconcileSelection(page, requestedSeats, timeout) {
   const deadline = Date.now() + timeout * 1000;
   let selected = await readSelectedSeats(page);
   while (Date.now() < deadline) {
+    if (selected?.labelsHidden) {
+      if (selected.selectedCount === requestedSeats.length) return;
+      throw new CommandExecutionError(
+        `District reports ${selected.selectedCount} selected seat(s) but ${requestedSeats.length} were requested; open the browser tab and correct the order before paying`,
+      );
+    }
     const extras = selected.filter((seat) => !wanted.has(seat));
     const missing = requestedSeats.filter((seat) => !selected.includes(seat));
     if (!extras.length && !missing.length) return;
@@ -146,8 +187,11 @@ async function reconcileSelection(page, requestedSeats, timeout) {
     await page.wait(0.5);
     selected = await readSelectedSeats(page);
   }
+  const selectedLabel = selected?.labelsHidden
+    ? `${selected.selectedCount} hidden selected seat(s)`
+    : (selected.join(', ') || 'no seats');
   throw new CommandExecutionError(
-    `District kept the selection at ${selected.join(', ') || 'no seats'} while ${requestedSeats.join(', ')} was requested; a pending booking or sticky ticket count may be interfering — open the browser tab to inspect`,
+    `District kept the selection at ${selectedLabel} while ${requestedSeats.join(', ')} was requested; a pending booking or sticky ticket count may be interfering — open the browser tab to inspect`,
   );
 }
 
@@ -219,6 +263,10 @@ async function extractReview(page, target, seats, timeout) {
         orderAmount: amountAfter('Order amount'),
         bookingCharge: amountAfter('Booking charge'),
         total: amountAfter('To be paid') || amountAfter('TOTAL'),
+        paymentMethod: '',
+        paymentState: 'order_review_visible',
+        upiQrVisible: 'false',
+        paymentAmount: '',
         paymentUrl: location.href,
         showId,
       };
@@ -230,6 +278,144 @@ async function extractReview(page, target, seats, timeout) {
     })()
   `);
   return result.review;
+}
+
+async function openUpiQrScanner(page, review, timeout) {
+  const clickTarget = await page.evaluate(`
+    (() => {
+      const exactText = (el) => ((el.innerText || el.textContent || el.getAttribute?.('aria-label') || '')
+        .replace(/\\s+/g, ' ')
+        .trim());
+      const chooseTarget = () => {
+        const paymentCheckout = document.querySelector('payment-checkout');
+        if (paymentCheckout) return { el: paymentCheckout, action: 'payment_checkout' };
+        const controls = [...document.querySelectorAll('button,[role="button"],a,span,div')];
+        const payNow = controls.find((el) => /^Pay now$/i.test(exactText(el)));
+        return payNow ? { el: payNow, action: 'pay_now' } : null;
+      };
+      const target = chooseTarget();
+      if (!target) return { ok: false, message: 'Pay now button was not visible on District order review' };
+      target.el.scrollIntoView({ block: 'center', inline: 'center' });
+      const rect = target.el.getBoundingClientRect();
+      return {
+        ok: true,
+        action: target.action,
+        x: Math.round(rect.left + rect.width / 2),
+        y: Math.round(rect.top + rect.height / 2),
+      };
+    })()
+  `);
+  if (!clickTarget?.ok) throw new CommandExecutionError(clickTarget?.message || 'Could not find District payment handoff');
+  if (typeof page.nativeClick === 'function') {
+    await page.nativeClick(clickTarget.x, clickTarget.y);
+  } else {
+    await page.evaluate(`
+      (() => {
+        const el = document.querySelector('payment-checkout');
+        if (el) el.click();
+      })()
+    `);
+  }
+
+  const qrTarget = await waitFor(page, 'district UPI QR payment option', timeout, `
+    (() => {
+      const exactText = (el) => ((el.innerText || el.textContent || el.getAttribute?.('aria-label') || '')
+        .replace(/\\s+/g, ' ')
+        .trim());
+      const find = (root) => {
+        const target = [...root.querySelectorAll('label,button,[role="button"]')]
+          .find((el) => /^Scan QR to pay$/i.test(exactText(el)));
+        if (target) return target;
+        for (const el of root.querySelectorAll('*')) {
+          if (el.shadowRoot) {
+            const nested = find(el.shadowRoot);
+            if (nested) return nested;
+          }
+        }
+        return null;
+      };
+      const target = find(document);
+      const message = document.body
+        ? (document.body.innerText || document.body.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 240)
+        : '';
+      if (!target) return { ok: false, message };
+      target.scrollIntoView({ block: 'center', inline: 'center' });
+      const rect = target.getBoundingClientRect();
+      return {
+        ok: true,
+        x: Math.round(rect.left + rect.width / 2),
+        y: Math.round(rect.top + rect.height / 2),
+      };
+    })()
+  `);
+  if (typeof page.nativeClick === 'function') {
+    await page.nativeClick(qrTarget.x, qrTarget.y);
+  } else {
+    await page.evaluate(`
+      (() => {
+        const exactText = (el) => ((el.innerText || el.textContent || el.getAttribute?.('aria-label') || '')
+          .replace(/\\s+/g, ' ')
+          .trim());
+        const find = (root) => {
+          const target = [...root.querySelectorAll('label,button,[role="button"]')]
+            .find((el) => /^Scan QR to pay$/i.test(exactText(el)));
+          if (target) return target;
+          for (const el of root.querySelectorAll('*')) {
+            if (el.shadowRoot) {
+              const nested = find(el.shadowRoot);
+              if (nested) return nested;
+            }
+          }
+          return null;
+        };
+        find(document)?.click();
+      })()
+    `);
+  }
+
+  const result = await waitFor(page, 'district UPI QR scanner', timeout, `
+    (() => {
+      const collect = (root, rows = []) => {
+        for (const el of root.querySelectorAll('*')) {
+          const text = (el.innerText || el.textContent || '').replace(/\\s+/g, ' ').trim();
+          const aria = el.getAttribute?.('aria-label') || '';
+          const alt = el.getAttribute?.('alt') || '';
+          const haystack = [text, aria, alt].join(' ');
+          if (/UPI|QR|Scan|To pay|Pay now/i.test(haystack)) {
+            rows.push({ tag: el.tagName, text, aria, alt, src: (el.getAttribute?.('src') || '').slice(0, 120) });
+          }
+          if (el.shadowRoot) collect(el.shadowRoot, rows);
+        }
+        return rows;
+      };
+      const rows = collect(document);
+      const joined = rows.map((row) => [row.text, row.aria, row.alt].filter(Boolean).join(' ')).join(' | ');
+      const qrImage = rows.find((row) => /UPI QR Code/i.test(row.alt) || (/QR/i.test(row.alt) && /upi/i.test(joined)));
+      const amount = (joined.match(/To pay:\\s*(₹\\s*[0-9,.]+)/i) || joined.match(/(₹\\s*[0-9,.]+)\\s+TOTAL/i) || [])[1] || '';
+      return {
+        ok: /UPI QR/i.test(joined) && /Scan the QR using any UPI App/i.test(joined) && Boolean(qrImage),
+        message: joined.slice(0, 240),
+        payment: {
+          status: 'upi_qr_ready',
+          paymentMethod: 'UPI QR',
+          paymentState: 'qr_scanner_visible',
+          upiQrVisible: Boolean(qrImage),
+          paymentAmount: amount,
+          paymentUrl: location.href,
+        },
+      };
+    })()
+  `);
+
+  return {
+    ...review,
+    status: result.payment.status,
+    paymentMethod: result.payment.paymentMethod,
+    paymentState: result.payment.paymentState,
+    upiQrVisible: String(result.payment.upiQrVisible),
+    paymentAmount: result.payment.paymentAmount || review.total,
+    paymentUrl: result.payment.paymentUrl || review.paymentUrl,
+  };
 }
 
 /**
@@ -259,7 +445,7 @@ cli({
   site: 'district',
   name: 'checkout',
   access: 'write',
-  description: 'Select District movie seats and stop at the payment handoff page',
+  description: 'Select District movie seats and open the UPI QR payment scanner',
   domain: 'www.district.in',
   strategy: Strategy.COOKIE,
   browser: true,
@@ -292,7 +478,12 @@ cli({
       name: 'timeout',
       type: 'int',
       default: DEFAULT_TIMEOUT_SECONDS,
-      help: 'Maximum seconds to wait for selection and review page',
+      help: 'Maximum seconds to wait for selection, review page, and payment handoff',
+    },
+    {
+      name: 'payment',
+      default: 'upi-qr',
+      help: 'Payment handoff target: upi-qr opens the scanner; review stops on order review',
     },
   ],
   columns: [
@@ -306,12 +497,17 @@ cli({
     'orderAmount',
     'bookingCharge',
     'total',
+    'paymentMethod',
+    'paymentState',
+    'upiQrVisible',
+    'paymentAmount',
     'paymentUrl',
     'showId',
   ],
   func: async (page, args) => {
     const seats = parseSeatList(args.seats);
     const timeout = validateTimeout(args.timeout, { def: DEFAULT_TIMEOUT_SECONDS, min: 10, max: 180 });
+    const paymentMode = parsePaymentMode(args.payment);
 
     const target = await openSeatMapWithRefresh(page, resolveSeatTarget(args), timeout);
 
@@ -342,6 +538,9 @@ cli({
         `District review shows seats ${review.seats} but ${seats.join(', ')} was requested; open the browser tab and correct the order before paying`,
       );
     }
-    return review;
+    if (paymentMode === 'review') return review;
+    return await openUpiQrScanner(page, review, timeout);
   },
 });
+
+export const __test__ = { openUpiQrScanner };

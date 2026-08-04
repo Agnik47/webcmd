@@ -3,6 +3,7 @@ import { buildMediumSearchUrl, loadMediumPosts } from './utils.js';
 cli({
     site: 'medium',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search Medium posts',
     domain: 'medium.com',

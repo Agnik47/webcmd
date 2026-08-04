@@ -3,6 +3,7 @@ import { Strategy, type CliCommand } from './registry.js';
 import {
   commandListPresentation,
   commandListRows,
+  filterCommandsByTag,
   formatCommandHelp,
   formatRootHelp,
   formatSiteHelp,
@@ -47,6 +48,17 @@ const hostedCommand = {
 } satisfies HostedCommand;
 
 describe('shared command presentation', () => {
+  it('filters commands by one exact case-insensitive tag', () => {
+    const commands = [
+      { name: 'a', tags: ['search'] },
+      { name: 'b', tags: ['write'] },
+    ];
+
+    expect(filterCommandsByTag(commands, 'SEARCH').map((command) => command.name)).toEqual(['a']);
+    expect(filterCommandsByTag(commands)).toEqual(commands);
+    expect(filterCommandsByTag(commands, 'searches')).toEqual([]);
+  });
+
   it('renders byte-identical root help for equal local and hosted surfaces', () => {
     const local: RootHelpPresentation = {
       description: 'Make any website your CLI. Zero setup. AI-powered.',
@@ -84,6 +96,21 @@ describe('shared command presentation', () => {
 
     expect(commandListRows([hosted], true)).toEqual(commandListRows([local], true));
     expect(commandListRows([hosted], false)).toEqual(commandListRows([local], false));
+  });
+
+  it('preserves independent search metadata in presentable structured rows', () => {
+    const tags = ['search'];
+    const keywords = ['lookup', 'discovery'];
+    const presentable = toPresentableCommand({ ...localCommand, tags, keywords });
+    tags.push('changed');
+    keywords.push('changed');
+    const [row] = commandListRows([presentable], true);
+
+    expect(presentable.tags).toEqual(['search']);
+    expect(presentable.keywords).toEqual(['lookup', 'discovery']);
+    expect(row).toMatchObject({ tags: ['search'], keywords: ['lookup', 'discovery'] });
+    expect(row.tags).not.toBe(presentable.tags);
+    expect(row.keywords).not.toBe(presentable.keywords);
   });
 
   it('builds byte-identical canonical grouped list displays', () => {

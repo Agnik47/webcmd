@@ -37,7 +37,7 @@ vi.mock('./adapter-shadow.js', async () => {
   };
 });
 
-import { renderBrowserDoctorReport, runBrowserDoctor } from './doctor.js';
+import { checkConnectivity, renderBrowserDoctorReport, runBrowserDoctor } from './doctor.js';
 
 describe('doctor report rendering', () => {
   const strip = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, '');
@@ -399,5 +399,32 @@ describe('doctor report rendering', () => {
     expect(report.issues).toEqual(expect.arrayContaining([
       expect.stringContaining('Multiple Chrome profiles are connected'),
     ]));
+  });
+});
+
+describe('doctor window mode', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.unstubAllEnvs();
+    mockConnect.mockResolvedValue({
+      evaluate: vi.fn().mockResolvedValue(2),
+      closeWindow: vi.fn().mockResolvedValue(undefined),
+    });
+    mockClose.mockResolvedValue(undefined);
+  });
+
+  // Omitting windowMode leaves it undefined, which skips the darwin `open -g`
+  // launcher and trips the explicit bringToFront() in the session manager —
+  // doctor steals focus while every other command stays backgrounded.
+  it('connects in background by default', async () => {
+    await checkConnectivity();
+    expect(mockConnect).toHaveBeenCalledWith(expect.objectContaining({ windowMode: 'background' }));
+  });
+
+  it('honors WEBCMD_WINDOW=foreground', async () => {
+    vi.stubEnv('WEBCMD_WINDOW', 'foreground');
+    await checkConnectivity();
+    expect(mockConnect).toHaveBeenCalledWith(expect.objectContaining({ windowMode: 'foreground' }));
+    vi.unstubAllEnvs();
   });
 });

@@ -324,6 +324,48 @@ name: 'search',
     }
   });
 
+  it('filters local structured list rows by an exact case-insensitive tag', async () => {
+    const registry = getRegistry();
+    const snapshot = new Map(registry);
+    const outputSpy = vi.mocked(console.log);
+    registry.clear();
+    try {
+      cli({
+        site: 'searchable',
+        name: 'find',
+        access: 'read',
+        description: 'Find records',
+        strategy: Strategy.PUBLIC,
+        browser: false,
+        tags: ['search'],
+        keywords: ['lookup'],
+      });
+      cli({
+        site: 'other',
+        name: 'write',
+        access: 'write',
+        description: 'Write records',
+        strategy: Strategy.PUBLIC,
+        browser: false,
+        tags: ['write'],
+      });
+
+      outputSpy.mockClear();
+      await createProgram('', '').parseAsync(['node', 'webcmd', 'list', '--tag', 'SEARCH', '-f', 'json']);
+      const rows = JSON.parse(outputSpy.mock.calls.flat().join('\n'));
+
+      expect(rows).toEqual([expect.objectContaining({
+        command: 'searchable/find',
+        tags: ['search'],
+        keywords: ['lookup'],
+      })]);
+    } finally {
+      outputSpy.mockClear();
+      registry.clear();
+      for (const [key, value] of snapshot) registry.set(key, value);
+    }
+  });
+
   it.each(['json', 'yaml', 'yml'])(
     'renders local list %s through the shared list presentation',
     async (format) => {
@@ -772,6 +814,18 @@ name: 'search',
     } finally {
       process.argv = argv;
     }
+  });
+
+  it('uses the shared plugin search and install grammar', () => {
+    const program = createProgram('', '');
+    const plugin = program.commands.find(cmd => cmd.name() === 'plugin')!;
+    const search = plugin.commands.find(cmd => cmd.name() === 'search')!;
+    const install = plugin.commands.find(cmd => cmd.name() === 'install')!;
+
+    expect(search.usage()).toBe('[options] [query]');
+    expect(search.options.map(option => option.flags)).toContain('-f, --format <fmt>');
+    expect(install.usage()).toBe('[options] <source>');
+    expect(install.description()).toBe('Install a plugin from a git repository');
   });
 
   it('renders adapter namespace structured help preserving original description after applyRootSubcommandSummaries', () => {

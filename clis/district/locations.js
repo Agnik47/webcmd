@@ -158,6 +158,7 @@ cli({
   args: [
     {
       name: 'query',
+      tags: ['search'],
       positional: true,
       required: true,
       help: 'City, area, mall, or locality, for example "bangalore" or "indiranagar"',

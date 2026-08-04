@@ -161,6 +161,7 @@ async function searchFacebook(page, kwargs) {
 const command = {
   site: 'facebook',
   name: 'search',
+  tags: ['search'],
   access: 'read',
   description: 'Search Facebook for people, pages, or posts',
   domain: 'www.facebook.com',

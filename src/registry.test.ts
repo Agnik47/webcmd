@@ -23,6 +23,23 @@ describe('cli() registration', () => {
     expect(cmd.args).toEqual([]);
   });
 
+  it('copies descriptive search metadata on registration', () => {
+    const tags = ['search'];
+    const keywords = ['lookup', 'discovery'];
+    const cmd = cli({
+      site: 'metadata', name: 'search', description: 'Search metadata', access: 'read',
+      strategy: Strategy.PUBLIC, browser: false, args: [], columns: ['title'], tags, keywords,
+      func: async () => [],
+    });
+
+    tags.push('changed');
+    keywords.push('changed');
+    expect(cmd.tags).toEqual(['search']);
+    expect(cmd.keywords).toEqual(['lookup', 'discovery']);
+    expect(getRegistry().get('metadata/search')?.tags).not.toBe(tags);
+    expect(getRegistry().get('metadata/search')?.keywords).not.toBe(keywords);
+  });
+
   it('accepts freshPage with a persistent site session', () => {
     const cmd = cli({
       site: 'test-registry',

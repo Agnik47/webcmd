@@ -101,6 +101,33 @@ describe('manifest helper rules', () => {
     getRegistry().delete(key);
   });
 
+  it('serializes independent command search metadata into manifest entries', async () => {
+    const site = `manifest-metadata-${Date.now()}`;
+    const key = `${site}/search`;
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'webcmd-manifest-'));
+    tempDirs.push(dir);
+    const file = path.join(dir, `${site}.ts`);
+    fs.writeFileSync(file, `export const command = cli({ site: '${site}', name: 'search', access: 'read' });`);
+    const tags = ['search'];
+    const keywords = ['lookup', 'discovery'];
+
+    const [entry] = await loadManifestEntries(file, site, async () => ({
+      command: cli({
+        site, name: 'search', description: 'Search metadata', access: 'read',
+        strategy: Strategy.PUBLIC, browser: false, args: [], columns: ['title'], tags, keywords,
+        func: async () => [],
+      }),
+    }));
+
+    tags.push('changed');
+    keywords.push('changed');
+    expect(entry.tags).toEqual(['search']);
+    expect(entry.keywords).toEqual(['lookup', 'discovery']);
+    expect(entry.tags).not.toBe(tags);
+    expect(entry.keywords).not.toBe(keywords);
+    getRegistry().delete(key);
+  });
+
   it('preserves file metadata and builds both artifacts from one normalized snapshot', async () => {
     const site = `manifest-files-${Date.now()}`;
     const key = `${site}/upload`;

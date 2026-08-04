@@ -10,6 +10,7 @@ import { assertProductHuntAccessible, PRODUCTHUNT_CATEGORY_SLUGS } from './utils
 cli({
     site: 'producthunt',
     name: 'browse',
+    tags: ['search'],
     access: 'read',
     description: 'Best products in a Product Hunt category',
     domain: 'www.producthunt.com',

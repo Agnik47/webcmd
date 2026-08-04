@@ -1,12 +1,35 @@
 ---
 name: webcmd-usage
 description: Use at the start of any Webcmd session. This is the top-level map of what `webcmd` can do, how to discover adapters, what flags and output formats are universal, and which specialized skill to load next. Point here when an agent asks "what can webcmd do?" or "how do I find the right command?".
-allowed-tools: Bash(webcmd:*), Read
+allowed-tools: Bash(webcmd:*), Bash(npm:*), Read
 ---
 
 # webcmd-usage
 
 Webcmd turns websites, Electron desktop apps, and external CLIs into a uniform `webcmd <site> <command>` surface that agents can drive without screen scraping. This skill is the orientation layer. Once you know the task, load the specialized skill that fits it.
+
+For any search, research, source discovery, direct URL fetch, evidence gathering, or “look this up” request, load `smart-search` before choosing commands. `smart-search` owns fetch-first search, browser-fetch escalation, last-resort search adapters, and source-summary rules.
+
+## CLI Preflight
+
+Before the first Webcmd command in a session, run:
+
+```bash
+webcmd --version
+```
+
+If it succeeds, continue without reinstalling or updating Webcmd.
+
+If the shell reports that `webcmd` is missing, tell the user that the Codex
+plugin includes the skills but needs the Webcmd CLI, then install and verify it:
+
+```bash
+npm install -g @agentrhq/webcmd
+webcmd --version
+```
+
+If `npm` is unavailable or installation fails, stop and report the exact error.
+Do not install Node.js or silently fall back to `npx`.
 
 ## The Three Pillars
 
@@ -208,7 +231,7 @@ The script prints to stdout; source or save it according to your shell.
 | Drive a live browser ad-hoc | `webcmd-browser` |
 | Write a new adapter or command | `webcmd-adapter-author` |
 | Fix a broken adapter after failure | `webcmd-autofix` |
-| Route a search or research request | `smart-search` |
+| Search, research, fetch URLs, gather evidence, or find source material | `smart-search` |
 
 ## Removed Commands
 
@@ -216,7 +239,7 @@ Do not invoke these removed commands:
 
 - `webcmd explore <url>`: use `webcmd browser network` and `webcmd browser find`, or the `webcmd-adapter-author` workflow.
 - `webcmd record <url>`: manual capture now lives in `webcmd browser network --detail`.
-- Top-level `webcmd web read` / `webcmd desktop *` groups: use their adapters instead.
+- Top-level `webcmd desktop *` groups: use their adapters instead.
 
 ## Do Not
 

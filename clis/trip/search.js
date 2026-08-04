@@ -14,6 +14,7 @@ import { fetchPoiSearch, flattenPoiResults, mapSearchRow, parseKeyword, parseLis
 cli({
     site: 'trip',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Suggest Trip.com destinations (cities, airports) for a keyword; resolves the ids the other commands take',
     domain: 'trip.com',

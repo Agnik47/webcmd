@@ -2,6 +2,7 @@ import { cli } from '@agentrhq/webcmd/registry';
 cli({
     site: 'tiktok',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search TikTok videos',
     domain: 'www.tiktok.com',

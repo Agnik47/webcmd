@@ -10,6 +10,7 @@ import { OEIS_BASE, formatId, oeisFetch, previewTerms, requireBoundedInt, requir
 cli({
     site: 'oeis',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search OEIS sequences by keyword or numeric pattern',
     domain: 'oeis.org',

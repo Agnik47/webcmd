@@ -59,6 +59,10 @@ export async function checkConnectivity(opts?: { timeout?: number }): Promise<Co
       timeout: timeoutSeconds,
       session: DOCTOR_SESSION,
       surface: 'browser',
+      // Without this, windowMode is undefined, which skips the darwin `open -g`
+      // launcher AND trips the explicit bringToFront() in the session manager —
+      // so doctor steals focus while every other command stays backgrounded.
+      windowMode: process.env.WEBCMD_WINDOW === 'foreground' ? 'foreground' : 'background',
     });
     try {
       // Try a simple eval to verify end-to-end connectivity.

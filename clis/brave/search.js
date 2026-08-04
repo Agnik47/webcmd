@@ -38,6 +38,7 @@ function buildExtractorJs(limit) {
 const command = cli({
   site: 'brave',
   name: 'search',
+  tags: ['search'],
   access: 'read',
   description: 'Search Brave Search',
   domain: 'search.brave.com',

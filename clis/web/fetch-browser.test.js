@@ -9,9 +9,9 @@ vi.mock('@agentrhq/webcmd/download/article-download', () => ({
     downloadArticle: mockDownloadArticle,
 }));
 
-const { __test__ } = await import('./read.js');
+const { __test__ } = await import('./fetch-browser.js');
 
-describe('web/read stdout behavior', () => {
+describe('web/fetch-browser stdout behavior', () => {
     const read = __test__.command;
     const extractedArticle = {
             title: 'Example Article',
@@ -149,7 +149,7 @@ describe('web/read stdout behavior', () => {
 
         expect(page.startNetworkCapture).toHaveBeenCalledWith('');
         expect(page.readNetworkCapture).toHaveBeenCalledTimes(1);
-        expect(stderr).toHaveBeenCalledWith(expect.stringContaining('[web-read diagnose]'));
+        expect(stderr).toHaveBeenCalledWith(expect.stringContaining('[web-fetch-browser diagnose]'));
         expect(stderr).toHaveBeenCalledWith(expect.stringContaining('POST 200 application/json https://example.com/api/data'));
     });
 
@@ -219,7 +219,7 @@ describe('web/read stdout behavior', () => {
     });
 });
 
-describe('web/read render-aware helpers', () => {
+describe('web/fetch-browser render-aware helpers', () => {
     it('merges accessible same-origin iframe bodies into the extracted HTML', () => {
         const dom = new JSDOM(`
           <main>

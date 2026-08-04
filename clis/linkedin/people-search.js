@@ -183,6 +183,7 @@ function extractionScript() {
 cli({
     site: 'linkedin',
     name: 'people-search',
+    tags: ['search'],
     access: 'read',
     description: 'Search standard LinkedIn (not Sales Navigator) for people by keyword. Each invocation consumes against LinkedIn\'s monthly Commercial Use Limit on people search; throttle accordingly.',
     domain: LINKEDIN_DOMAIN,

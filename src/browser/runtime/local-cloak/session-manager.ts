@@ -111,6 +111,7 @@ export class CloakSessionManager {
   private readonly recoverLockedProfile: RecoverLockedProfile;
   private readonly profiles = new Map<string, ProfileRuntime>();
   private readonly profileLaunches = new Map<string, Promise<ProfileRuntime>>();
+  private readonly pageCreationQueues = new Map<string, Promise<void>>();
 
   constructor(private readonly opts: CloakSessionManagerOptions = {}) {
     this.launchPersistentContext = opts.launchPersistentContext ?? cloakLaunchPersistentContext;
@@ -139,42 +140,44 @@ export class CloakSessionManager {
     const session = requireSession(input.session);
     const surface = normalizeSurface(input.surface);
     const leaseKey = resolveLeaseKey(input);
-    const runtime = await this.getProfileRuntime(profileId, input.windowMode);
     const freshPage = input.freshPage === true;
-    const existing = runtime.pages.get(leaseKey);
-    if (existing && !pageIsClosed(existing.page) && !freshPage) {
-      runtime.lastSeenAt = Date.now();
-      existing.idleTimeout = input.idleTimeout;
-      this.refreshIdleTimer(runtime, leaseKey, existing);
-      return { profileId, leaseKey, context: runtime.context, page: existing.page, pageId: existing.pageId };
-    }
-    if (existing && freshPage) {
-      runtime.pages.delete(leaseKey);
-      this.clearIdleTimer(existing);
-      if (runtime.selectedPageId === existing.pageId) runtime.selectedPageId = undefined;
-      if (!pageIsClosed(existing.page)) await existing.page.close().catch(() => {});
-    }
+    return this.withPageCreationLock(profileId, async () => {
+      const runtime = await this.getProfileRuntime(profileId, input.windowMode);
+      const existing = runtime.pages.get(leaseKey);
+      if (existing && !pageIsClosed(existing.page) && !freshPage) {
+        runtime.lastSeenAt = Date.now();
+        existing.idleTimeout = input.idleTimeout;
+        this.refreshIdleTimer(runtime, leaseKey, existing);
+        return { profileId, leaseKey, context: runtime.context, page: existing.page, pageId: existing.pageId };
+      }
+      if (existing && freshPage) {
+        runtime.pages.delete(leaseKey);
+        this.clearIdleTimer(existing);
+        if (runtime.selectedPageId === existing.pageId) runtime.selectedPageId = undefined;
+        if (!pageIsClosed(existing.page)) await existing.page.close().catch(() => {});
+      }
 
-    return this.createPageWithRecovery(
-      profileId,
-      input.windowMode,
-      (candidate) => {
-        const existingPages = candidate.context.pages();
-        // freshPage must never adopt a leftover tab — its whole point is a clean DOM.
-        return !freshPage && existingPages[0] && candidate.pages.size === 0
-          ? existingPages[0]
-          : candidate.context.newPage();
-      },
-      (candidate, page) => {
-        const pageId = nextPageId();
-        const entry: PageEntry = { page, pageId, session, surface, siteSession: input.siteSession, idleTimeout: input.idleTimeout };
-        candidate.pages.set(leaseKey, entry);
-        this.refreshIdleTimer(candidate, leaseKey, entry);
-        candidate.selectedPageId = pageId;
-        candidate.lastSeenAt = Date.now();
-        return { profileId, leaseKey, context: candidate.context, page, pageId };
-      },
-    );
+      return this.createPageWithRecoveryAttempt(
+        profileId,
+        input.windowMode,
+        (candidate) => {
+          const existingPages = candidate.context.pages();
+          // freshPage must never adopt a leftover tab — its whole point is a clean DOM.
+          return !freshPage && existingPages[0] && candidate.pages.size === 0
+            ? existingPages[0]
+            : this.createPage(candidate.context, input.windowMode);
+        },
+        (candidate, page) => {
+          const pageId = nextPageId();
+          const entry: PageEntry = { page, pageId, session, surface, siteSession: input.siteSession, idleTimeout: input.idleTimeout };
+          candidate.pages.set(leaseKey, entry);
+          this.refreshIdleTimer(candidate, leaseKey, entry);
+          candidate.selectedPageId = pageId;
+          candidate.lastSeenAt = Date.now();
+          return { profileId, leaseKey, context: candidate.context, page, pageId };
+        },
+      );
+    });
   }
 
   findPageById(pageId: string, opts: Pick<SessionKeyInput, 'idleTimeout'> = {}): CloakPageLease | null {
@@ -251,7 +254,7 @@ export class CloakSessionManager {
     const acquired = await this.createPageWithRecovery(
       profileId,
       input.windowMode,
-      (candidate) => candidate.context.newPage(),
+      (candidate) => this.createPage(candidate.context, input.windowMode),
       (runtime, page) => ({ runtime, page }),
     );
     if (input.url) {
@@ -437,6 +440,20 @@ export class CloakSessionManager {
     windowMode: BrowserWindowMode | undefined,
     createPage: (runtime: ProfileRuntime) => PlaywrightPage | Promise<PlaywrightPage>,
     commitPage: (runtime: ProfileRuntime, page: PlaywrightPage) => T,
+  ): Promise<T> {
+    return this.withPageCreationLock(profileId, () => this.createPageWithRecoveryAttempt(
+      profileId,
+      windowMode,
+      createPage,
+      commitPage,
+    ));
+  }
+
+  private async createPageWithRecoveryAttempt<T>(
+    profileId: string,
+    windowMode: BrowserWindowMode | undefined,
+    createPage: (runtime: ProfileRuntime) => PlaywrightPage | Promise<PlaywrightPage>,
+    commitPage: (runtime: ProfileRuntime, page: PlaywrightPage) => T,
     attempt = 0,
   ): Promise<T> {
     const runtime = await this.getProfileRuntime(profileId, windowMode);
@@ -446,13 +463,51 @@ export class CloakSessionManager {
     } catch (error) {
       if (attempt !== 0 || !isClosedContextError(error)) throw error;
       this.invalidateProfileRuntime(profileId, runtime);
-      return this.createPageWithRecovery(profileId, windowMode, createPage, commitPage, 1);
+      return this.createPageWithRecoveryAttempt(profileId, windowMode, createPage, commitPage, 1);
     }
     if (this.profiles.get(profileId) !== runtime) {
       if (!pageIsClosed(page)) await page.close().catch(() => {});
       throw new Error('Target page, context or browser has been closed');
     }
     return commitPage(runtime, page);
+  }
+
+  private async withPageCreationLock<T>(profileId: string, operation: () => Promise<T>): Promise<T> {
+    const previous = this.pageCreationQueues.get(profileId) ?? Promise.resolve();
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const queue = previous.then(() => released);
+    this.pageCreationQueues.set(profileId, queue);
+    await previous;
+    try {
+      return await operation();
+    } finally {
+      release();
+      if (this.pageCreationQueues.get(profileId) === queue) this.pageCreationQueues.delete(profileId);
+    }
+  }
+
+  private async createPage(context: BrowserContext, windowMode?: BrowserWindowMode): Promise<PlaywrightPage> {
+    if (windowMode !== 'background') return context.newPage();
+
+    const browser = context.browser();
+    if (!browser) throw new Error('Background page creation requires a Chromium browser connection.');
+    const cdp = await browser.newBrowserCDPSession();
+    try {
+      const [page] = await Promise.all([
+        context.waitForEvent('page'),
+        cdp.send('Target.createTarget', {
+          url: 'about:blank',
+          background: true,
+          focus: false,
+        }),
+      ]);
+      return page;
+    } finally {
+      await cdp.detach().catch(() => {});
+    }
   }
 
   private openEntries(runtime: ProfileRuntime): [string, PageEntry][] {

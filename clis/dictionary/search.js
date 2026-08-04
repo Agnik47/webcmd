@@ -2,6 +2,7 @@ import { cli, Strategy } from '@agentrhq/webcmd/registry';
 cli({
     site: 'dictionary',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search the Free Dictionary API for definitions, parts of speech, and pronunciations.',
     domain: 'api.dictionaryapi.dev',

@@ -59,6 +59,7 @@ async function searchPublications(keyword, limit) {
 cli({
     site: 'substack',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search Substack posts and newsletters',
     domain: 'substack.com',

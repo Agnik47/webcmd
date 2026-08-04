@@ -1,5 +1,56 @@
 # Changelog
 
+## [0.5.3](https://github.com/agentrhq/webcmd/compare/webcmd-v0.5.2...webcmd-v0.5.3) (2026-08-03)
+
+### Fixes
+- Keep the local Cloak wrapper on `0.4.5`, which targets the latest free stealth Chromium release (`146.0.7680.177.5`) on supported platforms.
+
+### Contributors
+[@beubax](https://github.com/beubax)
+
+## [0.5.2](https://github.com/agentrhq/webcmd/compare/webcmd-v0.5.1...webcmd-v0.5.2) (2026-07-31)
+
+### Improvements
+-   Commands running in the background will no longer cause the browser window to steal focus.
+
+### Adapters
+-   **District**: Fixed an issue where the `district/login` command could fail to open the site's login modal. The command is now more resilient to site loading delays.
+
+### Contributors
+[@ankitranjan7](https://github.com/ankitranjan7) | [@beubax](https://github.com/beubax)
+
+## [0.5.1](https://github.com/agentrhq/webcmd/compare/webcmd-v0.5.0...webcmd-v0.5.1) (2026-07-30)
+
+### Adapters
+*   The `district checkout` adapter now automatically proceeds to the payment page to open the UPI QR scanner. A new `--payment` argument can be set to `review` to stop on the order review page instead. New output columns have been added to report payment status (`paymentMethod`, `paymentState`, `upiQrVisible`, `paymentAmount`).
+*   The seat selection logic for the `district checkout` adapter has been hardened to handle cases where the site hides selected seat labels, making the command more reliable.
+
+### Contributors
+[@beubax](https://github.com/beubax)
+
+## [0.5.0](https://github.com/agentrhq/webcmd/compare/webcmd-v0.4.3...webcmd-v0.5.0) (2026-07-30)
+
+_webcmd v0.5.0: A Native Codex Plugin and Expanded Discovery_
+
+### Highlights
+Webcmd is now available as a native plugin for Codex. In Codex, open **Plugins**, choose **Add plugin marketplace**, and enter `agentrhq/webcmd` to find and install the new plugin. It bundles all seven core Webcmd skills for a seamless agent setup and, on first use, will help install the Webcmd CLI if it is missing.
+
+### Improvements
+- The `smart-search` skill has been updated with improved guidance, helping agents make better use of Webcmd's expanding set of search adapters.
+
+### Fixes
+- `webcmd doctor` no longer brings the browser window to the foreground on startup, respecting the background window mode.
+- Verbose logging is now correctly disabled when the `WEBCMD_VERBOSE` environment variable is set to `0`, `false`, or other "false-y" values.
+
+### Adapters
+- A new `pypi` adapter has been added to inspect public Python package metadata. Use `webcmd pypi package <name>` for project details and `webcmd pypi releases <name>` to list recent release files.
+- The new `web fetch` command provides a fast, non-browser way to retrieve the content of a URL.
+- The browser-based `web read` command has been renamed to `web fetch-browser` to distinguish it from the new non-browser fetch command.
+- Over 70 existing commands have been tagged as `search` adapters, improving command discovery and the effectiveness of the `smart-search` skill.
+
+### Contributors
+[@ankitranjan7](https://github.com/ankitranjan7) | [@beubax](https://github.com/beubax) | [@ngaurav](https://github.com/ngaurav) | [@Savyasachi-2005](https://github.com/Savyasachi-2005) | [@yoldaolmak](https://github.com/yoldaolmak)
+
 ## [0.4.3](https://github.com/agentrhq/webcmd/compare/webcmd-v0.4.2...webcmd-v0.4.3) (2026-07-27)
 
 ### Improvements

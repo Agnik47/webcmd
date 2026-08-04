@@ -2,6 +2,7 @@ import { cli, Strategy } from '@agentrhq/webcmd/registry';
 cli({
     site: 'hackernews',
     name: 'search',
+    tags: ['search'],
     access: 'read',
     description: 'Search Hacker News stories',
     domain: 'news.ycombinator.com',

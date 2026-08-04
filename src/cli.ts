@@ -13,8 +13,8 @@ import { fileURLToPath } from 'node:url';
 import { Command, Option } from 'commander';
 import { findPackageRoot, getBuiltEntryCandidates } from './package-paths.js';
 import { type CliCommand, getRegistry } from './registry.js';
-import { commandListPresentation, toPresentableCommand } from './command-presentation.js';
-import { configureCompletionCommandSurface, configureListCommandSurface } from './builtin-command-surface.js';
+import { commandListPresentation, filterCommandsByTag, toPresentableCommand } from './command-presentation.js';
+import { configureCompletionCommandSurface, configureListCommandSurface, configurePluginInstallSurface, configurePluginSearchSurface } from './builtin-command-surface.js';
 import { render as renderOutput } from './output.js';
 import { PKG_VERSION } from './version.js';
 import { printCompletionScript } from './completion.js';
@@ -37,7 +37,7 @@ import { analyzeSite, type PageSignals } from './browser/analyze.js';
 import { browserOptionValueParser } from './browser/command-catalog.js';
 import { registerAuthCommands } from './commands/auth.js';
 import { daemonRestart, daemonStatus, daemonStop } from './commands/daemon.js';
-import { log } from './logger.js';
+import { isVerbose, log } from './logger.js';
 import { bindTab, BrowserCommandError, sendCommand } from './browser/daemon-client.js';
 import { fetchDaemonStatus } from './browser/daemon-transport.js';
 import { aliasForContextId, loadProfileConfig, profileRouteParams, renameProfile, resolveProfileSelection, setDefaultProfile, type ProfileSelection } from './browser/profile.js';
@@ -242,7 +242,7 @@ async function captureNetworkItems(page: import('./types.js').IPage): Promise<Br
     const parsed = JSON.parse(raw) as BrowserNetworkItem[];
     return parsed.map((item) => ({ ...item, timestamp: timestampFromRaw(item.timestamp) }));
   } catch {
-    if (process.env.WEBCMD_VERBOSE) log.warn(`[network] Failed to parse interceptor buffer: ${typeof raw === 'string' ? raw.slice(0, 200) : String(raw)}`);
+    if (isVerbose()) log.warn(`[network] Failed to parse interceptor buffer: ${typeof raw === 'string' ? raw.slice(0, 200) : String(raw)}`);
     return [];
   }
 }
@@ -797,7 +797,7 @@ export function createProgram(BUILTIN_CLIS: string, USER_CLIS: string): Command 
     .action((opts) => {
       const externalClis = opts.format === 'table' ? loadExternalClis() : [];
       const presentation = commandListPresentation(
-        [...new Set(getRegistry().values())].map(toPresentableCommand),
+        filterCommandsByTag([...new Set(getRegistry().values())].map(toPresentableCommand), opts.tag),
         opts.format,
         {
           externalClis: externalClis.map((external) => ({
@@ -3122,10 +3122,7 @@ cli({
   // Snapshot before applyRootSubcommandSummaries() rewrites .description() to a child-name listing.
   const originalPluginDescription = pluginCmd.description();
 
-  pluginCmd
-    .command('install')
-    .description('Install a plugin from a git repository')
-    .argument('<source>', 'Plugin source (e.g. github:user/repo)')
+  configurePluginInstallSurface(pluginCmd.command('install'))
     .action(async (source: string) => {
       const { installPlugin } = await import('./plugin.js');
       const { discoverPlugins } = await import('./discovery.js');
@@ -3348,11 +3345,7 @@ cli({
       }
     });
 
-  pluginCmd
-    .command('search')
-    .description('Search installable marketplace plugins')
-    .argument('[query]', 'Search query matched against plugin name and description')
-    .option('-f, --format <fmt>', 'Output format: table, json', 'table')
+  configurePluginSearchSurface(pluginCmd.command('search'))
     .action(async (query: string | undefined, opts: { format?: string }) => {
       const { readCatalog, searchCatalogPlugins } = await import('./plugin-catalog.js');
       try {

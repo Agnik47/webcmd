@@ -5,6 +5,7 @@ import * as path from 'node:path';
 import { DEFAULT_DAEMON_PORT } from '../constants.js';
 import { BrowserConnectError } from '../errors.js';
 import { PKG_VERSION } from '../version.js';
+import { isVerbose } from '../logger.js';
 import { waitForBridgeReady } from './bridge-readiness.js';
 import { fetchDaemonStatus, getDaemonHealth, requestDaemonShutdown, type DaemonHealth, type DaemonStatus } from './daemon-transport.js';
 
@@ -133,7 +134,7 @@ export async function ensureBrowserBridgeReady(
     const reason = daemonVersion
       ? `v${daemonVersion} ≠ v${PKG_VERSION}`
       : `pre-version daemon, CLI is v${PKG_VERSION}`;
-    if (verbose && (process.env.WEBCMD_VERBOSE || process.stderr.isTTY)) {
+    if (verbose && (isVerbose() || process.stderr.isTTY)) {
       process.stderr.write(`⚠️  Stale daemon detected (${reason}). Restarting...\n`);
     }
     const shutdownAccepted = await daemonLifecycleHooks.requestDaemonShutdown();
@@ -171,11 +172,11 @@ export async function ensureBrowserBridgeReady(
   }
 
   if (staleDaemonReplaced || health.state === 'stopped') {
-    if (verbose && (process.env.WEBCMD_VERBOSE || process.stderr.isTTY)) {
+    if (verbose && (isVerbose() || process.stderr.isTTY)) {
       process.stderr.write('⏳ Starting daemon...\n');
     }
     spawnedProcess = daemonLifecycleHooks.spawnDaemonProcess();
-  } else if (verbose && (process.env.WEBCMD_VERBOSE || process.stderr.isTTY)) {
+  } else if (verbose && (isVerbose() || process.stderr.isTTY)) {
     process.stderr.write('⏳ Waiting for Cloak runtime to connect...\n');
     process.stderr.write('   Make sure Chrome or Chromium is open and Cloak is enabled.\n');
   }
