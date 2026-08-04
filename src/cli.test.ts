@@ -1579,6 +1579,24 @@ describe('browser tab targeting commands', () => {
     expect(process.exitCode).toBeDefined();
   });
 
+  it('emits structured browser-run failure details', async () => {
+    const error = new BrowserCommandError('Timed out', 'BROWSER_RUN_TIMEOUT');
+    Object.assign(error, {
+      details: { logs: [{ level: 'warn', args: ['started'] }] },
+    });
+    mockSendCommand.mockRejectedValueOnce(error);
+    const program = createProgram('', '');
+
+    await program.parseAsync(['node', 'webcmd', 'browser', '--session', 'test', 'unbind']);
+
+    expect(lastJsonLog()).toMatchObject({
+      error: {
+        code: 'BROWSER_RUN_TIMEOUT',
+        details: { logs: [{ level: 'warn', args: ['started'] }] },
+      },
+    });
+  });
+
   it('accepts JavaScript dialogs through the browser dialog command', async () => {
     const program = createProgram('', '');
 

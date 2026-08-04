@@ -1042,6 +1042,7 @@ Examples:
         code: err.code,
         message: err.message,
         ...(err.hint ? { hint: err.hint } : {}),
+        ...(err.details !== undefined ? { details: err.details } : {}),
       },
     }, null, 2));
   }

@@ -369,6 +369,26 @@ describe('daemon-client', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it('preserves structured daemon failure details', async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: false,
+      status: 408,
+      json: () => Promise.resolve({
+        id: 'server',
+        ok: false,
+        errorCode: 'BROWSER_RUN_TIMEOUT',
+        error: 'Timed out',
+        details: { logs: [{ level: 'warn', args: ['started'] }] },
+      }),
+    } as Response);
+
+    await expect(sendCommand('run', { source: 'await page.waitForEvent("popup");' }))
+      .rejects.toMatchObject({
+        code: 'BROWSER_RUN_TIMEOUT',
+        details: { logs: [{ level: 'warn', args: ['started'] }] },
+      });
+  });
+
   it('sendCommand runs full bridge ensure on a pre-dispatch failure, then resends with the same id', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(1_763_000_000_321);
     const ensureSpy = vi.spyOn(daemonLifecycle, 'ensureBrowserBridgeReady').mockResolvedValue({
