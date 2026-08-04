@@ -10,6 +10,7 @@ import {
   redactUrl,
   redactValue,
 } from '../../observation/redaction.js';
+import { LocalBrowserRunArtifactSink } from './artifacts.js';
 import { BrowserRunObservationStore } from './observation.js';
 import { PlaywrightTransport } from './playwright-transport.js';
 import { QuickJSHost } from './quickjs-host.js';
@@ -18,9 +19,13 @@ import {
   BROWSER_RUN_DEFAULT_MEMORY_LIMIT_BYTES,
   BROWSER_RUN_DEFAULT_TIMEOUT_MS,
   BrowserRunError,
+  type BrowserRunArtifactReceipt,
+  type BrowserRunArtifactSink,
+  type BrowserRunFailureDetails,
   type BrowserRunLogEntry,
   type BrowserRunOptions,
   type BrowserRunResult,
+  type BrowserRunWarning,
 } from './types.js';
 
 export interface BrowserRunProgramHost {
@@ -28,6 +33,7 @@ export interface BrowserRunProgramHost {
   context: PlaywrightBrowserContext;
   page: PlaywrightPage;
   pageId: string;
+  artifactSink?: BrowserRunArtifactSink;
   observationStore?: BrowserRunObservationStore;
   registerPage?: (page: PlaywrightPage) => string;
 }
@@ -67,19 +73,13 @@ function normalizeExecutionError(error: unknown): Error {
     && typeof error.code === 'string'
     && error.code.startsWith('BROWSER_RUN_')
   ) {
-    const normalized = new Error(sanitize(error.message)) as Error & {
-      code: string;
-      hint?: string;
-    };
-    normalized.name = error.name;
-    normalized.code = error.code;
-    if (
-      'hint' in error
-      && typeof error.hint === 'string'
-    ) {
-      normalized.hint = sanitize(error.hint);
-    }
-    return normalized;
+    return new BrowserRunError(
+      error.code as BrowserRunError['code'],
+      sanitize(error.message),
+      'hint' in error && typeof error.hint === 'string'
+        ? sanitize(error.hint)
+        : undefined,
+    );
   }
   const message = error instanceof Error ? error.message : String(error);
   const errorKind = error instanceof Error ? error.name : '';
@@ -114,6 +114,17 @@ function normalizeExecutionError(error: unknown): Error {
   const normalized = new Error(sanitize(message));
   normalized.name = error instanceof Error ? error.name : 'Error';
   return normalized;
+}
+
+function snapshotDiff(observation: Awaited<ReturnType<typeof captureObservation>>['observation']): string | undefined {
+  if (observation.mode === 'none') return undefined;
+  return observation.mode === 'full' ? observation.content : observation.changed;
+}
+
+function artifactContentType(filename: string): string {
+  if (/\.png$/i.test(filename)) return 'image/png';
+  if (/\.jpe?g$/i.test(filename)) return 'image/jpeg';
+  return 'application/octet-stream';
 }
 
 function boundedLogs(
@@ -181,41 +192,105 @@ export async function runBrowserProgram(
   source: string,
   options: BrowserRunOptions = {},
 ): Promise<BrowserRunResult> {
-  const timeoutMs = requirePositiveInteger(
-    options.timeoutMs,
-    BROWSER_RUN_DEFAULT_TIMEOUT_MS,
-    'timeoutMs',
-  );
-  const maxOutputChars = requirePositiveInteger(
-    options.maxOutputChars,
-    BROWSER_RUN_DEFAULT_MAX_OUTPUT_CHARS,
-    'maxOutputChars',
-  );
-  const memoryLimitBytes = requirePositiveInteger(
-    options.memoryLimitBytes,
-    BROWSER_RUN_DEFAULT_MEMORY_LIMIT_BYTES,
-    'memoryLimitBytes',
-  );
-  const observe = options.observe ?? 'diff';
-  if (!['diff', 'full', 'none'].includes(observe)) {
-    throw new BrowserRunError(
-      'BROWSER_RUN_INVALID_INPUT',
-      'observe must be diff, full, or none.',
-    );
-  }
-
   const logs: BrowserRunLogEntry[] = [];
+  const artifacts: BrowserRunArtifactReceipt[] = [];
+  const warnings: BrowserRunWarning[] = [];
+  let maxOutputChars = BROWSER_RUN_DEFAULT_MAX_OUTPUT_CHARS;
+  let observe: 'diff' | 'full' | 'none' = options.observe ?? 'diff';
+  const observationStore = input.observationStore
+    ?? new BrowserRunObservationStore();
+  let savedSnapshotDiff: string | undefined;
+  let snapshotTruncated = false;
   const redactionOptions = {
     maxDepth: 8,
     maxArrayItems: 100,
     maxObjectFields: 100,
-    maxStringLength: maxOutputChars,
+    maxStringLength: BROWSER_RUN_DEFAULT_MAX_OUTPUT_CHARS,
   };
   let capturedLogChars = 0;
   let logOutputTruncated = false;
-  const observationStore = input.observationStore
-    ?? new BrowserRunObservationStore();
+
+  const pageMetadata = async () => ({
+    id: input.pageId,
+    url: redactUrl(input.page.url()),
+    title: redactText(await input.page.title().catch(() => '')),
+  });
+  const details = async (): Promise<BrowserRunFailureDetails> => {
+    if (savedSnapshotDiff === undefined && observe !== 'none') {
+      const observation = await captureObservation(
+        input.page,
+        input.pageId,
+        observationStore,
+        { observe, maxOutputChars },
+      ).catch(() => undefined);
+      if (observation) {
+        savedSnapshotDiff = snapshotDiff(observation.observation);
+        snapshotTruncated = observation.truncated;
+      }
+    }
+    const bounded = boundedLogs(logs, maxOutputChars);
+    return {
+      logs: bounded.logs,
+      page: await pageMetadata(),
+      ...(savedSnapshotDiff !== undefined && { snapshotDiff: savedSnapshotDiff }),
+      artifacts,
+      warnings,
+      limits: {
+        outputTruncated: logOutputTruncated || bounded.truncated,
+        snapshotTruncated,
+      },
+    };
+  };
+  const failure = async (error: unknown): Promise<Error> => {
+    const normalized = normalizeExecutionError(error);
+    if (normalized instanceof BrowserRunError && normalized.code === 'BROWSER_RUN_TIMEOUT') {
+      warnings.push({
+        code: 'BROWSER_RUN_SIDE_EFFECTS_MAY_HAVE_OCCURRED',
+        message: 'Already-issued browser actions were not rolled back.',
+      });
+    }
+    if (normalized instanceof BrowserRunError) {
+      return new BrowserRunError(
+        normalized.code,
+        normalized.message,
+        normalized.hint,
+        await details(),
+      );
+    }
+    Object.assign(normalized, { details: await details() });
+    return normalized;
+  };
+
+  let timeoutMs: number;
+  let memoryLimitBytes: number;
+  try {
+    timeoutMs = requirePositiveInteger(
+      options.timeoutMs,
+      BROWSER_RUN_DEFAULT_TIMEOUT_MS,
+      'timeoutMs',
+    );
+    maxOutputChars = requirePositiveInteger(
+      options.maxOutputChars,
+      BROWSER_RUN_DEFAULT_MAX_OUTPUT_CHARS,
+      'maxOutputChars',
+    );
+    redactionOptions.maxStringLength = maxOutputChars;
+    memoryLimitBytes = requirePositiveInteger(
+      options.memoryLimitBytes,
+      BROWSER_RUN_DEFAULT_MEMORY_LIMIT_BYTES,
+      'memoryLimitBytes',
+    );
+    if (!['diff', 'full', 'none'].includes(observe)) {
+      throw new BrowserRunError(
+        'BROWSER_RUN_INVALID_INPUT',
+        'observe must be diff, full, or none.',
+      );
+    }
+  } catch (error) {
+    throw await failure(error);
+  }
   let host!: QuickJSHost;
+  const artifactSink = input.artifactSink ?? new LocalBrowserRunArtifactSink();
   const transport = new PlaywrightTransport(input, message => (
     host.deliverTransport(message)
   ));
@@ -226,6 +301,21 @@ export async function runBrowserProgram(
       cpuTimeoutMs: timeoutMs,
       globals: {
         __webcmdMaxLogChars: maxOutputChars,
+      },
+      onHostCall: async (name, args) => {
+        if (name !== 'writeArtifact' || typeof args[0] !== 'string' || typeof args[1] !== 'string') {
+          throw new BrowserRunError(
+            'BROWSER_RUN_INVALID_INPUT',
+            'Browser-run requested an invalid logical artifact write.',
+          );
+        }
+        const receipt = await artifactSink.write({
+          filename: args[0],
+          contentType: artifactContentType(args[0]),
+          bytes: Buffer.from(args[1], 'base64'),
+        });
+        artifacts.push(receipt);
+        return receipt;
       },
       onTransportSend: message => transport.send(message),
       onConsole: (level, args) => {
@@ -242,9 +332,10 @@ export async function runBrowserProgram(
         capturedLogChars += chars;
       },
     });
+    host.installHostCall();
   } catch (error) {
     await transport.dispose(error instanceof Error ? error : new Error(String(error)));
-    throw error;
+    throw await failure(error);
   }
   const knownPages = new Set(input.context.pages());
   const registerNewPage = (page: PlaywrightPage) => {
@@ -324,7 +415,12 @@ export async function runBrowserProgram(
         globalThis.__webcmdTransportReceive = message => {
           connection.dispatch(JSON.parse(message));
         };
-        globalThis.__webcmdWriteArtifact = () => unsupported('Host filesystem access');
+        globalThis.__webcmdWriteArtifact = async (filename, bytes) => {
+          await __webcmdHostCall(
+            'writeArtifact',
+            JSON.stringify([filename, __webcmdEncodeBase64(bytes)]),
+          );
+        };
         __WebcmdPlaywrightClient.quickjsPlatform.fs().promises.readFile = () => (
           unsupported('Host filesystem reads')
         );
@@ -422,7 +518,6 @@ export async function runBrowserProgram(
       );
     }
     const bounded = boundedLogs(logs, Math.max(0, maxOutputChars - resultChars));
-    const title = await input.page.title().catch(() => '');
     const observation = await captureObservation(
       input.page,
       input.pageId,
@@ -433,23 +528,24 @@ export async function runBrowserProgram(
       ok: true,
       result,
       logs: bounded.logs,
-      page: {
-        id: input.pageId,
-        url: redactUrl(input.page.url()),
-        title,
-      },
-      observation: observation.observation,
+      page: await pageMetadata(),
+      ...(snapshotDiff(observation.observation) !== undefined && {
+        snapshotDiff: snapshotDiff(observation.observation),
+      }),
+      artifacts,
+      warnings,
       limits: {
         outputTruncated: logOutputTruncated || bounded.truncated,
-        observationTruncated: observation.truncated,
+        snapshotTruncated: observation.truncated,
       },
     };
   } catch (error) {
+    const normalized = normalizeExecutionError(error);
     if (wallTimedOut) {
       await timeoutCancellation;
       await execution?.catch(() => undefined);
     }
-    throw normalizeExecutionError(error);
+    throw await failure(normalized);
   } finally {
     if (timeout) clearTimeout(timeout);
     const completionError = new BrowserRunError(

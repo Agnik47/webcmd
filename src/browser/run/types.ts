@@ -19,11 +19,47 @@ export type BrowserRunErrorCode =
   | 'BROWSER_RUN_OUTPUT_LIMIT'
   | 'BROWSER_RUN_SERIALIZATION_ERROR';
 
+export interface BrowserRunArtifactReceipt {
+  artifactId: string;
+  filename: string;
+  contentType: string;
+  byteSize: number;
+  locator: string;
+}
+
+export interface BrowserRunArtifactSink {
+  write(input: {
+    filename: string;
+    contentType: string;
+    bytes: Uint8Array;
+  }): Promise<BrowserRunArtifactReceipt>;
+}
+
+export interface BrowserRunWarning {
+  code: 'BROWSER_RUN_SIDE_EFFECTS_MAY_HAVE_OCCURRED';
+  message: string;
+}
+
+export interface BrowserRunLimits {
+  outputTruncated: boolean;
+  snapshotTruncated: boolean;
+}
+
+export interface BrowserRunFailureDetails {
+  logs: BrowserRunLogEntry[];
+  page: BrowserRunPageMetadata;
+  snapshotDiff?: string;
+  artifacts: BrowserRunArtifactReceipt[];
+  warnings: BrowserRunWarning[];
+  limits: BrowserRunLimits;
+}
+
 export class BrowserRunError extends Error {
   constructor(
     readonly code: BrowserRunErrorCode,
     message: string,
     readonly hint?: string,
+    readonly details?: BrowserRunFailureDetails,
   ) {
     super(message);
     this.name = 'BrowserRunError';
@@ -53,25 +89,13 @@ export type BrowserRunObservation =
   | { mode: 'full'; content: string }
   | { mode: 'diff'; changed: string };
 
-export interface BrowserRunLimits {
-  outputTruncated: boolean;
-  observationTruncated: boolean;
-}
-
 export interface BrowserRunResult {
   ok: true;
   result: unknown;
   logs: BrowserRunLogEntry[];
   page: BrowserRunPageMetadata;
-  observation: BrowserRunObservation;
+  snapshotDiff?: string;
+  artifacts: BrowserRunArtifactReceipt[];
+  warnings: BrowserRunWarning[];
   limits: BrowserRunLimits;
-}
-
-export interface BrowserRunScreenshotReceipt {
-  kind: 'screenshot';
-  artifactId: string;
-  filename: string;
-  contentType: 'image/png' | 'image/jpeg';
-  byteSize: number;
-  path: string;
 }

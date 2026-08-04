@@ -205,7 +205,7 @@ describe('runBrowserProgram', () => {
     await expect(run('return fs.readFileSync("/etc/passwd");')).rejects.toBeTruthy();
   });
 
-  it('rejects logical artifact writes instead of touching host paths', async () => {
+  it('rejects absolute artifact paths instead of touching host paths', async () => {
     const target = '/tmp/webcmd-browser-run-owned.txt';
     fs.rmSync(target, { force: true });
 
@@ -213,7 +213,7 @@ describe('runBrowserProgram', () => {
       const downloadPromise = page.waitForEvent('download');
       await page.getByRole('link', { name: 'Download' }).click();
       await (await downloadPromise).saveAs(${JSON.stringify(target)});
-    `)).rejects.toMatchObject({ code: 'BROWSER_RUN_API_UNSUPPORTED' });
+    `)).rejects.toMatchObject({ code: 'BROWSER_RUN_INVALID_INPUT' });
     expect(fs.existsSync(target)).toBe(false);
   });
 
@@ -298,6 +298,64 @@ describe('runBrowserProgram', () => {
 
     expect(JSON.stringify(output.logs).length).toBeLessThanOrEqual(200);
     expect(output.limits.outputTruncated).toBe(true);
+    expect(output.limits.snapshotTruncated).toBe(false);
+  });
+
+  it('returns a stable result envelope with logical screenshot receipts', async () => {
+    const output = await run(`
+      console.log('captured');
+      await page.screenshot({ path: 'shot.png' });
+      return { saved: true };
+    `);
+
+    expect(output).toMatchObject({
+      ok: true,
+      result: { saved: true },
+      logs: [{ level: 'log', args: ['captured'] }],
+      artifacts: [{ filename: 'shot.png', contentType: 'image/png' }],
+      warnings: [],
+      limits: { outputTruncated: false, snapshotTruncated: false },
+    });
+    expect(JSON.stringify(output.artifacts)).not.toContain('iVBOR');
+  });
+
+  it.each(['/tmp/shot.png', '../shot.png', 'nested/../../shot.png'])(
+    'rejects non-logical screenshot path %s',
+    async (artifactPath) => {
+      await expect(run(`
+        await page.screenshot({ path: ${JSON.stringify(artifactPath)} });
+      `)).rejects.toMatchObject({ code: 'BROWSER_RUN_INVALID_INPUT' });
+    },
+  );
+
+  it('preserves structured metadata on failures before execution starts', async () => {
+    await expect(run('return null;', { timeoutMs: 0 })).rejects.toMatchObject({
+      code: 'BROWSER_RUN_INVALID_INPUT',
+      details: {
+        logs: [],
+        page: { id: 'page-1', url: 'about:blank', title: '' },
+        artifacts: [],
+        warnings: [],
+        limits: { outputTruncated: false, snapshotTruncated: false },
+      },
+    });
+  });
+
+  it('disposes timed-out QuickJS work and warns that browser actions remain', async () => {
+    await expect(run(`
+      await page.getByRole('button', { name: 'Save' }).click();
+      await page.waitForEvent('popup');
+    `, { timeoutMs: 25 })).rejects.toMatchObject({
+      code: 'BROWSER_RUN_TIMEOUT',
+      details: {
+        warnings: [{
+          code: 'BROWSER_RUN_SIDE_EFFECTS_MAY_HAVE_OCCURRED',
+          message: 'Already-issued browser actions were not rolled back.',
+        }],
+      },
+    });
+    expect(browser.isConnected()).toBe(true);
+    expect(page.isClosed()).toBe(false);
   });
 
   it('redacts page metadata and execution errors', async () => {
