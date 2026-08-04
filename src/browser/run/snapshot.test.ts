@@ -22,6 +22,22 @@ describe('diffSnapshots', () => {
     )).toBe('');
   });
 
+  it('keeps visible bracket text while suppressing only the leading ref', () => {
+    const result = diffSnapshots(
+      snapshot('<main>\n  [1]<button>Cart [1]</button>'),
+      snapshot('<main>\n  [2]<button>Cart [2]</button>'),
+    );
+
+    expect(result).toContain('Cart [2]');
+  });
+
+  it('suppresses Markdown link query and fragment changes', () => {
+    expect(diffSnapshots(
+      snapshot('| [Docs](/docs?old=1#intro) |'),
+      snapshot('| [Docs](/docs?new=2#api) |'),
+    )).toBe('');
+  });
+
   it('elides changed children after four and caps labels at 140 characters', () => {
     const label = 'x'.repeat(200);
     const before = snapshot('<main>');
@@ -42,5 +58,23 @@ describe('diffSnapshots', () => {
     const after = snapshot('<main>\n  [1]<button>Saved</button>');
 
     expect(diffSnapshots(before, after, 20)).toBe('<main>\n+   [1]<butto');
+  });
+
+  it.each([
+    ['added', snapshot('<main>'), snapshot([
+      '<main>',
+      '  <section>',
+      ...Array.from({ length: 5 }, (_, index) => `    [${index + 1}]<button>Added ${index + 1}</button>`),
+    ].join('\n')), '+ '],
+    ['removed', snapshot([
+      '<main>',
+      '  <section>',
+      ...Array.from({ length: 5 }, (_, index) => `    [${index + 1}]<button>Removed ${index + 1}</button>`),
+    ].join('\n')), snapshot('<main>'), '- '],
+  ])('elides nested %s subtree children after four', (_kind, before, after, prefix) => {
+    const result = diffSnapshots(before, after);
+
+    expect(result.match(new RegExp(`^\\${prefix.trim()} .*<button`, 'gm'))).toHaveLength(4);
+    expect(result).toContain('[Truncated 1 more element]');
   });
 });

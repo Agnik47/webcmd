@@ -62,13 +62,14 @@ existing local CloakBrowser session:
 
 ```bash
 webcmd browser work run --file explore.js
-webcmd browser work run --stdin --timeout 45 --observe diff
+webcmd browser work run --stdin --timeout 45 --snapshot-diff
 ```
 
 Exactly one of `--file <path>` or `--stdin` is required. The CLI reads files
 locally and sends source—not the path—to the local daemon. `--timeout` is in
-seconds, `--max-output` bounds returned results and logs, `--observe` accepts
-`diff`, `full`, or `none`, and `--tab <page-id>` targets an existing tab.
+seconds, `--max-output` bounds returned results and logs, `--snapshot-diff`
+returns a structural before/after diff for that run, and `--tab <page-id>`
+targets an existing tab.
 
 The program runs in a fresh QuickJS sandbox. It can obtain the selected page
 with `await browser.currentPage()`, use the supported Page/Frame/Locator

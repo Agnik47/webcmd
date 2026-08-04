@@ -85,8 +85,9 @@ function diffChildren(before: SnapshotNode[], after: SnapshotNode[]): NodeDiff[]
 
 function comparable(node: SnapshotNode): string {
   return node.label
-    .replace(/\[\d+\]/g, '')
-    .replace(/href=("[^"]*"|'[^']*'|[^\s>]+)/g, (_match, href: string) => `href=${normalizeHref(href)}`);
+    .replace(/^\[\d+\]/, '')
+    .replace(/href=("[^"]*"|'[^']*'|[^\s>]+)/g, (_match, href: string) => `href=${normalizeHref(href)}`)
+    .replace(/\]\(([^)\s]+)\)/g, (_match, href: string) => `](${normalizeHref(href)})`);
 }
 
 function normalizeHref(rawHref: string): string {
@@ -107,8 +108,7 @@ function similar(before: SnapshotNode, after: SnapshotNode): boolean {
 function renderDiffs(diffs: NodeDiff[], lines: string[]): void {
   for (const diff of diffs.slice(0, MAX_CHANGED_CHILDREN)) renderDiff(diff, lines);
   if (diffs.length > MAX_CHANGED_CHILDREN) {
-    const count = diffs.length - MAX_CHANGED_CHILDREN;
-    lines.push(`[Truncated ${count} more ${count === 1 ? 'element' : 'elements'}]`);
+    lines.push(truncationNotice(diffs.length - MAX_CHANGED_CHILDREN));
   }
 }
 
@@ -129,7 +129,12 @@ function renderDiff(diff: NodeDiff, lines: string[]): void {
 
 function renderNode(node: SnapshotNode, prefix: '+ ' | '- ', lines: string[]): void {
   lines.push(`${prefix}${label(node)}`);
-  for (const child of node.children) renderNode(child, prefix, lines);
+  for (const child of node.children.slice(0, MAX_CHANGED_CHILDREN)) {
+    renderNode(child, prefix, lines);
+  }
+  if (node.children.length > MAX_CHANGED_CHILDREN) {
+    lines.push(`${prefix}${' '.repeat(node.indent + 2)}${truncationNotice(node.children.length - MAX_CHANGED_CHILDREN)}`);
+  }
 }
 
 function label(node: SnapshotNode): string {
@@ -144,4 +149,8 @@ function truncate(value: string): string {
   return value.length > MAX_LABEL_CHARS
     ? `${value.slice(0, MAX_LABEL_CHARS - 1)}…`
     : value;
+}
+
+function truncationNotice(count: number): string {
+  return `[Truncated ${count} more ${count === 1 ? 'element' : 'elements'}]`;
 }
