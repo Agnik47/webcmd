@@ -44,6 +44,7 @@ export default defineConfig({
             //   WEBCMD_E2E=1 npx vitest run
             ...(includeExtendedE2e ? ['tests/e2e/browser-public-extended.test.ts', 'tests/e2e/browser-auth.test.ts'] : []),
           ],
+          fileParallelism: false,
           maxWorkers: 2,
           sequence: { groupOrder: 3 },
         },
