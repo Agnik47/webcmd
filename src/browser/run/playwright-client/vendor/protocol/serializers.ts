@@ -184,7 +184,7 @@ function isDate(obj: any): obj is Date {
 }
 
 function isURL(obj: any): obj is URL {
-  return obj instanceof URL || Object.prototype.toString.call(obj) === '[object URL]';
+  return (typeof URL !== 'undefined' && obj instanceof URL) || Object.prototype.toString.call(obj) === '[object URL]';
 }
 
 function isError(obj: any): obj is Error {

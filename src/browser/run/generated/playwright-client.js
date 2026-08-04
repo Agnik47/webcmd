@@ -25,6 +25,7 @@ var __WebcmdPlaywrightClient = (() => {
     convertInputFiles: () => convertInputFiles,
     createConnection: () => createConnection,
     quickjsPlatform: () => quickjsPlatform,
+    serializeArgument: () => serializeArgument,
     tBinary: () => tBinary
   });
 
@@ -4863,7 +4864,7 @@ ${lines.join("\n")}`;
     return obj instanceof Date || Object.prototype.toString.call(obj) === "[object Date]";
   }
   function isURL(obj) {
-    return obj instanceof URL || Object.prototype.toString.call(obj) === "[object URL]";
+    return typeof URL !== "undefined" && obj instanceof URL || Object.prototype.toString.call(obj) === "[object URL]";
   }
   function isError2(obj) {
     const proto = obj ? Object.getPrototypeOf(obj) : null;
@@ -10471,7 +10472,7 @@ before the end of the test to ignore remaining routes in flight.`);
     }
     const payloads = items;
     if (filePayloadExceedsSizeLimit(payloads))
-      throw new Error("Cannot set buffer larger than 50Mb, please write it to a file and pass its path instead.");
+      throw new Error("Cannot set an in-memory file payload larger than 50Mb.");
     return { payloads };
   }
   function determineScreenshotType(options) {

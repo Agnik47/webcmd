@@ -97,6 +97,9 @@ describe('Playwright QuickJS client build', () => {
           const upload = client.tBinary(new Uint8Array([3, 4]), '', { binary: 'toBase64' });
           if (upload !== 'AwQ=') throw new Error('binary request failed');
 
+          const typedArgument = client.serializeArgument(new Uint8Array([6, 7]));
+          if (!(typedArgument.value.ta.b instanceof Uint8Array) || typedArgument.value.ta.b.join(',') !== '6,7') throw new Error('typed argument serialization failed');
+
           const payloads = await client.convertInputFiles(client.quickjsPlatform, {
             name: 'memory.bin', mimeType: 'application/octet-stream', buffer: new Uint8Array([5]),
           }, {});

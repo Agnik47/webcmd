@@ -265,7 +265,7 @@ export async function convertInputFiles(platform: Platform, files: string | File
 
   const payloads = items as FilePayload[];
   if (filePayloadExceedsSizeLimit(payloads))
-    throw new Error('Cannot set buffer larger than 50Mb, please write it to a file and pass its path instead.');
+    throw new Error('Cannot set an in-memory file payload larger than 50Mb.');
   return { payloads };
 }
 
