@@ -21,12 +21,12 @@ describe('browserCommandCatalog', () => {
 
   it('keeps adapter authoring separate from the raw session catalog', () => {
     expect(browserCommand().commands.map(command => command.name())).toEqual([
+      'init',
+      'verify',
       'tabs',
       'bind',
       'run',
       'close',
-      'init',
-      'verify',
     ]);
   });
 

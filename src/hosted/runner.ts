@@ -19,6 +19,8 @@ import { StreamWriteError, writeToStream } from '../stream-write.js';
 import { PKG_VERSION } from '../version.js';
 import { getCompletionScriptFast } from '../completion-fast.js';
 import { browserCommandCatalog } from '../browser/command-catalog.js';
+import { loadBrowserRunSource } from '../browser/run/input.js';
+import { BrowserRunError } from '../browser/run/types.js';
 import { CLI_COMMAND } from '../brand.js';
 import { HostedClient, HostedClientError, resolveWorkspace } from './client.js';
 import { parseHostedInvocation } from './args.js';
@@ -175,7 +177,7 @@ async function dispatchHosted(
     );
   }
   if (args[0] === 'browser') {
-    const invocation = parseHostedBrowserInvocation(args, normalized.profile);
+    const invocation = await parseHostedBrowserInvocation(args, normalized.profile);
     const manifest = await client.getManifest();
     validateManifestContractIdentity(manifest);
     await dispatchHostedBrowser(invocation, client, stdout);
@@ -459,7 +461,7 @@ function contentTypeForUpload(filePath: string): string {
   }
 }
 
-function parseHostedBrowserInvocation(argv: string[], profile: string | undefined): ParsedHostedBrowserInvocation {
+async function parseHostedBrowserInvocation(argv: string[], profile: string | undefined): Promise<ParsedHostedBrowserInvocation> {
   let rewritten: string[];
   try {
     rewritten = rewriteBrowserArgv(argv);
@@ -495,11 +497,12 @@ function parseHostedBrowserInvocation(argv: string[], profile: string | undefine
 
   const windowMode = structure.window === undefined ? undefined : parseWindowMode(structure.window);
   const parsed = parseBrowserLeaf(structure.commandName, structure.positionals, structure.options);
+  const browserArgs = await materializeBrowserRunSource(parsed.commandName, parsed.args);
   return {
     session: structure.session,
     command: `browser/${parsed.commandName}`,
     action: parsed.action,
-    args: parsed.args,
+    args: browserArgs,
     ...(parsed.localPath !== undefined ? { localPath: parsed.localPath } : {}),
     ...(profile !== undefined ? { profile } : {}),
     ...(windowMode !== undefined ? { windowMode } : {}),
@@ -539,10 +542,25 @@ function parseBrowserLeaf(
   }
   return {
     commandName: leaf,
-    action: contract.action as HostedBrowserActionName,
+    action: contract.action,
     args,
     ...(localPath !== undefined ? { localPath } : {}),
   };
+}
+
+async function materializeBrowserRunSource(commandName: string, args: Record<string, unknown>): Promise<Record<string, unknown>> {
+  if (commandName !== 'run') return args;
+  try {
+    const source = await loadBrowserRunSource({
+      stdin: args.stdin === true,
+      file: typeof args.file === 'string' ? args.file : undefined,
+    });
+    const { stdin: _stdin, file: _file, ...rest } = args;
+    return { ...rest, source };
+  } catch (error) {
+    if (error instanceof BrowserRunError) throw new ConfigError(error.message, error.hint);
+    throw error;
+  }
 }
 
 function browserActionArgs(

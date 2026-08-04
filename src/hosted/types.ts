@@ -156,6 +156,7 @@ export interface HostedUploadArtifactResponse {
 export type HostedBrowserActionName =
   | 'analyze'
   | 'back'
+  | 'bind'
   | 'check'
   | 'click'
   | 'close-window'
@@ -182,6 +183,7 @@ export type HostedBrowserActionName =
   | 'navigate'
   | 'network'
   | 'press-key'
+  | 'run'
   | 'screenshot'
   | 'scroll'
   | 'select'

@@ -21,6 +21,7 @@ describe('hosted browser argument surface', () => {
     });
     expect(() => parse(['browser', 'work', 'bind'])).toThrow(CommanderStructuralError);
     expect(() => parse(['browser', 'work', 'bind', '--index', '0'])).toThrow(CommanderStructuralError);
+    expect(() => parse(['browser', 'work', 'bind', '--page', '   '])).toThrow(CommanderStructuralError);
   });
 
   it('accepts only run program options', () => {

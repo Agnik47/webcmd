@@ -33,7 +33,7 @@ function flag(name: string, description: string): HostedArgumentContract {
 function command(
   commandPath: string,
   description: string,
-  action: string,
+  action: NonNullable<HostedBrowserCommandContract['action']>,
   positionals: HostedArgumentContract[] = [],
   options: HostedArgumentContract[] = [],
   sessionPolicy: HostedSessionPolicy,
@@ -58,6 +58,13 @@ export function browserOptionValueParser(
   commandPath: string,
   optionName: string,
 ): ((value: string) => unknown) | undefined {
+  if (commandPath === 'bind' && optionName === 'page') {
+    return (value: string): string => {
+      const page = value.trim();
+      if (!page) throw new InvalidArgumentError('--page must be a non-empty stable page id');
+      return page;
+    };
+  }
   if (commandPath !== 'run' || !['timeout', 'maxOutput'].includes(optionName)) return undefined;
   return (value: string): number => {
     if (!/^\d+$/.test(value) || Number.parseInt(value, 10) <= 0) {
