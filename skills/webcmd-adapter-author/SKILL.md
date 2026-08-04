@@ -8,8 +8,8 @@ allowed-tools: Bash(webcmd:*), Read, Edit, Write, Grep
 
 You are an agent writing an adapter for a site. The goal of this skill is a 30-minute loop from zero context to a passing `webcmd browser verify`.
 
-Use the existing tools throughout: `webcmd browser *`, including sandboxed
-`browser run` for reconnaissance, plus `webcmd doctor`, `webcmd browser init`,
+Use the existing tools throughout: Playwright `browser run` for reconnaissance,
+plus `webcmd doctor`, `webcmd browser init`,
 and `webcmd browser verify`. Browser-run programs are discovery evidence, not
 adapter source.
 
@@ -150,8 +150,8 @@ Check these off step by step:
 
 [ ] 3. Recon (`site-recon.md`):
        [ ] **Preferred:** `webcmd browser analyze <url>` to get pattern, anti-bot signals, nearest adapter, and next step in one pass.
-       [ ] If `analyze` is ambiguous, run manual checks: `open` -> `wait time 2` (or `wait xhr <regex>`) -> `network`.
-       [ ] Use `browser run` only when recon needs dependent Playwright-style steps, semantic locators, branching, or a request/response waiter armed before its trigger.
+       [ ] If `analyze` is ambiguous, use `browser run` for the required navigation, readiness, and evidence collection.
+       [ ] Use the run result as reconnaissance evidence; do not copy Playwright code into an adapter.
        [ ] Choose Pattern A / B / C / D / E.
 
 [ ] 4. API discovery (`api-discovery.md`) by Pattern:

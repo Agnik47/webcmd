@@ -112,22 +112,15 @@ describe('webcmd skills content', () => {
   });
 
   it('enforces mode-neutral authentication and human handoff policy', () => {
-    const browser = bundledSkill('webcmd-browser');
     const usage = bundledSkill('webcmd-usage');
     const autofix = bundledSkill('webcmd-autofix');
     const author = bundledSkill('webcmd-adapter-author');
-    const skills = [browser, usage, autofix, author];
-    const handoffSkills = [browser, usage, autofix];
+    const skills = [usage, autofix, author];
+    const handoffSkills = [usage, autofix];
     const autofixAuthRequired = autofix.match(/^- \*\*`AUTH_REQUIRED`\*\*[\s\S]*?(?=\n- \*\*)/m)?.[0] ?? '';
     const autofixAuthRequiredRow = autofix.split('\n')
       .find((line) => line.startsWith('| AUTH_REQUIRED |')) ?? '';
 
-    expect(browser).toContain('webcmd <site> login');
-    expect(browser).toContain('webcmd <site> whoami');
-    expect(browser).toContain('CAPTCHA');
-    expect(browser).toContain('fresh browser state');
-    expect(browser).not.toContain('hunter2');
-    expect(browser).not.toMatch(/browser login type/i);
     expect(usage).toContain('AUTH_REQUIRED');
     expect(usage).toContain('action_required');
     expect(autofix).toContain('webcmd <site> login');
@@ -139,7 +132,7 @@ describe('webcmd skills content', () => {
       expect(skill).toContain('Webcmd browser:');
       expect(skill).not.toMatch(/\bhosted\b|\bKernel\b|\blocal mode\b|\blocally\b/i);
     }
-    for (const skill of [browser, usage]) {
+    for (const skill of [usage]) {
       expect(skill).toContain('already_logged_in');
       expect(skill).toContain('in_progress');
       expect(skill).toContain('action_url');
@@ -155,7 +148,7 @@ describe('webcmd skills content', () => {
       expect(skill).toMatch(/CAPTCHA[\s\S]{0,250}(?:human handoff|stop(?:s)? automation)/i);
       expect(skill).toMatch(/(?:must not|never).*?(?:password|secret|credential)/i);
     }
-    for (const skill of [browser, usage, autofix]) {
+    for (const skill of [usage, autofix]) {
       expect(skill).toMatch(/(?:no (?:site )?login command|without a verifier)[\s\S]{0,500}fresh browser state[\s\S]{0,500}(?:identity check|post-action state)[\s\S]{0,250}before (?:any )?retry/i);
     }
     expect(autofixAuthRequired).toMatch(/if (?:a|the) site login command exists[\s\S]*webcmd <site> login[\s\S]*returned `verify_command`[\s\S]*verification must succeed[\s\S]*retry/i);
@@ -164,7 +157,7 @@ describe('webcmd skills content', () => {
     expect(autofix).toMatch(/CAPTCHA[\s\S]{0,250}stop automation[\s\S]{0,250}verification must succeed/i);
   });
 
-  it('teaches browser-run selection and preserves the adapter API boundary', () => {
+  it('teaches the run-first Playwright lifecycle and preserves the adapter API boundary', () => {
     const browser = bundledSkill('webcmd-browser');
     const usage = bundledSkill('webcmd-usage');
     const author = bundledSkill('webcmd-adapter-author');
@@ -178,137 +171,36 @@ describe('webcmd skills content', () => {
       ),
       'utf8',
     );
-    const reconReferencePath = path.join(
-      process.cwd(),
-      'skills',
-      'webcmd-adapter-author',
-      'references',
-      'recon-to-ipage.md',
-    );
-    const commandReferenceIndex = browser.indexOf('## Command reference');
-    const runFirstIndex = browser.indexOf('## Run-first decision loop');
-    const antiPatternIndex = browser.indexOf('### Do not alternate open and one-operation run');
-    const customDropdown = browser.match(
-      /### Pick from a custom React dropdown[\s\S]*?(?=\n### |\n---)/,
-    )?.[0] ?? '';
-    const nativeDropdown = browser.match(
-      /### Pick from a long dropdown[\s\S]*?(?=\n### |\n---)/,
-    )?.[0] ?? '';
-    const selectCompound = browser.match(
-      /### Select[\s\S]*?(?=\n### File)/,
-    )?.[0] ?? '';
-    const formExample = browser.match(
-      /### Reconnaissance-to-run form example[\s\S]*?(?=\n---)/,
-    )?.[0] ?? '';
-    const paginationExamples = [
-      browser.match(/### Known destination: start with run[\s\S]*?(?=\n### |\n---)/)?.[0] ?? '',
-      browserRunReference.match(/## Program ownership[\s\S]*?(?=\n## )/)?.[0] ?? '',
-    ];
-
-    expect(usage).toContain('REQUIRED SUB-SKILL');
-    expect(usage).toMatch(/before (?:the )?first raw `webcmd browser` command[\s\S]{0,160}`webcmd-browser`/i);
-    expect(browser).toContain('Run-first decision loop');
-    expect(runFirstIndex).toBeGreaterThan(-1);
-    expect(antiPatternIndex).toBeGreaterThan(runFirstIndex);
-    expect(commandReferenceIndex).toBeGreaterThan(antiPatternIndex);
-    expect(browser).toContain('## Adapter fallback gate');
-    expect(browser).toMatch(/Prefer site adapters before raw browser driving/i);
-    expect(browser).toMatch(/state the next unknown whose answer requires agent reasoning/i);
-    expect(browser).toMatch(
-      /every known navigation[\s\S]{0,240}(?:interaction|loop|pagination)[\s\S]{0,240}one `browser run`/i,
-    );
-    expect(browser).toMatch(
-      /`browser run` may be the first raw browser command[\s\S]{0,240}`page\.goto\(\)`/i,
-    );
-    expect(browser).toContain('open -> one-operation run');
-    expect(browser).toMatch(
-      /do not use `browser open`[\s\S]{0,240}run that only reads/i,
-    );
-    expect(browser).toMatch(
-      /one `page\.evaluate\(\)`[\s\S]{0,240}(?:use|keep) (?:an|the) isolated primitive/i,
-    );
-    expect(browser).toMatch(
-      /one run per[\s\S]{0,240}(?:pagination page|candidate|revision|search iteration)/i,
-    );
-    expect(browser).toMatch(/return only the compact result needed/i);
-    expect(browser).toMatch(
-      /safe screenshot[\s\S]{0,300}page\.screenshot\(\)[\s\S]{0,300}sandbox receipt/i,
-    );
-    expect(browser).toMatch(
-      /browser screenshot primitive[\s\S]{0,240}(?:isolated screenshot|exact host path)/i,
-    );
-    expect(browser).toMatch(
-      /unsupported-run-surface exception[\s\S]{0,300}host cache[\s\S]{0,300}genuine decision boundary[\s\S]{0,300}--detail/i,
-    );
-    expect(nativeDropdown).toMatch(
-      /stable locator[\s\S]*selectOption\([\s\S]*inputValue\(\)/i,
-    );
+    expect(usage).toMatch(/existing adapter command first[\s\S]{0,160}load `webcmd-browser` and run Playwright/i);
+    expect(browser).toMatch(/`tabs`, `bind --page`, `run`, and `close`/i);
+    expect(browser).toContain('webcmd browser work tabs');
+    expect(browser).toContain('webcmd browser work bind --page');
+    expect(browser).toContain('webcmd browser work run --stdin');
+    expect(browser).toContain('webcmd browser work close');
+    expect(browser).toMatch(/read-only/i);
+    expect(browser).toMatch(/explicit(?:ly)? bind/i);
+    expect(browser).toMatch(/fresh JavaScript scope/i);
+    expect(browser).toMatch(/persistent browser state/i);
     expect(browser).toContain("run --stdin <<'JS'");
-    expect(browser).toContain('await page.goto(');
-    expect(browser).toContain('Recon-to-run locator translation');
-    expect(browser).toContain('not the adapter `IPage` API');
-    expect(browserRunReference).toContain('waitForResponse');
-    expect(browserRunReference).toContain('Arm the waiter before');
-    expect(browserRunReference).toContain('fresh QuickJS runtime');
-    expect(browserRunReference).toContain('Program ownership');
-    expect(browserRunReference).toContain('evaluateAll');
-    expect(browserRunReference).toContain('filter');
-    expect(browserRunReference).toContain('all()');
-    expect(browserRunReference).toContain('getByAltText');
-    expect(browserRunReference).toContain('getByTitle');
-    expect(browserRunReference).toContain('waitForSelector');
-    expect(browserRunReference).toContain('locator.screenshot');
-    expect(browserRunReference).toContain('BROWSER_RUN_API_UNSUPPORTED');
-    expect(browserRunReference).toMatch(
-      /artifact receipt[\s\S]{0,300}actual (?:stored )?path[\s\S]{0,300}(?:does not|never)[\s\S]*?host write\s+authority/i,
-    );
-    expect(browserRunReference).toMatch(
-      /one run owns[\s\S]{0,240}(?:navigation|pagination|loop)[\s\S]{0,240}next reasoning decision/i,
-    );
-    expect(browserRunReference).toContain('let pagesChecked = 0');
-    expect(browserRunReference).toContain('await page.goto(');
-    expect(browserRunReference).toMatch(/return \{[\s\S]{0,240}pagesChecked/i);
-    for (const example of paginationExamples) {
-      expect(example).toMatch(
-        /const rows[\s\S]{0,240}pagesChecked \+= 1;[\s\S]{0,240}pagesChecked >= 10[\s\S]{0,240}next\.isVisible\(\)[\s\S]{0,240}break;[\s\S]{0,240}await next\.click\(\)/,
-      );
-      expect(example).toMatch(
-        /next\.evaluate\([\s\S]{0,240}page\.waitForURL\([\s\S]{0,240}await next\.click\(\)[\s\S]{0,240}await navigation/,
-      );
-    }
-    expect(customDropdown).toContain('one `browser run`');
-    expect(customDropdown).toMatch(
-      /await trigger\.click\(\)[\s\S]{0,300}await option\.click\(\)[\s\S]{0,300}return \{ selected \};/,
-    );
-    expect(customDropdown).not.toMatch(
-      /browser mercury (?:state|click)[\s\S]{0,200}browser mercury click[\s\S]{0,200}browser mercury (?:state|click|get text)/,
-    );
-    expect(nativeDropdown).toMatch(
-      /observed (?:option )?(?:value|label)[\s\S]{0,240}(?:do not|never) (?:invent|guess)[\s\S]{0,240}decision\s+boundary/i,
-    );
-    expect(selectCompound).toContain('options_total > options.length');
-    expect(selectCompound).toContain('bounded `browser run`');
-    expect(selectCompound).toMatch(/live `<option>` set/i);
-    expect(nativeDropdown).toMatch(
-      /page\.evaluate\([\s\S]{0,500}candidates[\s\S]{0,500}selectOption\(candidates\[0\]\.value\)/,
-    );
-    expect(browserRunReference).toMatch(
-      /`check`[\s\S]{0,120}`uncheck`[\s\S]{0,200}`setChecked`/i,
-    );
-    expect(browser).toMatch(/`browser open` is only an isolated navigation exception/i);
-    expect(browser).toMatch(/known navigation plus inspection belongs in `page\.goto\(\)` inside a run/i);
-    expect(browser).toMatch(/known write chains plus verification belong in one run/i);
-    expect(browser).toMatch(/`reidentified` result may remain a genuine reconnaissance boundary/i);
-    expect(browser).toMatch(/user-supplied host path[\s\S]{0,180}`browser upload`/i);
-    expect(browser).toMatch(/generated in-memory content[\s\S]{0,180}`setInputFiles\(\)` inside `browser run`/i);
-    expect(browser).toMatch(/user\s+file choice without a path[\s\S]{0,180}visible human handoff/i);
-    expect(formExample.match(/webcmd browser work state/g)).toHaveLength(1);
-    expect(browser).toMatch(/inspect after a run only when its evidence is\s+unexpected or insufficient and changes the next plan/i);
-    expect(author).toMatch(
-      /Browser-run’s Playwright-style `page` and adapter `func\(page,args\)` are different contracts\.[\s\S]{0,240}Preserve evidence and behavior, not syntax\./,
-    );
-    expect(author).not.toContain('recon-to-ipage.md');
-    expect(fs.existsSync(reconReferencePath)).toBe(false);
+    expect(browser).toContain("await page.getByRole('link', { name: 'More information' }).click()");
+    expect(browser).toContain('page.snapshotForAI()');
+    expect(browser).toContain('--snapshot-diff');
+    expect(browserRunReference).toMatch(/sandbox boundaries/i);
+    expect(browserRunReference).toMatch(/artifact paths/i);
+    expect(browserRunReference).toMatch(/errors/i);
+    expect(browserRunReference).toMatch(/snapshot behavior/i);
+    expect(browserRunReference).toMatch(/timing/i);
+    expect(author).toContain('webcmd browser init');
+    expect(author).toContain('webcmd browser verify');
+    expect(author).toContain('IPage');
+    expect(author).toMatch(/Browser-run’s Playwright-style `page`[\s\S]{0,240}adapter `func\(page,args\)` are different contracts/i);
+    expect(browser).not.toContain('browser.currentPage()');
+    expect(browser).not.toContain('--observe');
+    expect(browser).not.toContain('--tab');
+    expect(browser).not.toMatch(/webcmd browser \S+ (?:open|state|click|type|select|find|extract|network)/i);
+    expect(browserRunReference).not.toContain('browser.currentPage()');
+    expect(browserRunReference).not.toContain('--observe');
+    expect(browserRunReference).not.toContain('--tab');
   });
 
   it('adds bundled skills once and refreshes them after package updates', () => {

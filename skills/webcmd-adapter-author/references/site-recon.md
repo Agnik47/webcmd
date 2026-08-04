@@ -28,15 +28,20 @@ The command returns JSON with:
 
 ## Manual Three-Step Diagnosis
 
-Use this only when `analyze` is ambiguous:
+Use this only when `analyze` is ambiguous. List pages, bind the chosen page,
+then run the dependent recon steps together:
 
 ```bash
-webcmd browser open <url> --trace on --keep-tab true --window foreground
-webcmd browser wait time 2
-webcmd browser network --format json
+webcmd browser recon tabs
+webcmd browser recon bind --page page-123
+webcmd browser recon run --stdin <<'JS'
+await page.goto('https://example.com');
+await page.waitForLoadState('domcontentloaded');
+return { url: page.url(), snapshot: await page.snapshotForAI() };
+JS
 ```
 
-Read `network` output this way:
+Use the snapshot and any response evidence collected in the run to classify the site:
 
 | `network` shows | Site type | Signals |
 | --- | --- | --- |
