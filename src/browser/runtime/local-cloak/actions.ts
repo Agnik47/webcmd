@@ -138,7 +138,15 @@ export async function dispatchCloakAction(manager: CloakSessionManager, command:
           };
         }
         const lease = await resolveLease(manager, command);
+        const browser = lease.context.browser();
+        if (!browser) throw new CloakActionError(
+          'BROWSER_RUN_API_UNSUPPORTED',
+          'The selected browser context is not attached to a browser.',
+          lease.pageId,
+        );
         const data = await runBrowserProgram({
+          browser,
+          context: lease.context,
           page: lease.page,
           pageId: lease.pageId,
           observationStore: manager.browserRunObservations,

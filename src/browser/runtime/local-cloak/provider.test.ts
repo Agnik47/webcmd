@@ -1,6 +1,45 @@
 import { describe, expect, it, vi } from 'vitest';
 import { LocalCloakRuntimeProvider } from './provider.js';
 
+vi.mock('../../run/runner.js', () => ({
+  runBrowserProgram: async (
+    input: {
+      page: Record<string, unknown>;
+      pageId: string;
+      registerPage?: (page: never) => string;
+    },
+    source: string,
+  ) => {
+    const selectedPage = new Proxy(input.page, {
+      get(target, property, receiver) {
+        if (property === 'waitForEvent') {
+          return async (...args: unknown[]) => {
+            const popup = await (target.waitForEvent as (...values: unknown[]) => Promise<never>)(...args);
+            input.registerPage?.(popup);
+            return popup;
+          };
+        }
+        const value = Reflect.get(target, property, receiver);
+        return typeof value === 'function' ? value.bind(target) : value;
+      },
+    });
+    const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor as new (
+      ...args: string[]
+    ) => (...args: unknown[]) => Promise<unknown>;
+    const result = await new AsyncFunction('browser', source)({
+      currentPage: async () => selectedPage,
+    });
+    return {
+      ok: true,
+      result,
+      logs: [],
+      page: { id: input.pageId, url: '', title: '' },
+      observation: { mode: 'none' },
+      limits: { outputTruncated: false, observationTruncated: false },
+    };
+  },
+}));
+
 function fakePage(url: string, initialViewport: { width: number; height: number } | null = { width: 1280, height: 720 }) {
   let closed = false;
   let viewportSize = initialViewport;
@@ -30,7 +69,9 @@ function fakePage(url: string, initialViewport: { width: number; height: number 
 function makeProviderWithFakePage(initialViewport: { width: number; height: number } | null = { width: 1280, height: 720 }) {
   const pages = [fakePage('https://example.com/', initialViewport)];
   const cdpSession = { send: vi.fn().mockResolvedValue(undefined), detach: vi.fn().mockResolvedValue(undefined) };
+  const browser = { contexts: vi.fn(() => [context]) };
   const context = {
+    browser: vi.fn(() => browser),
     on: vi.fn(),
     pages: vi.fn(() => pages.filter((page) => !page.isClosed())),
     newPage: vi.fn(async () => {

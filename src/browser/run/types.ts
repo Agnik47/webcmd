@@ -1,14 +1,9 @@
-export const BROWSER_RUN_PROTOCOL_VERSION = 1 as const;
 export const BROWSER_RUN_PLAYWRIGHT_VERSION = '1.61.1' as const;
 
 export const BROWSER_RUN_DEFAULT_TIMEOUT_MS = 30_000;
 export const BROWSER_RUN_MAX_SOURCE_BYTES = 256 * 1024;
 export const BROWSER_RUN_DEFAULT_MAX_OUTPUT_CHARS = 65_536;
 export const BROWSER_RUN_DEFAULT_MEMORY_LIMIT_BYTES = 128 * 1024 * 1024;
-export const BROWSER_RUN_MAX_RESPONSE_BODY_BYTES = 1024 * 1024;
-export const BROWSER_RUN_MAX_UPLOAD_FILES = 8;
-export const BROWSER_RUN_MAX_UPLOAD_FILE_BYTES = 10 * 1024 * 1024;
-export const BROWSER_RUN_MAX_UPLOAD_TOTAL_BYTES = 20 * 1024 * 1024;
 
 export type BrowserRunObserveMode = 'diff' | 'full' | 'none';
 

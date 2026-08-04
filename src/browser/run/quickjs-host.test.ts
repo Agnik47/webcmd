@@ -71,6 +71,37 @@ describe('QuickJSHost', () => {
     });
   });
 
+  it('bridges protocol messages in both directions', async () => {
+    const sent: string[] = [];
+    const host = await createHost({
+      onTransportSend: message => sent.push(message),
+    });
+
+    await host.executeScript(`
+      globalThis.received = [];
+      globalThis.__webcmdTransportReceive = message => received.push(message);
+      __webcmdTransportSend('{"id":1}');
+    `);
+    host.deliverTransport('{"id":1,"result":{}}');
+
+    expect(sent).toEqual(['{"id":1}']);
+    await expect(host.executeScript('received')).resolves.toEqual([
+      '{"id":1,"result":{}}',
+    ]);
+  });
+
+  it('drops protocol replies after disposal', async () => {
+    const host = await createHost({ onTransportSend: () => undefined });
+    await host.executeScript(`
+      globalThis.__webcmdTransportReceive = () => {
+        throw new Error('late delivery');
+      };
+    `);
+    host.dispose();
+
+    expect(() => host.deliverTransport('{"id":1,"result":{}}')).not.toThrow();
+  });
+
   it('supports timers without exposing Node timer handles', async () => {
     const host = await createHost();
 

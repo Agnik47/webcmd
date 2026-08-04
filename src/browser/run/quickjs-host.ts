@@ -32,6 +32,7 @@ export interface QuickJSHostOptions {
   cpuTimeoutMs?: number;
   globals?: Record<string, QuickJSHostValue>;
   onHostCall?: (name: string, args: unknown[]) => unknown | Promise<unknown>;
+  onTransportSend?: (message: string) => void;
   onDrain?: () => void | Promise<void>;
   onConsole?: (level: QuickJSConsoleLevel, args: unknown[]) => void;
 }
@@ -86,6 +87,7 @@ export class QuickJSHost {
     this.#context = this.#runtime.newContext();
     this.#installConsole();
     this.#installTimers();
+    this.#installTransport();
 
     for (const [name, value] of Object.entries(options.globals ?? {})) {
       this.setGlobal(name, value);
@@ -170,6 +172,30 @@ export class QuickJSHost {
     } finally {
       for (const argHandle of argHandles) argHandle.dispose();
       functionHandle.dispose();
+    }
+  }
+
+  deliverTransport(message: string): void {
+    if (this.#disposed) return;
+    const receive = this.#context.getProp(
+      this.#context.global,
+      '__webcmdTransportReceive',
+    );
+    const messageHandle = this.#context.newString(message);
+    try {
+      if (this.#context.typeof(receive) !== 'function') {
+        throw new Error('QuickJS transport receiver is unavailable');
+      }
+      const result = this.#runWithCpuLimit(() => this.#context.callFunction(
+        receive,
+        this.#context.global,
+        messageHandle,
+      ));
+      this.#unwrapResult(result, 'QuickJS transport delivery failed').dispose();
+      this.#tryDrainPendingJobs();
+    } finally {
+      messageHandle.dispose();
+      receive.dispose();
     }
   }
 
@@ -282,6 +308,18 @@ export class QuickJSHost {
     );
     setTimeoutHandle.dispose();
     clearTimeoutHandle.dispose();
+  }
+
+  #installTransport(): void {
+    if (!this.#options.onTransportSend) return;
+    const send = this.#context.newFunction(
+      '__webcmdTransportSend',
+      (messageHandle) => {
+        this.#options.onTransportSend!(this.#context.getString(messageHandle));
+      },
+    );
+    this.#context.setProp(this.#context.global, '__webcmdTransportSend', send);
+    send.dispose();
   }
 
   #clearTimer(timerId: number): void {

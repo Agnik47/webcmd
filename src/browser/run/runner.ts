@@ -1,16 +1,17 @@
-import type { Page as PlaywrightPage } from 'playwright-core';
+import fs from 'node:fs';
+import type {
+  Browser as PlaywrightBrowser,
+  BrowserContext as PlaywrightBrowserContext,
+  Page as PlaywrightPage,
+} from 'playwright-core';
 import { generateSnapshotJs } from '../dom-snapshot.js';
 import {
   redactText,
   redactUrl,
   redactValue,
 } from '../../observation/redaction.js';
-import { BrowserRunArtifactWriter } from './artifacts.js';
-import {
-  BrowserRunBridge,
-  initializeBrowserRunSandboxClient,
-} from './bridge.js';
 import { BrowserRunObservationStore } from './observation.js';
+import { PlaywrightTransport } from './playwright-transport.js';
 import { QuickJSHost } from './quickjs-host.js';
 import {
   BROWSER_RUN_DEFAULT_MAX_OUTPUT_CHARS,
@@ -23,12 +24,18 @@ import {
 } from './types.js';
 
 export interface BrowserRunProgramHost {
+  browser: PlaywrightBrowser;
+  context: PlaywrightBrowserContext;
   page: PlaywrightPage;
   pageId: string;
   observationStore?: BrowserRunObservationStore;
-  artifactWriter?: BrowserRunArtifactWriter;
   registerPage?: (page: PlaywrightPage) => string;
 }
+
+const PLAYWRIGHT_CLIENT_SOURCE = fs.readFileSync(
+  new URL('./generated/playwright-client.js', import.meta.url),
+  'utf8',
+);
 
 function requirePositiveInteger(
   value: number | undefined,
@@ -76,6 +83,13 @@ function normalizeExecutionError(error: unknown): Error {
   }
   const message = error instanceof Error ? error.message : String(error);
   const errorKind = error instanceof Error ? error.name : '';
+  const unsupported = message.match(/BROWSER_RUN_API_UNSUPPORTED:\s*(.*)/s);
+  if (unsupported) {
+    return new BrowserRunError(
+      'BROWSER_RUN_API_UNSUPPORTED',
+      sanitize(unsupported[1] ?? message),
+    );
+  }
   if (/interrupted|execution timeout|timed out/i.test(message)) {
     return new BrowserRunError(
       'BROWSER_RUN_TIMEOUT',
@@ -198,56 +212,155 @@ export async function runBrowserProgram(
   };
   let capturedLogChars = 0;
   let logOutputTruncated = false;
-  const artifactWriter = input.artifactWriter ?? new BrowserRunArtifactWriter();
   const observationStore = input.observationStore
     ?? new BrowserRunObservationStore();
-  const bridge = new BrowserRunBridge({
-    page: input.page,
-    pageId: input.pageId,
-    writeScreenshot: (page, screenshotOptions) => (
-      artifactWriter.writeScreenshot(page, screenshotOptions)
-    ),
-    registerPage: input.registerPage,
-  });
-  const cancellation = new Promise<never>(() => {});
-  const host = await QuickJSHost.create({
-    memoryLimitBytes,
-    maxStackSizeBytes: 2 * 1024 * 1024,
-    cpuTimeoutMs: timeoutMs,
-    globals: {
-      __webcmdMaxLogChars: maxOutputChars,
-    },
-    onHostCall: (operation, args) => (
-      operation === 'runtime.waitForCancellation'
-        ? cancellation
-        : bridge.dispatch(operation, args)
-    ),
-    onConsole: (level, args) => {
-      const entry: BrowserRunLogEntry = {
-        level,
-        args: redactValue(args, redactionOptions) as unknown[],
-      };
-      const chars = JSON.stringify(entry).length;
-      if (capturedLogChars + chars > maxOutputChars) {
-        logOutputTruncated = true;
-        return;
-      }
-      logs.push(entry);
-      capturedLogChars += chars;
-    },
-  });
+  let host!: QuickJSHost;
+  const transport = new PlaywrightTransport(input, message => (
+    host.deliverTransport(message)
+  ));
+  try {
+    host = await QuickJSHost.create({
+      memoryLimitBytes,
+      maxStackSizeBytes: 2 * 1024 * 1024,
+      cpuTimeoutMs: timeoutMs,
+      globals: {
+        __webcmdMaxLogChars: maxOutputChars,
+      },
+      onTransportSend: message => transport.send(message),
+      onConsole: (level, args) => {
+        const entry: BrowserRunLogEntry = {
+          level,
+          args: redactValue(args, redactionOptions) as unknown[],
+        };
+        const chars = JSON.stringify(entry).length;
+        if (capturedLogChars + chars > maxOutputChars) {
+          logOutputTruncated = true;
+          return;
+        }
+        logs.push(entry);
+        capturedLogChars += chars;
+      },
+    });
+  } catch (error) {
+    transport.dispose();
+    throw error;
+  }
+  const knownPages = new Set(input.context.pages());
+  const registerNewPage = (page: PlaywrightPage) => {
+    if (knownPages.has(page)) return;
+    knownPages.add(page);
+    input.registerPage?.(page);
+  };
+  input.context.on('page', registerNewPage);
 
   let timeout: ReturnType<typeof setTimeout> | undefined;
   let wallTimedOut = false;
   let execution: Promise<unknown> | undefined;
   try {
-    await initializeBrowserRunSandboxClient(host);
-    execution = host.executeScript(`
+    await host.executeScript(`
       (() => {
-        const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
-        const program = new AsyncFunction(${javascriptStringLiteral(source)});
-        return __webcmdRaceRun(program).then(__webcmdSerializeResult);
+        const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+        globalThis.__webcmdEncodeBase64 = bytes => {
+          let output = '';
+          for (let index = 0; index < bytes.length; index += 3) {
+            const chunk = (bytes[index] << 16)
+              | ((bytes[index + 1] || 0) << 8)
+              | (bytes[index + 2] || 0);
+            output += alphabet[(chunk >>> 18) & 63] + alphabet[(chunk >>> 12) & 63]
+              + (index + 1 < bytes.length ? alphabet[(chunk >>> 6) & 63] : '=')
+              + (index + 2 < bytes.length ? alphabet[chunk & 63] : '=');
+          }
+          return output;
+        };
+        globalThis.__webcmdDecodeBase64 = value => {
+          const output = [];
+          for (let index = 0; index < value.length; index += 4) {
+            const a = alphabet.indexOf(value[index]);
+            const b = alphabet.indexOf(value[index + 1]);
+            const c = value[index + 2] === '=' ? 64 : alphabet.indexOf(value[index + 2]);
+            const d = value[index + 3] === '=' ? 64 : alphabet.indexOf(value[index + 3]);
+            const chunk = (a << 18) | (b << 12) | ((c & 63) << 6) | (d & 63);
+            output.push((chunk >>> 16) & 255);
+            if (c !== 64) output.push((chunk >>> 8) & 255);
+            if (d !== 64) output.push(chunk & 255);
+          }
+          return new Uint8Array(output);
+        };
+        globalThis.__webcmdEncodeText = value => {
+          const encoded = encodeURIComponent(String(value));
+          const output = [];
+          for (let index = 0; index < encoded.length; index += 1) {
+            if (encoded[index] === '%') {
+              output.push(parseInt(encoded.slice(index + 1, index + 3), 16));
+              index += 2;
+            } else {
+              output.push(encoded.charCodeAt(index));
+            }
+          }
+          return new Uint8Array(output);
+        };
+        globalThis.__webcmdDecodeText = bytes => {
+          let encoded = '';
+          for (const byte of bytes) encoded += '%' + byte.toString(16).padStart(2, '0');
+          return decodeURIComponent(encoded);
+        };
       })()
+    `, { filename: 'browser-run-platform.js' });
+    await host.executeScript(PLAYWRIGHT_CLIENT_SOURCE, {
+      filename: 'playwright-client.js',
+    });
+    await host.executeScript(`
+      (() => {
+        const connection = __WebcmdPlaywrightClient.createConnection();
+        globalThis.__webcmdTransportReceive = message => {
+          connection.dispatch(JSON.parse(message));
+        };
+        globalThis.__webcmdWriteArtifact = () => {
+          const error = new Error(
+            'BROWSER_RUN_API_UNSUPPORTED: Host filesystem access is unavailable in browser run.'
+          );
+          error.name = 'BrowserRunError';
+          throw error;
+        };
+        globalThis.__webcmdInitializePlaywright = async pageGuid => {
+          const playwright = await connection.initializePlaywright();
+          const suppliedBrowser = playwright._preLaunchedBrowser();
+          const unsupported = api => {
+            const error = new Error(
+              'BROWSER_RUN_API_UNSUPPORTED: ' + api + ' is unavailable in browser run.'
+            );
+            error.name = 'BrowserRunError';
+            throw error;
+          };
+          const browserType = suppliedBrowser.browserType();
+          browserType.connect = () => unsupported('BrowserType.connect');
+          const selectedPage = connection.getObjectWithKnownName(pageGuid);
+          if (!selectedPage) throw new Error('Selected Playwright page is unavailable.');
+          const selectedContext = selectedPage.context();
+          const selectedBrowser = selectedContext.browser();
+          globalThis.page = selectedPage;
+          globalThis.context = selectedContext;
+          globalThis.browser = selectedBrowser;
+        };
+        globalThis.__webcmdRun = async source => {
+          const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+          const value = await new AsyncFunction(source)();
+          try {
+            const serialized = JSON.stringify(value);
+            if (serialized === undefined) throw new TypeError('Result is not JSON serializable.');
+            return serialized;
+          } catch (cause) {
+            const error = new Error('Browser-run result is not JSON serializable.');
+            error.name = 'BrowserRunError';
+            error.code = 'BROWSER_RUN_SERIALIZATION_ERROR';
+            throw error;
+          }
+        };
+      })()
+    `, { filename: 'browser-run-bootstrap.js' });
+    await host.callFunction('__webcmdInitializePlaywright', transport.pageGuid);
+    execution = host.executeScript(`
+      __webcmdRun(${javascriptStringLiteral(source)})
     `, {
       filename: 'browser-run.js',
     });
@@ -260,6 +373,7 @@ export async function runBrowserProgram(
           'Split the task into a smaller run or increase --timeout.',
         );
         host.cancelPending(timeoutError);
+        transport.cancel(timeoutError);
         reject(timeoutError);
       }, timeoutMs);
     });
@@ -290,20 +404,6 @@ export async function runBrowserProgram(
         'Return a smaller value or increase --max-output.',
       );
     }
-    const unfinishedBrowserOperations = bridge.hasPendingBrowserOperations();
-    const completedError = new BrowserRunError(
-      'BROWSER_RUN_CANCELLED',
-      'Browser-run execution has ended.',
-    );
-    host.cancelPending(completedError);
-    bridge.cancel(completedError);
-    if (unfinishedBrowserOperations) {
-      throw new BrowserRunError(
-        'BROWSER_RUN_CANCELLED',
-        'Browser-run ended with an unfinished browser operation.',
-        'Await every Playwright operation before returning from browser run.',
-      );
-    }
     const bounded = boundedLogs(logs, Math.max(0, maxOutputChars - resultChars));
     const title = await input.page.title().catch(() => '');
     const observation = await captureObservation(
@@ -329,15 +429,7 @@ export async function runBrowserProgram(
     };
   } catch (error) {
     if (wallTimedOut) {
-      bridge.cancel(
-        error instanceof Error
-          ? error
-          : new BrowserRunError(
-              'BROWSER_RUN_TIMEOUT',
-              'Browser-run execution exceeded its time limit.',
-            ),
-      );
-      await execution?.catch(() => {});
+      transport.cancel(error instanceof Error ? error : new Error(String(error)));
     }
     throw normalizeExecutionError(error);
   } finally {
@@ -347,8 +439,9 @@ export async function runBrowserProgram(
       'Browser-run execution has ended.',
     );
     host.cancelPending(completionError);
-    bridge.cancel(completionError);
-    bridge.dispose();
+    transport.cancel(completionError);
+    transport.dispose();
     host.dispose();
+    input.context.off('page', registerNewPage);
   }
 }
