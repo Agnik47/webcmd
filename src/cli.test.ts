@@ -1391,7 +1391,6 @@ describe('browser tab targeting commands', () => {
       ok: true,
       result: 42,
       logs: [],
-      observation: { mode: 'none' },
     });
     const program = createProgram('', '');
 
@@ -1408,8 +1407,7 @@ describe('browser tab targeting commands', () => {
       '12',
       '--max-output',
       '1000',
-      '--observe',
-      'none',
+      '--snapshot-diff',
       '--tab',
       'tab-2',
     ]);
@@ -1422,7 +1420,7 @@ describe('browser tab targeting commands', () => {
       timeoutMs: 12_000,
       timeout: 17,
       maxOutputChars: 1000,
-      observe: 'none',
+      snapshotDiff: true,
       page: 'tab-2',
     });
     expect(mockSendCommand.mock.calls[0]?.[1]).not.toHaveProperty('file');

@@ -149,7 +149,6 @@ export async function dispatchCloakAction(manager: CloakSessionManager, command:
           context: lease.context,
           page: lease.page,
           pageId: lease.pageId,
-          observationStore: manager.browserRunObservations,
           registerPage: (page) => manager.registerPage({
             profileId: lease.profileId,
             session: command.session,
@@ -162,7 +161,7 @@ export async function dispatchCloakAction(manager: CloakSessionManager, command:
           timeoutMs: command.timeoutMs,
           maxOutputChars: command.maxOutputChars,
           memoryLimitBytes: command.memoryLimitBytes,
-          observe: command.observe,
+          snapshotDiff: command.snapshotDiff,
         });
         return {
           id: command.id,

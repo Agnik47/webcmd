@@ -15,7 +15,6 @@ import {
   type BrowserContext,
   type Page,
 } from 'playwright-core';
-import { BrowserRunObservationStore } from './observation.js';
 import { QuickJSHost } from './quickjs-host.js';
 import { runBrowserProgram } from './runner.js';
 
@@ -33,8 +32,7 @@ function run(source: string, options = {}) {
     context,
     page,
     pageId: 'page-1',
-    observationStore: new BrowserRunObservationStore(),
-  }, source, { observe: 'none', ...options });
+  }, source, options);
 }
 
 beforeAll(async () => {
@@ -68,6 +66,85 @@ afterAll(async () => {
 });
 
 describe('runBrowserProgram', () => {
+  it('omits snapshots unless snapshot diff is requested', async () => {
+    const output = await run('return null;');
+
+    expect(output).not.toHaveProperty('snapshotDiff');
+    expect(output.limits.snapshotTruncated).toBe(false);
+  });
+
+  it('captures a fresh before and after snapshot in the same run', async () => {
+    const output = await run(`
+      await page.getByRole('button', { name: 'Save' }).click();
+      return null;
+    `, { snapshotDiff: true });
+
+    expect(output.snapshotDiff).toContain('Saved');
+    expect(output.snapshotDiff).toContain('~ ');
+  });
+
+  it('does not execute the program when the pre-snapshot fails', async () => {
+    const evaluate = page.evaluate.bind(page);
+    let calls = 0;
+    page.evaluate = ((...args: Parameters<Page['evaluate']>) => {
+      calls += 1;
+      if (calls === 1) return Promise.reject(new Error('pre snapshot failed'));
+      return evaluate(...args);
+    }) as Page['evaluate'];
+
+    await expect(run(`
+      await page.getByRole('button', { name: 'Save' }).click();
+      return null;
+    `, { snapshotDiff: true })).rejects.toThrow('pre snapshot failed');
+    expect(await page.locator('#save').innerText()).toBe('Save');
+  });
+
+  it('counts the pre-snapshot against the command deadline', async () => {
+    page.evaluate = (() => new Promise(() => undefined)) as Page['evaluate'];
+
+    await expect(run(`
+      await page.getByRole('button', { name: 'Save' }).click();
+      return null;
+    `, { snapshotDiff: true, timeoutMs: 25 })).rejects.toMatchObject({
+      code: 'BROWSER_RUN_TIMEOUT',
+    });
+    expect(await page.locator('#save').innerText()).toBe('Save');
+  });
+
+  it('keeps program success and warns when the post-snapshot fails', async () => {
+    const evaluate = page.evaluate.bind(page);
+    let calls = 0;
+    page.evaluate = ((...args: Parameters<Page['evaluate']>) => {
+      calls += 1;
+      if (calls === 2) return Promise.reject(new Error('post snapshot failed'));
+      return evaluate(...args);
+    }) as Page['evaluate'];
+
+    const output = await run('return 7;', { snapshotDiff: true });
+
+    expect(output.result).toBe(7);
+    expect(output.warnings).toContainEqual(expect.objectContaining({
+      code: 'BROWSER_RUN_SNAPSHOT_FAILED',
+      message: expect.stringContaining('post snapshot failed'),
+    }));
+  });
+
+  it('exposes page.snapshotForAI without exposing host page objects', async () => {
+    const output = await run('return await page.snapshotForAI();');
+
+    expect(output.result).toContain('<button');
+    expect(output.result).toContain('Save');
+  });
+
+  it('exposes snapshotForAI on popup pages in the supplied context', async () => {
+    const output = await run(`
+      const popupPromise = page.waitForEvent('popup');
+      await page.getByRole('link', { name: 'Popup' }).click();
+      return await (await popupPromise).snapshotForAI();
+    `);
+
+    expect(output.result).toContain('url: about:blank');
+  });
   it('publishes the browser-run package subpath', () => {
     const packageJson = JSON.parse(
       fs.readFileSync(new URL('../../../package.json', import.meta.url), 'utf8'),
@@ -127,7 +204,7 @@ describe('runBrowserProgram', () => {
         pages: context.pages().length,
         contexts: browser.contexts().length,
       };
-    `, { observe: 'none' });
+    `);
 
     expect(output.result).toEqual({ popupUrl: 'about:blank', pages: 2, contexts: 1 });
     expect(registered).toEqual([context.pages()[1]]);

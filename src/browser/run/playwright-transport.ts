@@ -1,5 +1,6 @@
 import { createRequire } from 'node:module';
 import type { Browser, BrowserContext, Page } from 'playwright-core';
+import { generateSnapshotJs } from '../dom-snapshot.js';
 import {
   BROWSER_RUN_PLAYWRIGHT_VERSION,
   BrowserRunError,
@@ -8,7 +9,7 @@ import {
 interface DispatcherConnection {
   onmessage: (message: Record<string, unknown>) => void;
   dispatch(message: Record<string, unknown>): Promise<void>;
-  _dispatcherByGuid: Map<string, { _type: string }>;
+  _dispatcherByGuid: Map<string, { _type: string; _object?: unknown }>;
 }
 
 interface RootDispatcher {
@@ -28,11 +29,27 @@ interface PlaywrightServer {
     options: Record<string, unknown>,
   ) => unknown;
   createPlaywright(options: Record<string, unknown>): unknown;
+  nullProgress: unknown;
+}
+
+interface PlaywrightPageImplementation {
+  mainFrame(): {
+    evaluateExpression(
+      progress: unknown,
+      expression: string,
+      options: Record<string, unknown>,
+    ): Promise<unknown>;
+  };
 }
 
 interface PlaywrightClientObject {
   _connection?: { toImpl?: (object: unknown) => unknown };
   _guid?: string;
+}
+
+function pageGuid(page: Page): string {
+  const client = page as Page & PlaywrightClientObject & { guid?: string };
+  return client.guid ?? client._guid ?? '';
 }
 
 const coreBundle = createRequire(import.meta.url)(
@@ -111,6 +128,7 @@ export class PlaywrightTransport {
   readonly #connection: DispatcherConnection;
   readonly #root: RootDispatcher;
   readonly #deliver: (message: string) => void;
+  readonly #hostPages = new Set<Page>();
   #cancellation: Promise<void> | undefined;
   #disposed = false;
 
@@ -130,10 +148,9 @@ export class PlaywrightTransport {
 
     const browser = implementation(input.browser) as object;
     const context = implementation(input.context) as object;
-    const page = implementation(input.page) as { guid?: string };
-    this.pageGuid = page.guid
-      ?? (input.page as Page & PlaywrightClientObject)._guid
-      ?? '';
+    this.pageGuid = pageGuid(input.page);
+    this.#pages = () => input.context.pages();
+    this.#hostPages.add(input.page);
     this.#deliver = deliver;
     this.#connection = new server.DispatcherConnection();
     this.#connection.onmessage = message => {
@@ -179,6 +196,38 @@ export class PlaywrightTransport {
       return;
     }
     void this.#connection.dispatch(parsed);
+  }
+
+  async snapshotForAI(guid: string): Promise<string> {
+    const dispatcher = this.#connection._dispatcherByGuid.get(guid);
+    const page = [...this.#hostPages, ...this.#pages()].find(candidate => (
+      pageGuid(candidate) === guid || dispatcher?._object === implementation(candidate)
+    ));
+    if (!page && (!dispatcher || dispatcher._type !== 'Page')) {
+      throw new BrowserRunError(
+        'BROWSER_RUN_API_UNSUPPORTED',
+        'The requested page is unavailable in this browser-run context.',
+      );
+    }
+    const script = generateSnapshotJs({
+      viewportExpand: 0,
+      maxDepth: 40,
+      maxTextLength: 120,
+      includeScrollInfo: true,
+      bboxDedup: true,
+    });
+    const value = page
+      ? await page.evaluate(script as never)
+      : await (dispatcher!._object as PlaywrightPageImplementation)
+        .mainFrame()
+        .evaluateExpression(server.nullProgress, script, {});
+    return typeof value === 'string' ? value : String(value ?? '');
+  }
+
+  #pages: () => Page[];
+
+  registerPage(page: Page): void {
+    this.#hostPages.add(page);
   }
 
   cancel(error: Error): Promise<void> {

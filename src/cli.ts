@@ -1168,7 +1168,7 @@ Examples:
     .option('--file <path>', 'Read the browser-run program from a local file')
     .option('--timeout <seconds>', 'Maximum run time in seconds', '30')
     .option('--max-output <characters>', 'Maximum returned result and log characters', '65536')
-    .addOption(new Option('--observe <mode>', 'Final semantic observation: diff, full, or none').choices(['diff', 'full', 'none']).default('diff'))
+    .option('--snapshot-diff', 'Return a structural snapshot diff for this run')
     .option('--tab <page-id>', BROWSER_TAB_OPTION_DESCRIPTION)
     .action(browserSessionCommandAction(async ({ session, routing, windowMode }, opts) => {
       const positiveInteger = (value: unknown, flag: string): number => {
@@ -1210,7 +1210,7 @@ Examples:
         timeoutMs: timeoutSeconds * 1000,
         timeout: timeoutSeconds + 5,
         maxOutputChars,
-        observe: opts.observe as 'diff' | 'full' | 'none',
+        snapshotDiff: opts.snapshotDiff === true,
         ...(typeof opts.tab === 'string' && opts.tab.trim()
           ? { page: opts.tab.trim() }
           : {}),

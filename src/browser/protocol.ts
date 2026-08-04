@@ -59,7 +59,7 @@ export interface BrowserRuntimeCommand {
   frameIndex?: number;
   /** Agent-authored JavaScript executed by the browser-run QuickJS sandbox. */
   source?: string;
-  observe?: 'diff' | 'full' | 'none';
+  snapshotDiff?: boolean;
   maxOutputChars?: number;
   memoryLimitBytes?: number;
   contextId?: string;

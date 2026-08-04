@@ -5,8 +5,6 @@ export const BROWSER_RUN_MAX_SOURCE_BYTES = 256 * 1024;
 export const BROWSER_RUN_DEFAULT_MAX_OUTPUT_CHARS = 65_536;
 export const BROWSER_RUN_DEFAULT_MEMORY_LIMIT_BYTES = 128 * 1024 * 1024;
 
-export type BrowserRunObserveMode = 'diff' | 'full' | 'none';
-
 export type BrowserRunErrorCode =
   | 'BROWSER_RUN_INVALID_INPUT'
   | 'BROWSER_RUN_SOURCE_LIMIT'
@@ -36,7 +34,7 @@ export interface BrowserRunArtifactSink {
 }
 
 export interface BrowserRunWarning {
-  code: 'BROWSER_RUN_SIDE_EFFECTS_MAY_HAVE_OCCURRED';
+  code: 'BROWSER_RUN_SIDE_EFFECTS_MAY_HAVE_OCCURRED' | 'BROWSER_RUN_SNAPSHOT_FAILED';
   message: string;
 }
 
@@ -70,7 +68,7 @@ export interface BrowserRunOptions {
   timeoutMs?: number;
   maxOutputChars?: number;
   memoryLimitBytes?: number;
-  observe?: BrowserRunObserveMode;
+  snapshotDiff?: boolean;
 }
 
 export interface BrowserRunLogEntry {
@@ -83,11 +81,6 @@ export interface BrowserRunPageMetadata {
   url: string;
   title: string;
 }
-
-export type BrowserRunObservation =
-  | { mode: 'none' }
-  | { mode: 'full'; content: string }
-  | { mode: 'diff'; changed: string };
 
 export interface BrowserRunResult {
   ok: true;

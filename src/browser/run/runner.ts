@@ -4,16 +4,15 @@ import type {
   BrowserContext as PlaywrightBrowserContext,
   Page as PlaywrightPage,
 } from 'playwright-core';
-import { generateSnapshotJs } from '../dom-snapshot.js';
 import {
   redactText,
   redactUrl,
   redactValue,
 } from '../../observation/redaction.js';
 import { LocalBrowserRunArtifactSink } from './artifacts.js';
-import { BrowserRunObservationStore } from './observation.js';
 import { PlaywrightTransport } from './playwright-transport.js';
 import { QuickJSHost } from './quickjs-host.js';
+import { boundSnapshotDiff } from './snapshot.js';
 import {
   BROWSER_RUN_DEFAULT_MAX_OUTPUT_CHARS,
   BROWSER_RUN_DEFAULT_MEMORY_LIMIT_BYTES,
@@ -34,7 +33,6 @@ export interface BrowserRunProgramHost {
   page: PlaywrightPage;
   pageId: string;
   artifactSink?: BrowserRunArtifactSink;
-  observationStore?: BrowserRunObservationStore;
   registerPage?: (page: PlaywrightPage) => string;
 }
 
@@ -116,11 +114,6 @@ function normalizeExecutionError(error: unknown): Error {
   return normalized;
 }
 
-function snapshotDiff(observation: Awaited<ReturnType<typeof captureObservation>>['observation']): string | undefined {
-  if (observation.mode === 'none') return undefined;
-  return observation.mode === 'full' ? observation.content : observation.changed;
-}
-
 function artifactContentType(filename: string): string {
   if (/\.png$/i.test(filename)) return 'image/png';
   if (/\.jpe?g$/i.test(filename)) return 'image/jpeg';
@@ -150,43 +143,6 @@ function javascriptStringLiteral(value: string): string {
     .replace(/\u2029/g, '\\u2029');
 }
 
-async function captureObservation(
-  page: PlaywrightPage,
-  pageId: string,
-  store: BrowserRunObservationStore,
-  options: Required<Pick<BrowserRunOptions, 'observe' | 'maxOutputChars'>>,
-) {
-  if (options.observe === 'none') {
-    return store.record({
-      pageId,
-      url: page.url(),
-      content: '',
-      requestedMode: 'none',
-      maxChars: options.maxOutputChars,
-    });
-  }
-  let content: string;
-  try {
-    const value = await page.evaluate(generateSnapshotJs({
-      viewportExpand: 0,
-      maxDepth: 40,
-      maxTextLength: 120,
-      includeScrollInfo: true,
-      bboxDedup: true,
-    }) as never);
-    content = typeof value === 'string' ? value : String(value ?? '');
-  } catch {
-    content = '[semantic observation unavailable]';
-  }
-  return store.record({
-    pageId,
-    url: page.url(),
-    content,
-    requestedMode: options.observe,
-    maxChars: options.maxOutputChars,
-  });
-}
-
 export async function runBrowserProgram(
   input: BrowserRunProgramHost,
   source: string,
@@ -196,9 +152,6 @@ export async function runBrowserProgram(
   const artifacts: BrowserRunArtifactReceipt[] = [];
   const warnings: BrowserRunWarning[] = [];
   let maxOutputChars = BROWSER_RUN_DEFAULT_MAX_OUTPUT_CHARS;
-  let observe: 'diff' | 'full' | 'none' = options.observe ?? 'diff';
-  const observationStore = input.observationStore
-    ?? new BrowserRunObservationStore();
   let savedSnapshotDiff: string | undefined;
   let snapshotTruncated = false;
   const redactionOptions = {
@@ -217,18 +170,6 @@ export async function runBrowserProgram(
     title: timedOut ? '' : redactText(await input.page.title().catch(() => '')),
   });
   const details = async (): Promise<BrowserRunFailureDetails> => {
-    if (!timedOut && savedSnapshotDiff === undefined && observe !== 'none') {
-      const observation = await captureObservation(
-        input.page,
-        input.pageId,
-        observationStore,
-        { observe, maxOutputChars },
-      ).catch(() => undefined);
-      if (observation) {
-        savedSnapshotDiff = snapshotDiff(observation.observation);
-        snapshotTruncated = observation.truncated;
-      }
-    }
     const bounded = boundedLogs(logs, maxOutputChars);
     return {
       logs: bounded.logs,
@@ -264,6 +205,7 @@ export async function runBrowserProgram(
 
   let timeoutMs: number;
   let memoryLimitBytes: number;
+  let deadlineAt: number;
   try {
     timeoutMs = requirePositiveInteger(
       options.timeoutMs,
@@ -281,12 +223,7 @@ export async function runBrowserProgram(
       BROWSER_RUN_DEFAULT_MEMORY_LIMIT_BYTES,
       'memoryLimitBytes',
     );
-    if (!['diff', 'full', 'none'].includes(observe)) {
-      throw new BrowserRunError(
-        'BROWSER_RUN_INVALID_INPUT',
-        'observe must be diff, full, or none.',
-      );
-    }
+    deadlineAt = Date.now() + timeoutMs;
   } catch (error) {
     throw await failure(error);
   }
@@ -304,6 +241,11 @@ export async function runBrowserProgram(
         __webcmdMaxLogChars: maxOutputChars,
       },
       onHostCall: async (name, args) => {
+        if (name === 'snapshotForAI' && typeof args[0] === 'string') {
+          return redactText(await transport.snapshotForAI(args[0]), {
+            maxStringLength: maxOutputChars * 2,
+          });
+        }
         if (
           name !== 'writeArtifact'
           || typeof args[0] !== 'string'
@@ -344,9 +286,11 @@ export async function runBrowserProgram(
     throw await failure(error);
   }
   const knownPages = new Set(input.context.pages());
+  for (const page of knownPages) transport.registerPage(page);
   const registerNewPage = (page: PlaywrightPage) => {
     if (knownPages.has(page)) return;
     knownPages.add(page);
+    transport.registerPage(page);
     input.registerPage?.(page);
   };
   input.context.on('page', registerNewPage);
@@ -468,6 +412,9 @@ export async function runBrowserProgram(
             return bytes;
           };
           globalThis.page = selectedPage;
+          Object.getPrototypeOf(selectedPage).snapshotForAI = function snapshotForAI() {
+            return __webcmdHostCall('snapshotForAI', JSON.stringify([this._guid]));
+          };
           globalThis.context = selectedContext;
           globalThis.browser = selectedBrowser;
         };
@@ -501,25 +448,49 @@ export async function runBrowserProgram(
       })()
     `, { filename: 'browser-run-bootstrap.js' });
     await host.callFunction('__webcmdInitializePlaywright', transport.pageGuid);
+    const timeoutError = () => new BrowserRunError(
+      'BROWSER_RUN_TIMEOUT',
+      `Browser-run execution exceeded ${timeoutMs}ms.`,
+      'Split the task into a smaller run or increase --timeout.',
+    );
+    const snapshot = async () => {
+      const remaining = deadlineAt - Date.now();
+      if (remaining <= 0) throw timeoutError();
+      let snapshotTimeout: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const value = await Promise.race([
+          transport.snapshotForAI(transport.pageGuid),
+          new Promise<never>((_resolve, reject) => {
+            snapshotTimeout = setTimeout(() => reject(timeoutError()), remaining);
+          }),
+        ]);
+        return redactText(value, { maxStringLength: maxOutputChars * 2 });
+      } finally {
+        if (snapshotTimeout) clearTimeout(snapshotTimeout);
+      }
+    };
+    const beforeSnapshot = options.snapshotDiff ? await snapshot() : undefined;
     execution = host.executeScript(`
       __webcmdRun(${javascriptStringLiteral(source)})
     `, {
       filename: 'browser-run.js',
     });
+    const remainingMs = deadlineAt - Date.now();
+    if (remainingMs <= 0) throw timeoutError();
     const deadline = new Promise<never>((_resolve, reject) => {
       timeout = setTimeout(() => {
         timedOut = true;
-        const timeoutError = new BrowserRunError(
-          'BROWSER_RUN_TIMEOUT',
-          `Browser-run execution exceeded ${timeoutMs}ms.`,
-          'Split the task into a smaller run or increase --timeout.',
-        );
-        disposeTimedOutRun(timeoutError);
-        reject(timeoutError);
-      }, timeoutMs);
+        const error = timeoutError();
+        disposeTimedOutRun(error);
+        reject(error);
+      }, remainingMs);
     });
     execution.catch(() => {});
     const serialized = await Promise.race([execution, deadline]);
+    if (timeout) {
+      clearTimeout(timeout);
+      timeout = undefined;
+    }
     if (typeof serialized !== 'string') {
       throw new BrowserRunError(
         'BROWSER_RUN_SERIALIZATION_ERROR',
@@ -546,25 +517,31 @@ export async function runBrowserProgram(
       );
     }
     const bounded = boundedLogs(logs, Math.max(0, maxOutputChars - resultChars));
-    const observation = await captureObservation(
-      input.page,
-      input.pageId,
-      observationStore,
-      { observe, maxOutputChars },
-    );
+    if (beforeSnapshot !== undefined) {
+      try {
+        const diff = boundSnapshotDiff(beforeSnapshot, await snapshot(), maxOutputChars);
+        savedSnapshotDiff = diff.value;
+        snapshotTruncated = diff.truncated;
+      } catch (snapshotError) {
+        warnings.push({
+          code: 'BROWSER_RUN_SNAPSHOT_FAILED',
+          message: `Failed to capture post-run snapshot: ${normalizeExecutionError(snapshotError).message}`,
+        });
+      }
+    }
     return {
       ok: true,
       result,
       logs: bounded.logs,
       page: await pageMetadata(),
-      ...(snapshotDiff(observation.observation) !== undefined && {
-        snapshotDiff: snapshotDiff(observation.observation),
+      ...(savedSnapshotDiff !== undefined && {
+        snapshotDiff: savedSnapshotDiff,
       }),
       artifacts,
       warnings,
       limits: {
         outputTruncated: logOutputTruncated || bounded.truncated,
-        snapshotTruncated: observation.truncated,
+        snapshotTruncated,
       },
     };
   } catch (error) {

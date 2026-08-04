@@ -14,8 +14,9 @@ function runOutput(result: unknown) {
     result,
     logs: [],
     page: { id: 'page-1', url: '', title: '' },
-    observation: { mode: 'none' as const },
-    limits: { outputTruncated: false, observationTruncated: false },
+    artifacts: [],
+    warnings: [],
+    limits: { outputTruncated: false, snapshotTruncated: false },
   };
 }
 
@@ -132,7 +133,6 @@ describe('LocalCloakRuntimeProvider', () => {
       source: `
         return page.url();
       `,
-      observe: 'none',
       profileId: 'default',
     })).resolves.toMatchObject({
       id: 'run',
@@ -141,7 +141,6 @@ describe('LocalCloakRuntimeProvider', () => {
       data: {
         ok: true,
         result: 'https://example.com/',
-        observation: { mode: 'none' },
       },
     });
     expect(runBrowserProgram).toHaveBeenCalledWith(expect.objectContaining({
@@ -149,7 +148,7 @@ describe('LocalCloakRuntimeProvider', () => {
       context,
       page,
     }), expect.stringContaining('return page.url()'), expect.objectContaining({
-      observe: 'none',
+      snapshotDiff: undefined,
     }));
   });
 
@@ -232,7 +231,6 @@ describe('LocalCloakRuntimeProvider', () => {
       session: 'work',
       surface: 'browser',
       source: 'await new Promise(resolve => setTimeout(resolve, 30)); return 1;',
-      observe: 'none',
       profileId: 'default',
     });
     const second = provider.dispatch({
@@ -273,7 +271,6 @@ describe('LocalCloakRuntimeProvider', () => {
       session: 'misleading-session',
       surface: 'adapter',
       source: 'await new Promise(resolve => setTimeout(resolve, 30)); return 1;',
-      observe: 'none',
       profileId: 'misleading-profile',
     });
     const second = provider.dispatch({
@@ -328,7 +325,6 @@ describe('LocalCloakRuntimeProvider', () => {
         await new Promise(resolve => setTimeout(resolve, 30));
         return null;
       `,
-      observe: 'none',
       profileId: 'misleading-profile',
     });
     await vi.waitFor(() => {
