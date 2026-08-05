@@ -13,6 +13,7 @@ import type {
   RenderedSnapshotFrame,
   RenderedSnapshotNode,
   SnapshotPriority,
+  SnapshotRecordIdentity,
   SnapshotSubtreeSummary,
   SnapshotTreeMode,
   SnapshotPrimitive,
@@ -64,6 +65,14 @@ const ACTION_ROLES = new Set([
 const CRITICAL_ROLES = new Set(["alert", "alertdialog", "dialog", "status"]);
 const RECORD_ROLES = new Set(["listitem", "row", "treeitem", "article"]);
 const RECORD_PARENT_ROLES = new Set(["list", "table", "grid", "tree", "feed"]);
+const RECORD_IDENTITY_STATE_ATTRS = new Set([
+  "checked",
+  "selected",
+  "expanded",
+  "disabled",
+  "pressed",
+  "value",
+]);
 const ACTION_STATE_ATTRS = new Set([
   "checked",
   "disabled",
@@ -249,9 +258,11 @@ function toRenderedFrame(
   mode: SnapshotTreeMode,
 ): RenderedSnapshotFrame {
   if (frame.status === "unavailable") return frame;
+  const roots = frame.roots.flatMap((root) => toRenderedNodes(root, null, mode));
+  markRepeatedRecords(roots);
   return {
     ...frame,
-    roots: frame.roots.flatMap((root) => toRenderedNodes(root, null, mode)),
+    roots,
   };
 }
 function hasRenderedFrameContent(frame: RenderedSnapshotFrame): boolean {
@@ -327,6 +338,12 @@ function toRenderedChildren(
     return [];
   const record = isRecord(node, parent, compactRole);
   const priority = ownPriority(node, compactRole, record);
+  const recordIdentity = identityForNode(
+    node,
+    compactRole,
+    content.attrs,
+    renderedChildren,
+  );
   return [
     {
       kind: "node",
@@ -341,6 +358,7 @@ function toRenderedChildren(
       priority,
       scopeRef: node.ref,
       record,
+      recordIdentity,
     },
   ];
 }
@@ -387,6 +405,42 @@ function markRepeatedRecords(children: RenderedSnapshotChild[]): void {
           record.priority = Math.min(record.priority, 2) as SnapshotPriority;
           record.summary.records += 1;
         }
+}
+function identityForNode(
+  node: AiSnapshotNode,
+  role: string,
+  attrs: Array<[string, string]>,
+  children: RenderedSnapshotChild[],
+): SnapshotRecordIdentity {
+  return {
+    name: firstNonEmpty(node.name),
+    action: ACTION_ROLES.has(role)
+      ? actionLabelFromContent(attrs, children)
+      : firstActionLabel(children),
+    states: attrs.filter(([name, value]) =>
+      RECORD_IDENTITY_STATE_ATTRS.has(name) && value !== "",
+    ),
+  };
+}
+function firstActionLabel(children: RenderedSnapshotChild[]): string | null {
+  for (const child of children)
+    if (child.kind === "node" && child.recordIdentity.action)
+      return child.recordIdentity.action;
+  return null;
+}
+function actionLabelFromContent(
+  attrs: Array<[string, string]>,
+  children: RenderedSnapshotChild[],
+): string | null {
+  const singleText = children.length === 1 && children[0]!.kind === "text"
+    ? children[0]!.text
+    : null;
+  return firstNonEmpty(
+    singleText,
+    attrFromAttrs(attrs, "name"),
+    attrFromAttrs(attrs, "value"),
+    attrFromAttrs(attrs, "placeholder"),
+  );
 }
 function summarizeSubtree(
   children: RenderedSnapshotChild[],

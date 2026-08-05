@@ -57,6 +57,21 @@ describe("renderSnapshot", () => {
     expect(list?.scopeRef).toBe("l10");
   });
 
+  it("marks repeated actionable frame roots as records with compact identities", () => {
+    const frames = renderSnapshotFrames(snap([
+      node({ role: "region", name: "Alpha", properties: { selected: true }, children: [node({ role: "button", name: "Edit Alpha" })] }),
+      node({ role: "region", name: "Beta", properties: { selected: true }, children: [node({ role: "button", name: "Edit Beta" })] }),
+      node({ role: "region", name: "Gamma", properties: { selected: true }, children: [node({ role: "button", name: "Edit Gamma" })] }),
+    ]), "tree");
+    const roots = frames[0]!.status === "ok" ? frames[0]!.roots : [];
+    expect(roots.map((root) => root.record)).toEqual([true, true, true]);
+    expect(roots[0]?.recordIdentity).toEqual({
+      name: "Alpha",
+      action: "Edit Alpha",
+      states: [["selected", "true"]],
+    });
+  });
+
   it("renders compact action structure in act mode", () => {
     const text = renderSnapshot(
       snap([

@@ -68,6 +68,12 @@ export interface SnapshotSubtreeSummary {
 
 export type SnapshotPriority = 0 | 1 | 2 | 3 | 4;
 
+export interface SnapshotRecordIdentity {
+  name: string | null;
+  action: string | null;
+  states: Array<[string, string]>;
+}
+
 export interface SnapshotRenderResult extends BoundedSnapshotText {
   criticalOmitted: number;
   warnings: string[];
@@ -83,6 +89,7 @@ export interface RenderedSnapshotNode {
   priority: SnapshotPriority;
   scopeRef: string | null;
   record: boolean;
+  recordIdentity: SnapshotRecordIdentity;
 }
 
 export type RenderedSnapshotChild = RenderedSnapshotNode | SnapshotTextNode;
