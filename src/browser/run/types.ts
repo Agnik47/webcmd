@@ -1,3 +1,5 @@
+import type { SnapshotBaselineStore, SnapshotMode } from '../snapshot/index.js';
+
 export const BROWSER_RUN_PLAYWRIGHT_VERSION = '1.61.1' as const;
 
 export const BROWSER_RUN_DEFAULT_TIMEOUT_MS = 30_000;
@@ -78,6 +80,8 @@ export interface BrowserRunOptions {
   maxOutputChars?: number;
   memoryLimitBytes?: number;
   snapshotDiff?: boolean;
+  snapshotMode?: SnapshotMode;
+  snapshotBaselineStore?: SnapshotBaselineStore;
 }
 
 export interface BrowserRunLogEntry {
