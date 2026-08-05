@@ -41,6 +41,20 @@ function command(
   return { command: commandPath, aliases: [], description, action, positionals, options, sessionPolicy };
 }
 
+function snapshotModeParser(value: string): 'act' | 'read' {
+  if (value === 'act' || value === 'read') return value;
+  throw new InvalidArgumentError(`--snapshot-mode must be act or read (got "${value}")`);
+}
+
+function positiveIntegerParser(optionName: string): (value: string) => number {
+  return (value: string): number => {
+    if (!/^\d+$/.test(value) || Number.parseInt(value, 10) <= 0) {
+      throw new InvalidArgumentError(`--${optionName} must be a positive integer (got "${value}")`);
+    }
+    return Number.parseInt(value, 10);
+  };
+}
+
 /** Exact local Commander flags for every catalogued browser option. */
 export function browserOptionFlags(option: HostedArgumentContract, commandPath?: string): string {
   const longName = option.name.replace(/[A-Z]/g, character => `-${character.toLowerCase()}`);
@@ -65,13 +79,12 @@ export function browserOptionValueParser(
       return page;
     };
   }
-  if (commandPath !== 'run' || !['timeout', 'maxOutput'].includes(optionName)) return undefined;
-  return (value: string): number => {
-    if (!/^\d+$/.test(value) || Number.parseInt(value, 10) <= 0) {
-      throw new InvalidArgumentError(`--${optionName === 'maxOutput' ? 'max-output' : optionName} must be a positive integer (got "${value}")`);
-    }
-    return Number.parseInt(value, 10);
-  };
+  if (optionName === 'snapshotMode' && (commandPath === 'run' || commandPath === 'snapshot')) return snapshotModeParser;
+  if ((commandPath === 'run' && ['timeout', 'maxOutput'].includes(optionName))
+    || (commandPath === 'snapshot' && optionName === 'maxOutput')) {
+    return positiveIntegerParser(optionName === 'maxOutput' ? 'max-output' : optionName);
+  }
+  return undefined;
 }
 
 export const browserCommandCatalog: readonly HostedBrowserCommandContract[] = [
@@ -84,7 +97,13 @@ export const browserCommandCatalog: readonly HostedBrowserCommandContract[] = [
     option('file', 'Read the program from a file'),
     option('timeout', 'Execution timeout in seconds'),
     option('maxOutput', 'Maximum returned characters'),
-    flag('snapshotDiff', 'Return the before/after semantic diff'),
+    option('snapshotMode', 'Snapshot mode for automatic diff: act or read', { default: 'act' }),
+    flag('noSnapshotDiff', 'Skip the automatic before/after snapshot diff'),
   ], 'create-or-reuse'),
+  command('snapshot', 'Inspect the current page with a compact accessibility snapshot', 'snapshot', [], [
+    option('snapshotMode', 'Snapshot mode: act or read', { default: 'act' }),
+    option('ref', 'Render only the subtree rooted at this snapshot ref'),
+    option('maxOutput', 'Maximum returned characters'),
+  ], 'require-existing'),
   command('close', 'Close or detach this browser session', 'close-window', [], [], 'close-existing'),
 ] as const;

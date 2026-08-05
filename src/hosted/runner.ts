@@ -42,6 +42,7 @@ import { parseHostedRootCommandSurface } from '../root-command-surface.js';
 import type {
   HostedBrowserActionName,
   HostedBrowserRunActionResponse,
+  HostedBrowserSnapshotActionResponse,
   HostedManifest,
 } from './types.js';
 import type { HostedBrowserCommandContract } from './contract.js';
@@ -677,7 +678,7 @@ function withoutKeys(input: Record<string, unknown>, keys: readonly string[]): R
 async function renderHostedBrowserResponse(
   stdout: NodeJS.WritableStream,
   invocation: ParsedHostedBrowserInvocation,
-  response: HostedBrowserRunActionResponse,
+  response: HostedBrowserRunActionResponse | HostedBrowserSnapshotActionResponse,
 ): Promise<void> {
   const result = response.result;
   if (invocation.action === 'snapshot' && result && typeof result === 'object') {

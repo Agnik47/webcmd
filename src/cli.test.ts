@@ -632,8 +632,8 @@ name: 'search',
       expect(data.namespace).toBe('browser');
       expect(data.command).toBe('webcmd browser');
       expect(data.description).toBe('Run Playwright programs against named browser sessions');
-      expect(data.command_count).toBe(6);
-      expect(data.commands.map((cmd: any) => cmd.name)).toEqual(['bind', 'close', 'init', 'run', 'tabs', 'verify']);
+      expect(data.command_count).toBe(7);
+      expect(data.commands.map((cmd: any) => cmd.name)).toEqual(['bind', 'close', 'init', 'run', 'snapshot', 'tabs', 'verify']);
       // `--session` is now a hidden internal option; user-facing surface is the
       // <session> positional declared via `.usage()`. Structured help drops
       // hidden options, so namespace_options shouldn't expose it.
@@ -1195,6 +1195,16 @@ describe('browser raw session commands', () => {
       .rejects.toThrow(/process\.exit unexpectedly called/);
   });
 
+  it('sends snapshot inspection options to the browser runtime', async () => {
+    const program = createProgram('', '');
+
+    await program.parseAsync(['node', 'webcmd', 'browser', '--session', 'test', 'snapshot', '--snapshot-mode', 'read', '--ref', 'e12', '--max-output', '1000']);
+
+    expect(mockSendCommand).toHaveBeenCalledWith('snapshot', {
+      session: 'test', surface: 'browser', snapshotMode: 'read', ref: 'e12', maxOutputChars: 1000,
+    });
+  });
+
   it('reads program files for run and rejects mutually exclusive input', async () => {
     const sourcePath = path.join(os.tmpdir(), `webcmd-run-${Date.now()}.js`);
     fs.writeFileSync(sourcePath, 'return 42;', 'utf8');
@@ -1202,7 +1212,7 @@ describe('browser raw session commands', () => {
       const program = createProgram('', '');
       await program.parseAsync(['node', 'webcmd', 'browser', '--session', 'test', 'run', '--file', sourcePath]);
       expect(mockSendCommand).toHaveBeenCalledWith('run', {
-        session: 'test', surface: 'browser', source: 'return 42;',
+        session: 'test', surface: 'browser', source: 'return 42;', snapshotMode: 'act',
       });
 
       await program.parseAsync(['node', 'webcmd', 'browser', '--session', 'test', 'run', '--stdin', '--file', sourcePath]);

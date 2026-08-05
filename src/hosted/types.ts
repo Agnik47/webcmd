@@ -220,6 +220,9 @@ export interface HostedBrowserActionRequest {
   action: HostedBrowserActionName;
   args: Record<string, unknown>;
   profile?: string;
+  snapshotMode?: 'act' | 'read';
+  ref?: string;
+  noSnapshotDiff?: boolean;
 }
 
 export interface HostedBrowserActionResponse {
@@ -257,6 +260,12 @@ export interface HostedBrowserRunActionInput extends HostedBrowserRunRequest, Ho
 export interface HostedBrowserRunActionResponse extends HostedBrowserActionResponse {
   run: HostedBrowserRunResponse['run'];
   execution: HostedBrowserFinishResponse['execution'];
+}
+
+export interface HostedBrowserSnapshotActionResponse {
+  ok: true;
+  run: HostedBrowserRunResponse['run'];
+  result: unknown;
 }
 
 export interface HostedErrorResponse {

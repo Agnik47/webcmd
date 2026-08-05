@@ -1014,6 +1014,26 @@ describe('HostedClient', () => {
     ]);
   });
 
+  it('accepts compact hosted snapshot responses', async () => {
+    const client = new HostedClient({
+      apiBaseUrl: 'https://api.example.com',
+      apiKey: 'wcmd_live_test',
+      fetchImpl: async () => new Response(JSON.stringify({
+        ok: true,
+        result: { text: 'button Save' },
+        run: {
+          executionId: 'exec_1',
+          session: 'work',
+          profile: { id: 'profile_default', displayName: 'default' },
+        },
+      }), { status: 200 }),
+    });
+
+    await expect(client.runBrowserAction('work', {
+      command: 'browser/snapshot', action: 'snapshot', args: { snapshotMode: 'read' },
+    })).resolves.toMatchObject({ result: { text: 'button Save' } });
+  });
+
   it('attaches the workspace header when a workspace is configured', async () => {
     const requests: Array<{ workspace: string | null }> = [];
     const client = new HostedClient({

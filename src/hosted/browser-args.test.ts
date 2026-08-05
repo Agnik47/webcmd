@@ -9,8 +9,8 @@ function parse(argv: string[]) {
 }
 
 describe('hosted browser argument surface', () => {
-  it('uses the same four-command catalog as local mode', () => {
-    expect(browserCommandCatalog.map(command => command.command)).toEqual(['tabs', 'bind', 'run', 'close']);
+  it('uses the same command catalog as local mode', () => {
+    expect(browserCommandCatalog.map(command => command.command)).toEqual(['tabs', 'bind', 'run', 'snapshot', 'close']);
   });
 
   it('requires a stable page id for bind', () => {
@@ -25,12 +25,21 @@ describe('hosted browser argument surface', () => {
   });
 
   it('accepts only run program options', () => {
-    expect(parse(['browser', 'work', 'run', '--file', 'job.js', '--timeout', '12', '--max-output', '1000', '--snapshot-diff']))
+    expect(parse(['browser', 'work', 'run', '--file', 'job.js', '--timeout', '12', '--max-output', '1000', '--snapshot-mode', 'read', '--no-snapshot-diff']))
       .toMatchObject({
         commandName: 'run',
         session: 'work',
-        options: { file: 'job.js', timeout: 12, maxOutput: 1000, snapshotDiff: true },
+        options: { file: 'job.js', timeout: 12, maxOutput: 1000, snapshotMode: 'read', snapshotDiff: false },
       });
     expect(() => parse(['browser', 'work', 'run', '--tab', 'page-123'])).toThrow(CommanderStructuralError);
+  });
+
+  it('parses snapshot inspection options', () => {
+    expect(parse(['browser', 'work', 'snapshot', '--snapshot-mode', 'read', '--max-output', '1000']))
+      .toMatchObject({
+        commandName: 'snapshot',
+        session: 'work',
+        options: { snapshotMode: 'read', maxOutput: 1000 },
+      });
   });
 });

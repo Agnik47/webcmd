@@ -1016,7 +1016,8 @@ cli({
     .option('--file <path>', 'Read the program from a file')
     .addOption(new Option('--timeout <seconds>', 'Execution timeout in seconds').argParser(browserOptionValueParser('run', 'timeout')!))
     .addOption(new Option('--max-output <characters>', 'Maximum returned characters').argParser(browserOptionValueParser('run', 'maxOutput')!))
-    .option('--snapshot-diff', 'Return the before/after semantic diff');
+    .addOption(new Option('--snapshot-mode <mode>', 'Snapshot mode for automatic diff: act or read').default('act').argParser(browserOptionValueParser('run', 'snapshotMode')!))
+    .option('--no-snapshot-diff', 'Skip the automatic before/after semantic diff');
   runCommand.action(rawBrowserAction(async (session, routing, opts) => {
     let source: string;
     try {
@@ -1034,10 +1035,25 @@ cli({
       source,
       ...(timeout !== undefined ? { timeoutMs: timeout * 1000, timeout: timeout + 5 } : {}),
       ...(maxOutput !== undefined ? { maxOutputChars: maxOutput } : {}),
-      ...(opts.snapshotDiff === true ? { snapshotDiff: true } : {}),
+      snapshotMode: opts.snapshotMode === 'read' ? 'read' : 'act',
+      ...(opts.snapshotDiff === false ? { noSnapshotDiff: true } : {}),
     });
   }));
   browser.addCommand(runCommand);
+
+  browser.addCommand(new Command('snapshot')
+    .description('Inspect the current page with a compact accessibility snapshot')
+    .addOption(new Option('--snapshot-mode <mode>', 'Snapshot mode: act or read').default('act').argParser(browserOptionValueParser('snapshot', 'snapshotMode')!))
+    .option('--ref <ref>', 'Render only the subtree rooted at this snapshot ref')
+    .addOption(new Option('--max-output <characters>', 'Maximum returned characters').argParser(browserOptionValueParser('snapshot', 'maxOutput')!))
+    .action(rawBrowserAction((session, routing, opts) => sendCommand('snapshot', {
+      session,
+      surface: 'browser',
+      ...routing,
+      snapshotMode: opts.snapshotMode === 'read' ? 'read' : 'act',
+      ...(typeof opts.ref === 'string' ? { ref: opts.ref } : {}),
+      ...(typeof opts.maxOutput === 'number' ? { maxOutputChars: opts.maxOutput } : {}),
+    }))));
 
   browser.addCommand(new Command('close')
     .description('Close or detach this browser session')

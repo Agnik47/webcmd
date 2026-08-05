@@ -1,7 +1,7 @@
 import type { Command } from 'commander';
 import { describe, expect, it } from 'vitest';
 import { createProgram } from '../cli.js';
-import { browserCommandCatalog } from './command-catalog.js';
+import { browserCommandCatalog, browserOptionValueParser } from './command-catalog.js';
 
 function browserCommand(): Command {
   const browser = createProgram('', '').commands.find(command => command.name() === 'browser');
@@ -10,11 +10,12 @@ function browserCommand(): Command {
 }
 
 describe('browserCommandCatalog', () => {
-  it('exposes only the four raw browser session commands', () => {
+  it('exposes the raw browser session commands', () => {
     expect(browserCommandCatalog.map(command => command.command)).toEqual([
       'tabs',
       'bind',
       'run',
+      'snapshot',
       'close',
     ]);
   });
@@ -26,6 +27,7 @@ describe('browserCommandCatalog', () => {
       'tabs',
       'bind',
       'run',
+      'snapshot',
       'close',
     ]);
   });
@@ -40,7 +42,21 @@ describe('browserCommandCatalog', () => {
       'file',
       'timeout',
       'maxOutput',
-      'snapshotDiff',
+      'snapshotMode',
+      'noSnapshotDiff',
     ]);
+  });
+
+  it('includes snapshot as the read-only browser inspection command', () => {
+    const snapshot = browserCommandCatalog.find(command => command.command === 'snapshot');
+    expect(snapshot).toMatchObject({ action: 'snapshot', sessionPolicy: 'require-existing' });
+    expect(snapshot?.options.map(option => option.name)).toEqual(['snapshotMode', 'ref', 'maxOutput']);
+  });
+
+  it('parses snapshot mode as act or read only', () => {
+    const parse = browserOptionValueParser('run', 'snapshotMode');
+    expect(parse?.('act')).toBe('act');
+    expect(parse?.('read')).toBe('read');
+    expect(() => parse?.('full')).toThrow('--snapshot-mode must be act or read');
   });
 });
