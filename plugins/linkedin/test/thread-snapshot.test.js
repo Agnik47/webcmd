@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { getRegistry } from '@agentrhq/webcmd/registry';
 import { ArgumentError, CommandExecutionError } from '@agentrhq/webcmd/errors';
-import './thread-snapshot.js';
+import '../thread-snapshot.js';
 
-const { canonicalizeLinkedInThreadUrl, parseMaxScrolls } = await import('./thread-snapshot.js').then((m) => m.__test__);
+const { canonicalizeLinkedInThreadUrl, parseMaxScrolls } = await import('../thread-snapshot.js').then((m) => m.__test__);
 
 function makeFakePage(snapshot) {
   return {

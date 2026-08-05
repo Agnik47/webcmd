@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { getRegistry } from '@agentrhq/webcmd/registry';
 import { CommandExecutionError } from '@agentrhq/webcmd/errors';
-import './salesnav-message.js';
+import '../salesnav-message.js';
 
 const {
   parseSalesProfileUrn,
@@ -13,7 +13,7 @@ const {
   profileSummary,
   requireProfileSummary,
   salesPageShowsSentMessage,
-} = await import('./salesnav-message.js').then((m) => m.__test__);
+} = await import('../salesnav-message.js').then((m) => m.__test__);
 
 function createPageMock(evaluateResults = []) {
   const evaluate = vi.fn();

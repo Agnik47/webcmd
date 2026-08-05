@@ -819,6 +819,15 @@ describe('updateAllPlugins', () => {
 // ── Monorepo-specific tests ─────────────────────────────────────────────────
 
 describe('parseSource with monorepo subplugin', () => {
+  it('resolves the LinkedIn catalog source as a WebCMD subplugin', () => {
+    expect(_parseSource('github:agentrhq/webcmd/linkedin')).toEqual({
+      type: 'git',
+      cloneUrl: 'https://github.com/agentrhq/webcmd.git',
+      name: 'webcmd',
+      subPlugin: 'linkedin',
+    });
+  });
+
   it('parses github:user/repo/subplugin format', () => {
     const result = _parseSource('github:ByteYue/webcmd-plugins/polymarket');
     expect(result).toEqual({

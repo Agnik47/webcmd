@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ArgumentError, CommandExecutionError } from '@agentrhq/webcmd/errors';
-import './salesnav-thread.js';
+import '../salesnav-thread.js';
 
 const {
   parseThreadInput,
@@ -8,7 +8,7 @@ const {
   parseSalesnavThreadMessages,
   threadMatchesInput,
   salesnavThreadUrl,
-} = await import('./salesnav-thread.js').then((m) => m.__test__);
+} = await import('../salesnav-thread.js').then((m) => m.__test__);
 
 describe('linkedin salesnav-thread command', () => {
   it('accepts Sales Navigator inbox URLs, raw thread ids, lead URLs, urns, and names', () => {

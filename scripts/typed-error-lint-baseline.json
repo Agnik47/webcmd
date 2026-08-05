@@ -161,22 +161,6 @@
   },
   {
     "rule": "silent-clamp",
-    "command": "linkedin/search",
-    "file": "clis/linkedin/search.js",
-    "line": 256,
-    "text": "const count = Math.min(MAX_BATCH, input.limit - allJobs.length);",
-    "occurrence": 0
-  },
-  {
-    "rule": "silent-clamp",
-    "command": "linkedin/timeline",
-    "file": "clis/linkedin/timeline.js",
-    "line": 479,
-    "text": "const limit = Math.max(1, Math.min(kwargs.limit ?? 20, 100));",
-    "occurrence": 0
-  },
-  {
-    "rule": "silent-clamp",
     "command": "producthunt/browse",
     "file": "clis/producthunt/browse.js",
     "line": 30,

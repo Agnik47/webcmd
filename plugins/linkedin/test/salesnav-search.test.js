@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CommandExecutionError } from '@agentrhq/webcmd/errors';
-import './salesnav-search.js';
+import '../salesnav-search.js';
 
 const {
   parseLimit,
@@ -9,7 +9,7 @@ const {
   leadUrlFromEntityUrn,
   parseLeads,
   requireLeadSearchResult,
-} = await import('./salesnav-search.js').then((m) => m.__test__);
+} = await import('../salesnav-search.js').then((m) => m.__test__);
 
 describe('linkedin salesnav-search command', () => {
   it('builds a salesApiLeadSearch URL with encoded keywords and pagination', () => {

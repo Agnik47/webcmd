@@ -1,14 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import { getRegistry } from '@agentrhq/webcmd/registry';
 import { CommandExecutionError } from '@agentrhq/webcmd/errors';
-import './services-read.js';
+import '../services-read.js';
 
 const {
   normalizeProfileUrl,
   normalizeServicesUrl,
   normalizeServices,
   pairsToMedia,
-} = await import('./services-read.js').then((m) => m.__test__);
+} = await import('../services-read.js').then((m) => m.__test__);
 
 describe('linkedin services-read adapter', () => {
   const command = getRegistry().get('linkedin/services-read');

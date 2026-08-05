@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
 import { getRegistry } from '@agentrhq/webcmd/registry';
 import { ArgumentError, CommandExecutionError } from '@agentrhq/webcmd/errors';
-import './connect.js';
+import '../connect.js';
 
 const {
     normalizeName,
@@ -13,7 +13,7 @@ const {
     clampNote,
     assessProfileSafety,
     buildProfileProbeScript,
-} = await import('./connect.js').then((m) => m.__test__);
+} = await import('../connect.js').then((m) => m.__test__);
 
 function makeFakePage(probe, sendResult = { ok: true, status: 'sent', reason: 'connection_request_sent' }) {
     return {

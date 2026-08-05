@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { getRegistry } from '@agentrhq/webcmd/registry';
-import './timeline.js';
-const { parseMetric, buildPostId, mergeTimelinePosts } = await import('./timeline.js').then((m) => m.__test__);
+import '../timeline.js';
+const { parseMetric, buildPostId, mergeTimelinePosts } = await import('../timeline.js').then((m) => m.__test__);
 describe('linkedin timeline adapter', () => {
     const command = getRegistry().get('linkedin/timeline');
     it('registers the command with correct shape', () => {

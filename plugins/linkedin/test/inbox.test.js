@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { getRegistry } from '@agentrhq/webcmd/registry';
 import { CommandExecutionError } from '@agentrhq/webcmd/errors';
-import './inbox.js';
+import '../inbox.js';
 
-const { parseConversations, threadUrl } = await import('./inbox.js').then((m) => m.__test__);
+const { parseConversations, threadUrl } = await import('../inbox.js').then((m) => m.__test__);
 
 const SELF = 'urn:li:fsd_profile:SELF';
 

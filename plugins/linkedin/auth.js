@@ -1,5 +1,5 @@
 import { AuthRequiredError, CommandExecutionError } from '@agentrhq/webcmd/errors';
-import { registerSiteAuthCommands } from '../_shared/site-auth.js';
+import { registerSiteAuthCommands } from './site-auth.js';
 
 async function hasLinkedinSessionCookie(page) {
   const cookies = await page.getCookies({ url: 'https://www.linkedin.com' });

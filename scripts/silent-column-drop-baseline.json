@@ -248,28 +248,6 @@
     ]
   },
   {
-    "command": "linkedin/timeline",
-    "file": "clis/linkedin/timeline.js",
-    "missing": [
-      "authorUrl",
-      "postedAt"
-    ]
-  },
-  {
-    "command": "linkedin/timeline",
-    "file": "clis/linkedin/timeline.js",
-    "missing": [
-      "id"
-    ]
-  },
-  {
-    "command": "linkedin/timeline",
-    "file": "clis/linkedin/timeline.js",
-    "missing": [
-      "postedAt"
-    ]
-  },
-  {
     "command": "paperreview/review",
     "file": "clis/paperreview/review.js",
     "missing": [

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { getRegistry } from '@agentrhq/webcmd/registry';
 import { ArgumentError, AuthRequiredError, CommandExecutionError, EmptyResultError } from '@agentrhq/webcmd/errors';
-import './people-search.js';
+import '../people-search.js';
 
 const {
     parseLimit,
@@ -11,7 +11,7 @@ const {
     normalizePeopleRows,
     parseNonNegativeCount,
     extractionScript,
-} = await import('./people-search.js').then((m) => m.__test__);
+} = await import('../people-search.js').then((m) => m.__test__);
 
 function extractionResult(rows, counts = {}) {
     return {

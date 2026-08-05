@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { getRegistry } from '@agentrhq/webcmd/registry';
 import { CommandExecutionError } from '@agentrhq/webcmd/errors';
-import './jobs-preferences.js';
+import '../jobs-preferences.js';
 
-const { inferOpenToWork, normalizePreferences } = await import('./jobs-preferences.js').then((m) => m.__test__);
+const { inferOpenToWork, normalizePreferences } = await import('../jobs-preferences.js').then((m) => m.__test__);
 
 describe('linkedin jobs-preferences adapter', () => {
   const command = getRegistry().get('linkedin/jobs-preferences');

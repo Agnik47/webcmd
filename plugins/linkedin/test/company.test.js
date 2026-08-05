@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { getRegistry } from '@agentrhq/webcmd/registry';
 import { ArgumentError, CommandExecutionError } from '@agentrhq/webcmd/errors';
-import './company.js';
+import '../company.js';
 
-const { normalizeCompanyInfo, normalizeCompanyUrl } = await import('./company.js').then((module) => module.__test__);
+const { normalizeCompanyInfo, normalizeCompanyUrl } = await import('../company.js').then((module) => module.__test__);
 
 function makePage(evaluateResult) {
   return {

@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { getRegistry } from '@agentrhq/webcmd/registry';
 import { CommandExecutionError, EmptyResultError } from '@agentrhq/webcmd/errors';
-import './profile-analytics.js';
+import '../profile-analytics.js';
 
 const {
   normalizeProfileAnalyticsUrl,
   parseMetric,
   parseDashboardMetrics,
   normalizeAnalytics,
-} = await import('./profile-analytics.js').then((m) => m.__test__);
+} = await import('../profile-analytics.js').then((m) => m.__test__);
 
 describe('linkedin profile-analytics adapter', () => {
   const command = getRegistry().get('linkedin/profile-analytics');

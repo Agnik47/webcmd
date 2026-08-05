@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CommandExecutionError } from '@agentrhq/webcmd/errors';
-import './salesnav-inbox.js';
+import '../salesnav-inbox.js';
 
 const {
   THREAD_DECORATION,
@@ -9,7 +9,7 @@ const {
   parseSalesnavThreads,
   salesnavThreadUrl,
   threadListUrl,
-} = await import('./salesnav-inbox.js').then((m) => m.__test__);
+} = await import('../salesnav-inbox.js').then((m) => m.__test__);
 
 describe('linkedin salesnav-inbox command', () => {
   it('percent-encodes Rest.li decoration parentheses for Sales Navigator messaging', () => {

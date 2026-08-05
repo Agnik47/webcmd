@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { getRegistry } from '@agentrhq/webcmd/registry';
 import { CommandExecutionError } from '@agentrhq/webcmd/errors';
-import './profile-projects.js';
+import '../profile-projects.js';
 
-const { normalizeProfileUrl, profileProjectsUrl, parseProjectText, parseProjectsSectionText, decodeLinkedInSafetyUrl, normalizeProject } = await import('./profile-projects.js').then((m) => m.__test__);
+const { normalizeProfileUrl, profileProjectsUrl, parseProjectText, parseProjectsSectionText, decodeLinkedInSafetyUrl, normalizeProject } = await import('../profile-projects.js').then((m) => m.__test__);
 
 describe('linkedin profile-projects adapter', () => {
   const command = getRegistry().get('linkedin/profile-projects');

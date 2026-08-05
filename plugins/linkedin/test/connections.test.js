@@ -6,9 +6,9 @@ import {
   CommandExecutionError,
   EmptyResultError,
 } from '@agentrhq/webcmd/errors';
-import './connections.js';
+import '../connections.js';
 
-const { mapConnection } = await import('./connections.js').then((module) => module.__test__);
+const { mapConnection } = await import('../connections.js').then((module) => module.__test__);
 
 function makePage({ evaluateResults = [false], cookies = [{ name: 'JSESSIONID', value: '"ajax:12345"' }] } = {}) {
   const evaluate = vi.fn();

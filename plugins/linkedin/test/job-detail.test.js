@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { getRegistry } from '@agentrhq/webcmd/registry';
 import { ArgumentError, CommandExecutionError } from '@agentrhq/webcmd/errors';
-import './job-detail.js';
+import '../job-detail.js';
 
-const { normalizeJobUrl, decodeLinkedinRedirect, normalizeDetail } = await import('./job-detail.js').then((m) => m.__test__);
+const { normalizeJobUrl, decodeLinkedinRedirect, normalizeDetail } = await import('../job-detail.js').then((m) => m.__test__);
 
 describe('linkedin job-detail adapter', () => {
   const command = getRegistry().get('linkedin/job-detail');

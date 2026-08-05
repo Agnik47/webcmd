@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { getRegistry } from '@agentrhq/webcmd/registry';
 import { ArgumentError, AuthRequiredError } from '@agentrhq/webcmd/errors';
-import { __test__ } from './search.js';
+import { __test__ } from '../search.js';
 
 const {
     parseCsvArg,

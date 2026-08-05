@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { getRegistry } from '@agentrhq/webcmd/registry';
 import { CommandExecutionError } from '@agentrhq/webcmd/errors';
-import './profile-experience.js';
+import '../profile-experience.js';
 
 const {
   normalizeProfileUrl,
@@ -15,7 +15,7 @@ const {
   buildExperienceExtractionScript,
   buildDialogExtractionScript,
   normalizeExperience,
-} = await import('./profile-experience.js').then((m) => m.__test__);
+} = await import('../profile-experience.js').then((m) => m.__test__);
 
 describe('linkedin profile-experience adapter', () => {
   const command = getRegistry().get('linkedin/profile-experience');

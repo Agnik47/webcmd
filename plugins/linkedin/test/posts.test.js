@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { JSDOM } from 'jsdom';
 import { getRegistry } from '@agentrhq/webcmd/registry';
 import { CommandExecutionError } from '@agentrhq/webcmd/errors';
-import './posts.js';
+import '../posts.js';
 
-const { activityUrl, buildPostsScript, parseMetric, parseReactionText, normalizePost } = await import('./posts-core.js');
+const { activityUrl, buildPostsScript, parseMetric, parseReactionText, normalizePost } = await import('../posts-core.js');
 
 describe('linkedin posts adapter', () => {
   const command = getRegistry().get('linkedin/posts');

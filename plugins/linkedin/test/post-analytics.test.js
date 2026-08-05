@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { getRegistry } from '@agentrhq/webcmd/registry';
 import { EmptyResultError } from '@agentrhq/webcmd/errors';
-import './post-analytics.js';
+import '../post-analytics.js';
 
-const { summarize } = await import('./post-analytics.js').then((m) => m.__test__);
+const { summarize } = await import('../post-analytics.js').then((m) => m.__test__);
 
 describe('linkedin post-analytics adapter', () => {
   const command = getRegistry().get('linkedin/post-analytics');

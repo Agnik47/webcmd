@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { getRegistry } from '@agentrhq/webcmd/registry';
 import { CommandExecutionError } from '@agentrhq/webcmd/errors';
-import './profile-read.js';
+import '../profile-read.js';
 
-const { normalizeProfileReadUrl, normalizeProfile } = await import('./profile-read.js').then((m) => m.__test__);
+const { normalizeProfileReadUrl, normalizeProfile } = await import('../profile-read.js').then((m) => m.__test__);
 
 describe('linkedin profile-read adapter', () => {
   const command = getRegistry().get('linkedin/profile-read');

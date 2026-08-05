@@ -9,7 +9,7 @@ import {
   CommandExecutionError,
   EmptyResultError,
 } from '@agentrhq/webcmd/errors';
-import './post-comments.js';
+import '../post-comments.js';
 
 const {
   canonicalizePostUrl,
@@ -17,7 +17,7 @@ const {
   parseOptionalLimit,
   buildCommentRoundScript,
   normalizeCommentRows,
-} = await import('./post-comments.js').then((module) => module.__test__);
+} = await import('../post-comments.js').then((module) => module.__test__);
 
 const rawComment = (id, handle, name, comment, overrides = {}) => ({
   rawId: `comment-${id}`,
@@ -104,7 +104,7 @@ describe('linkedin post-comments', () => {
   });
 
   it('extracts top-level and reply authors without promoting mentioned profiles', () => {
-    const html = fs.readFileSync(path.join(import.meta.dirname, '__fixtures__/post-comments.html'), 'utf8');
+    const html = fs.readFileSync(path.join(import.meta.dirname, '../__fixtures__/post-comments.html'), 'utf8');
     const dom = new JSDOM(html, {
       runScripts: 'outside-only',
       url: 'https://www.linkedin.com/feed/update/urn:li:activity:1/',

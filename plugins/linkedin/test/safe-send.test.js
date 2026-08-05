@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { getRegistry } from '@agentrhq/webcmd/registry';
 import { ArgumentError, CommandExecutionError } from '@agentrhq/webcmd/errors';
-import './safe-send.js';
+import '../safe-send.js';
 
 const {
   normalizeWhitespace,
@@ -9,7 +9,7 @@ const {
   canonicalizeLinkedInThreadUrl,
   hashText,
   assessThreadSafety,
-} = await import('./safe-send.js').then((m) => m.__test__);
+} = await import('../safe-send.js').then((m) => m.__test__);
 
 function makeFakePage(probe) {
   let composerText = probe.composerText || '';
