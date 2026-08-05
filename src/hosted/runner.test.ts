@@ -1587,7 +1587,7 @@ describe('runHostedCli', () => {
     await writeFile(sourcePath, 'return 42;');
     const requests: Array<{ url: string; body?: Record<string, unknown> }> = [];
     try {
-      const result = await runHostedCli(['browser', 'work', 'run', '--file', sourcePath, '--no-snapshot-diff'], {
+      const result = await runHostedCli(['browser', 'work', 'run', '--file', sourcePath, '--snapshot-mode', 'read', '--no-snapshot-diff'], {
         config: makeHostedConfig({ apiBaseUrl: 'https://api.example.com', apiKey: 'key' }),
         stdout: sink().stream,
         stderr: sink().stream,
@@ -1610,7 +1610,7 @@ describe('runHostedCli', () => {
       expect(requests[1]?.body).toMatchObject({
         command: 'browser/run',
         action: 'run',
-        args: { source: 'return 42;', noSnapshotDiff: true },
+        args: { source: 'return 42;', snapshotMode: 'read', noSnapshotDiff: true },
       });
       expect(JSON.stringify(requests[1]?.body)).not.toContain(sourcePath);
     } finally {
@@ -1620,7 +1620,7 @@ describe('runHostedCli', () => {
 
   it('forwards browser snapshot mode to hosted browser actions', async () => {
     const requests: Array<{ url: string; body?: Record<string, unknown> }> = [];
-    const result = await runHostedCli(['browser', 'work', 'snapshot', '--snapshot-mode', 'read', '--max-output', '1000'], {
+    const result = await runHostedCli(['browser', 'work', 'snapshot', '--snapshot-mode', 'read', '--ref', 'l7', '--max-output', '1000'], {
       config: makeHostedConfig({ apiBaseUrl: 'https://api.example.com', apiKey: 'key' }),
       stdout: sink().stream,
       stderr: sink().stream,
@@ -1639,7 +1639,7 @@ describe('runHostedCli', () => {
     expect(result).toEqual({ handled: true, exitCode: 0 });
     expect(requests[1]?.body).toMatchObject({
       action: 'snapshot',
-      args: { snapshotMode: 'read', maxOutput: 1000 },
+      args: { snapshotMode: 'read', ref: 'l7', maxOutput: 1000 },
     });
   });
 

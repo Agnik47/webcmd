@@ -14,6 +14,7 @@ import { PlaywrightTransport } from './playwright-transport.js';
 import { QuickJSHost } from './quickjs-host.js';
 import {
   captureSnapshot,
+  boundSnapshotText,
   diffSnapshots,
   MemorySnapshotBaselineStore,
   renderSnapshotDiff,
@@ -529,11 +530,14 @@ export async function runBrowserProgram(
         await waitForPageStable(input.page, deadlineAt - Date.now());
         const afterSnapshot = await captureSnapshot(input.page);
         baselineStore.set(input.pageId, afterSnapshot);
-        const bounded = renderSnapshotDiff(
+        const rendered = renderSnapshotDiff(
           diffSnapshots(beforeSnapshot, afterSnapshot, snapshotMode),
+        ).value;
+        const bounded = boundSnapshotText(
+          redactUrl(redactText(rendered, { maxStringLength: Number.MAX_SAFE_INTEGER })),
           maxOutputChars,
         );
-        savedSnapshotDiff = redactText(bounded.value, { maxStringLength: maxOutputChars * 2 });
+        savedSnapshotDiff = bounded.value;
         snapshotTruncated ||= bounded.truncated;
       } catch (snapshotError) {
         baselineStore.clear(input.pageId);

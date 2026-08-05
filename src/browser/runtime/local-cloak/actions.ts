@@ -77,6 +77,27 @@ async function resolveLease(manager: CloakSessionManager, command: BrowserRuntim
   });
 }
 
+function resolveExistingLease(manager: CloakSessionManager, command: BrowserRuntimeCommand) {
+  if (command.page) {
+    const existing = manager.findPageById(command.page, { idleTimeout: command.idleTimeout });
+    if (existing) return existing;
+    throw new CloakActionError('stale_page_identity', `Page not found: ${command.page} — stale page identity`);
+  }
+  const existing = manager.findPage({
+    profileId: resolveCloakCommandProfileId(manager, command),
+    session: command.session,
+    surface: command.surface,
+    idleTimeout: command.idleTimeout,
+  });
+  if (existing) return existing;
+  throw new CloakActionError(
+    'session_not_found',
+    `Browser session not found: ${command.session ?? ''}`,
+    undefined,
+    'Start the session with browser run or navigate before requesting a snapshot.',
+  );
+}
+
 function execTarget(page: PlaywrightPage, frameIndex: number | undefined, pageId: string): PlaywrightPage | Frame {
   if (frameIndex == null) return page;
   const frame = page.frames().slice(1)[frameIndex];
@@ -192,22 +213,23 @@ export async function dispatchCloakAction(manager: CloakSessionManager, command:
         };
       }
       case 'snapshot': {
-        const lease = await resolveLease(manager, command);
+        const lease = resolveExistingLease(manager, command);
         const snapshot = await captureSnapshot(lease.page);
         const tree = renderSnapshot(snapshot, {
           mode: command.snapshotMode ?? 'act',
           ref: command.ref,
         });
+        const redacted = redactUrl(redactText(tree, { maxStringLength: Number.MAX_SAFE_INTEGER }));
         const bounded = Number.isFinite(command.maxOutputChars)
-          ? boundSnapshotText(tree, command.maxOutputChars!)
-          : { value: tree, truncated: false };
+          ? boundSnapshotText(redacted, command.maxOutputChars!)
+          : { value: redacted, truncated: false };
         snapshotBaselineStore(manager).set(lease.pageId, snapshot);
         return {
           id: command.id,
           ok: true,
           data: {
             ok: true,
-            tree: redactText(bounded.value),
+            tree: bounded.value,
             page: {
               id: lease.pageId,
               url: redactUrl(lease.page.url()),

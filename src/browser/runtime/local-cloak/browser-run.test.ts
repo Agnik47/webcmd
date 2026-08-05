@@ -42,6 +42,7 @@ afterAll(async () => {
 
 describe('local Cloak browser run', () => {
   it('returns a bounded redacted snapshot for the current page', async () => {
+    await manager.getPage({ profileId: 'default', session: 'work', surface: 'browser' });
     const result = await dispatchCloakAction(manager, command('snapshot-1', 'snapshot'));
 
     expect(result).toMatchObject({
@@ -54,6 +55,38 @@ describe('local Cloak browser run', () => {
         limits: { snapshotTruncated: false },
       },
     });
+  });
+
+  it('redacts page, frame, and href URL parameters before bounding snapshot output', async () => {
+    await context.route('**/*', route => route.fulfill({
+      body: '<a href="https://example.test/next?ok=1&key=href-secret&auth=href-auth">Next</a>',
+    }));
+    await initialPage.goto('https://example.test/page?ok=1&key=page-secret&auth=page-auth');
+    await manager.getPage({ profileId: 'default', session: 'work', surface: 'browser' });
+
+    const result = await dispatchCloakAction(manager, command('snapshot-redacted', 'snapshot', {
+      maxOutputChars: 500,
+    }));
+    const tree = (result.data as { tree: string }).tree;
+
+    expect(tree.length).toBeLessThanOrEqual(500);
+    expect(tree).not.toMatch(/page-secret|page-auth|href-secret|href-auth/);
+    expect(tree).toContain('key=[REDACTED]');
+    expect(tree).toContain('auth=[REDACTED]');
+    expect(tree).toContain('>Next</link>');
+  });
+
+  it('does not create a browser session for snapshot inspection', async () => {
+    const launch = vi.fn<LaunchPersistentContext>().mockResolvedValue(context);
+    const unstarted = new CloakSessionManager({
+      baseDir: '/tmp/webcmd-browser-snapshot-unstarted',
+      launchPersistentContext: launch,
+    });
+
+    const result = await dispatchCloakAction(unstarted, command('snapshot-cold', 'snapshot'));
+
+    expect(result).toMatchObject({ ok: false, errorCode: 'session_not_found' });
+    expect(launch).not.toHaveBeenCalled();
   });
 
   it('omits snapshotDiff when noSnapshotDiff is requested', async () => {

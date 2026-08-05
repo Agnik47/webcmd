@@ -94,6 +94,18 @@ describe('runBrowserProgram', () => {
     expect(output.snapshotDiff).toContain('~ ');
   });
 
+  it('URL-redacts and bounds automatic snapshot diffs', async () => {
+    const maxOutputChars = 100;
+    const output = await run(`
+      await page.setContent('<main><a href="https://example.test/next?ok=1&key=diff-secret&auth=diff-auth">Next</a><button>${'x'.repeat(200)}</button></main>');
+      return null;
+    `, { maxOutputChars });
+
+    expect(output.snapshotDiff!.length).toBeLessThanOrEqual(maxOutputChars);
+    expect(output.snapshotDiff).not.toMatch(/diff-secret|diff-auth/);
+    expect(output.limits.snapshotTruncated).toBe(true);
+  });
+
   it('does not execute the program when the pre-snapshot fails', async () => {
     context.newCDPSession = (() => Promise.reject(new Error('pre snapshot failed'))) as BrowserContext['newCDPSession'];
 

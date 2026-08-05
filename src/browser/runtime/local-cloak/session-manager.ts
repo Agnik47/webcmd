@@ -178,6 +178,18 @@ export class CloakSessionManager {
     });
   }
 
+  findPage(input: SessionKeyInput): CloakPageLease | null {
+    const profileId = normalizeProfileId(input.profileId);
+    const leaseKey = resolveLeaseKey(input);
+    const runtime = this.profiles.get(profileId);
+    const entry = runtime?.pages.get(leaseKey);
+    if (!runtime || !entry || pageIsClosed(entry.page)) return null;
+    runtime.lastSeenAt = Date.now();
+    entry.idleTimeout = input.idleTimeout;
+    this.refreshIdleTimer(runtime, leaseKey, entry);
+    return { profileId, leaseKey, context: runtime.context, page: entry.page, pageId: entry.pageId };
+  }
+
   findPageById(pageId: string, opts: Pick<SessionKeyInput, 'idleTimeout'> = {}): CloakPageLease | null {
     for (const [profileId, runtime] of this.profiles.entries()) {
       for (const [leaseKey, entry] of runtime.pages.entries()) {

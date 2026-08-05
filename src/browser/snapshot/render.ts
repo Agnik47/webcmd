@@ -156,8 +156,16 @@ export function boundSnapshotText(
 ): BoundedSnapshotText {
   const limit = Math.max(0, Math.floor(maxChars));
   if (value.length <= limit) return { value, truncated: false };
+  let omitted = value.length;
+  let marker = `\n...[truncated, ${omitted} chars omitted]`;
+  let kept = Math.max(0, limit - marker.length);
+  while (value.length - kept < omitted) {
+    omitted = value.length - kept;
+    marker = `\n...[truncated, ${omitted} chars omitted]`;
+    kept = Math.max(0, limit - marker.length);
+  }
   return {
-    value: `${value.slice(0, limit)}\n...[truncated, ${value.length - limit} chars omitted]`,
+    value: `${value.slice(0, kept)}${marker}`.slice(0, limit),
     truncated: true,
   };
 }

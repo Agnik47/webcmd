@@ -112,12 +112,42 @@ function diffFrame(before: RenderedSnapshotFrame, after: RenderedSnapshotFrame):
 function diffChildren(beforeChildren: RenderedSnapshotChild[], afterChildren: RenderedSnapshotChild[]): SnapshotDiffChild[] {
   const diffs: SnapshotDiffChild[] = [];
   const usedBefore = new Set<number>();
+  const matches = afterChildren.map(() => -1);
+
   for (let afterIndex = 0; afterIndex < afterChildren.length; afterIndex += 1) {
     const after = afterChildren[afterIndex]!;
-    const beforeIndex = findMatchingBeforeChild(after, afterIndex, beforeChildren, usedBefore);
+    if (after.kind !== 'node') continue;
+    const beforeIndex = beforeChildren.findIndex((before, index) =>
+      !usedBefore.has(index) && before.kind === 'node' && before.key === after.key);
+    if (beforeIndex !== -1) {
+      matches[afterIndex] = beforeIndex;
+      usedBefore.add(beforeIndex);
+    }
+  }
+  for (let afterIndex = 0; afterIndex < afterChildren.length; afterIndex += 1) {
+    if (matches[afterIndex] !== -1) continue;
+    const fingerprint = childFingerprint(afterChildren[afterIndex]!);
+    const beforeIndex = beforeChildren.findIndex((before, index) =>
+      !usedBefore.has(index) && childFingerprint(before) === fingerprint);
+    if (beforeIndex !== -1) {
+      matches[afterIndex] = beforeIndex;
+      usedBefore.add(beforeIndex);
+    }
+  }
+  for (let afterIndex = 0; afterIndex < afterChildren.length; afterIndex += 1) {
+    if (matches[afterIndex] !== -1) continue;
+    const before = beforeChildren[afterIndex];
+    if (before && !usedBefore.has(afterIndex) && arePositionallySimilarChildren(before, afterChildren[afterIndex]!)) {
+      matches[afterIndex] = afterIndex;
+      usedBefore.add(afterIndex);
+    }
+  }
+
+  for (let afterIndex = 0; afterIndex < afterChildren.length; afterIndex += 1) {
+    const after = afterChildren[afterIndex]!;
+    const beforeIndex = matches[afterIndex]!;
     if (beforeIndex === -1) diffs.push(addedChild(after));
     else {
-      usedBefore.add(beforeIndex);
       const childDiff = diffChild(beforeChildren[beforeIndex]!, after);
       if (childDiff) diffs.push(childDiff);
     }
@@ -140,18 +170,6 @@ function diffChild(before: RenderedSnapshotChild, after: RenderedSnapshotChild):
   return selfChanged || (sameRef(before, after) && directTextChanged)
     ? { kind: 'node', type: 'modified', before, after, children }
     : { kind: 'node', type: 'context', node: after, children };
-}
-
-function findMatchingBeforeChild(after: RenderedSnapshotChild, afterIndex: number, beforeChildren: RenderedSnapshotChild[], usedBefore: Set<number>): number {
-  const beforeAtSameIndex = beforeChildren[afterIndex];
-  if (beforeAtSameIndex && !usedBefore.has(afterIndex) && arePositionallySimilarChildren(beforeAtSameIndex, after)) return afterIndex;
-  if (after.kind === 'node') {
-    const byKey = beforeChildren.findIndex((before, index) => !usedBefore.has(index) && before.kind === 'node' && before.key === after.key);
-    if (byKey !== -1) return byKey;
-    const fingerprint = childFingerprint(after);
-    return beforeChildren.findIndex((before, index) => !usedBefore.has(index) && before.kind === 'node' && childFingerprint(before) === fingerprint);
-  }
-  return -1;
 }
 
 function addedChild(child: RenderedSnapshotChild): SnapshotDiffChild {
@@ -255,7 +273,9 @@ function singleTextChild(node: RenderedSnapshotNode): string | null {
   return child?.kind === 'text' && !child.block ? child.text : null;
 }
 function childFingerprint(child: RenderedSnapshotChild): string {
-  return child.kind === 'text' ? `text:${child.text}` : comparableNode(child);
+  return child.kind === 'text'
+    ? `text:${child.text}`
+    : JSON.stringify({ node: comparableNode(child), children: child.children.map(childFingerprint) });
 }
 function normalizeComparableHref(value: string): string {
   const normalized = value.endsWith('…') ? value.slice(0, -1) : value;

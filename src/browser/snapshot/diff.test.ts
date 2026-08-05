@@ -68,7 +68,26 @@ describe('snapshot diff', () => {
 
     const bounded = renderSnapshotDiff(diffSnapshots(before, after), 10);
 
-    expect(bounded.value.length).toBeGreaterThan(10);
+    expect(bounded.value.length).toBeLessThanOrEqual(10);
     expect(bounded.truncated).toBe(true);
+  });
+
+  it('reports only an addition when a same-role sibling is inserted', () => {
+    const before = snap([
+      node({ nodeId: 'alpha', role: 'button', name: 'Alpha', ref: 'l3' }),
+      node({ nodeId: 'beta', role: 'button', name: 'Beta', ref: 'l4' }),
+    ]);
+    const after = snap([
+      node({ nodeId: 'new', role: 'button', name: 'New', ref: 'l5' }),
+      node({ nodeId: 'alpha', role: 'button', name: 'Alpha', ref: 'l3' }),
+      node({ nodeId: 'beta', role: 'button', name: 'Beta', ref: 'l4' }),
+    ]);
+
+    const rendered = renderSnapshotDiff(diffSnapshots(before, after)).value;
+
+    expect(rendered).toContain('+ ');
+    expect(rendered).toContain('<button ref="l5">New</button>');
+    expect(rendered).not.toContain('~ ');
+    expect(rendered).not.toContain('- ');
   });
 });

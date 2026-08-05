@@ -113,9 +113,10 @@ describe("renderSnapshot", () => {
     );
   });
 
-  it("bounds snapshot text with truncation marker", () => {
-    const bounded = boundSnapshotText("abcdef", 4);
-    expect(bounded.value).toBe("abcd\n...[truncated, 2 chars omitted]");
+  it("includes its truncation marker within the requested bound", () => {
+    const bounded = boundSnapshotText("x".repeat(100), 40);
+    expect(bounded.value.length).toBeLessThanOrEqual(40);
+    expect(bounded.value).toMatch(/\n\.\.\.\[truncated, \d+ chars omitted\]$/);
     expect(bounded.truncated).toBe(true);
   });
 });
