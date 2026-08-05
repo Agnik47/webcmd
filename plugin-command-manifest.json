@@ -1,5 +1,574 @@
 [
   {
+    "site": "amazon",
+    "name": "bestsellers",
+    "description": "Amazon Best Sellers pages for category candidate discovery",
+    "access": "read",
+    "domain": "amazon.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "input",
+        "type": "str",
+        "required": false,
+        "positional": true,
+        "help": "Ranking URL or supported Amazon path. Omit to use the list root."
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 100,
+        "required": false,
+        "help": "Maximum number of ranked items to return (default 100)"
+      }
+    ],
+    "columns": [
+      "list_type",
+      "rank",
+      "asin",
+      "title",
+      "price_text",
+      "rating_value",
+      "review_count"
+    ],
+    "type": "js",
+    "modulePath": "plugins/amazon/bestsellers.js",
+    "sourceFile": "plugins/amazon/bestsellers.js",
+    "navigateBefore": false
+  },
+  {
+    "site": "amazon",
+    "name": "discussion",
+    "description": "Amazon review summary and sample customer discussion from product review pages",
+    "access": "read",
+    "domain": "amazon.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "input",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "ASIN or product URL, for example B0FJS72893"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Maximum number of review samples to return (default 10)"
+      }
+    ],
+    "columns": [
+      "asin",
+      "average_rating_value",
+      "total_review_count"
+    ],
+    "type": "js",
+    "modulePath": "plugins/amazon/discussion.js",
+    "sourceFile": "plugins/amazon/discussion.js",
+    "navigateBefore": false
+  },
+  {
+    "site": "amazon",
+    "name": "login",
+    "description": "Open amazon login",
+    "access": "write",
+    "domain": "amazon.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "status",
+      "logged_in",
+      "site",
+      "user_name",
+      "action",
+      "verify_command"
+    ],
+    "type": "js",
+    "modulePath": "plugins/amazon/auth.js",
+    "sourceFile": "plugins/amazon/auth.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "amazon",
+    "name": "movers-shakers",
+    "description": "Amazon Movers & Shakers pages for short-term growth signals",
+    "access": "read",
+    "domain": "amazon.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "input",
+        "type": "str",
+        "required": false,
+        "positional": true,
+        "help": "Ranking URL or supported Amazon path. Omit to use the list root."
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 100,
+        "required": false,
+        "help": "Maximum number of ranked items to return (default 100)"
+      }
+    ],
+    "columns": [
+      "list_type",
+      "rank",
+      "asin",
+      "title",
+      "price_text",
+      "rating_value",
+      "review_count"
+    ],
+    "type": "js",
+    "modulePath": "plugins/amazon/movers-shakers.js",
+    "sourceFile": "plugins/amazon/movers-shakers.js",
+    "navigateBefore": false
+  },
+  {
+    "site": "amazon",
+    "name": "new-releases",
+    "description": "Amazon New Releases pages for early momentum discovery",
+    "access": "read",
+    "domain": "amazon.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "input",
+        "type": "str",
+        "required": false,
+        "positional": true,
+        "help": "Ranking URL or supported Amazon path. Omit to use the list root."
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 100,
+        "required": false,
+        "help": "Maximum number of ranked items to return (default 100)"
+      }
+    ],
+    "columns": [
+      "list_type",
+      "rank",
+      "asin",
+      "title",
+      "price_text",
+      "rating_value",
+      "review_count"
+    ],
+    "type": "js",
+    "modulePath": "plugins/amazon/new-releases.js",
+    "sourceFile": "plugins/amazon/new-releases.js",
+    "navigateBefore": false
+  },
+  {
+    "site": "amazon",
+    "name": "offer",
+    "description": "Amazon seller, buy box, and fulfillment facts from the product page",
+    "access": "read",
+    "domain": "amazon.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "input",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "ASIN or product URL, for example B0FJS72893"
+      }
+    ],
+    "columns": [
+      "asin",
+      "price_text",
+      "sold_by",
+      "ships_from",
+      "is_amazon_sold",
+      "is_amazon_fulfilled"
+    ],
+    "type": "js",
+    "modulePath": "plugins/amazon/offer.js",
+    "sourceFile": "plugins/amazon/offer.js",
+    "navigateBefore": false
+  },
+  {
+    "site": "amazon",
+    "name": "product",
+    "description": "Amazon product page facts for candidate validation",
+    "access": "read",
+    "domain": "amazon.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "input",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "ASIN or product URL, for example B0FJS72893"
+      }
+    ],
+    "columns": [
+      "asin",
+      "title",
+      "price_text",
+      "rating_value",
+      "review_count"
+    ],
+    "type": "js",
+    "modulePath": "plugins/amazon/product.js",
+    "sourceFile": "plugins/amazon/product.js",
+    "navigateBefore": false
+  },
+  {
+    "site": "amazon",
+    "name": "search",
+    "description": "Amazon search results for product discovery and coarse filtering",
+    "access": "read",
+    "domain": "amazon.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Search query, for example \"desk shelf organizer\""
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Maximum number of results to return (default 20)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "asin",
+      "title",
+      "price_text",
+      "rating_value",
+      "review_count"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/amazon/search.js",
+    "sourceFile": "plugins/amazon/search.js",
+    "navigateBefore": false
+  },
+  {
+    "site": "amazon",
+    "name": "whoami",
+    "description": "Show the current logged-in amazon account",
+    "access": "read",
+    "domain": "amazon.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "logged_in",
+      "site",
+      "user_name"
+    ],
+    "type": "js",
+    "modulePath": "plugins/amazon/auth.js",
+    "sourceFile": "plugins/amazon/auth.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "amazon-in",
+    "name": "checkout",
+    "description": "Prepare a guarded Amazon.in checkout with browser-only payment handoff",
+    "access": "write",
+    "domain": "amazon.in",
+    "strategy": "ui",
+    "browser": true,
+    "args": [
+      {
+        "name": "input",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Amazon.in product URL or ASIN"
+      },
+      {
+        "name": "quantity",
+        "type": "int",
+        "default": 1,
+        "required": false,
+        "help": "Quantity (1-10)"
+      },
+      {
+        "name": "size",
+        "type": "str",
+        "required": false,
+        "help": "Exact visible size label"
+      },
+      {
+        "name": "colour",
+        "type": "str",
+        "required": false,
+        "help": "Exact visible colour label"
+      },
+      {
+        "name": "payment",
+        "type": "str",
+        "required": true,
+        "help": "Payment method; secrets remain browser-only",
+        "choices": [
+          "upi",
+          "saved-card",
+          "new-card",
+          "cod"
+        ]
+      },
+      {
+        "name": "card-last4",
+        "type": "str",
+        "required": false,
+        "help": "Saved-card selector: exactly four digits"
+      },
+      {
+        "name": "place-order",
+        "type": "boolean",
+        "default": false,
+        "required": false,
+        "help": "Submit the final Amazon action once"
+      }
+    ],
+    "columns": [
+      "status",
+      "asin",
+      "title",
+      "size",
+      "colour",
+      "quantity",
+      "item_price",
+      "total",
+      "payment_method",
+      "delivery_date",
+      "action",
+      "verify_command"
+    ],
+    "type": "js",
+    "modulePath": "plugins/amazon-in/checkout.js",
+    "sourceFile": "plugins/amazon-in/checkout.js",
+    "navigateBefore": false,
+    "siteSession": "persistent",
+    "freshPage": true
+  },
+  {
+    "site": "amazon-in",
+    "name": "checkout-status",
+    "description": "Read the current Amazon.in checkout or payment state without clicking",
+    "access": "read",
+    "domain": "amazon.in",
+    "strategy": "ui",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "status",
+      "order_id",
+      "total",
+      "payment_method",
+      "action"
+    ],
+    "type": "js",
+    "modulePath": "plugins/amazon-in/checkout-status.js",
+    "sourceFile": "plugins/amazon-in/checkout-status.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "amazon-in",
+    "name": "login",
+    "description": "Open amazon-in login",
+    "access": "write",
+    "domain": "amazon.in",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "status",
+      "logged_in",
+      "site",
+      "user_name",
+      "action",
+      "verify_command"
+    ],
+    "type": "js",
+    "modulePath": "plugins/amazon-in/auth.js",
+    "sourceFile": "plugins/amazon-in/auth.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "amazon-in",
+    "name": "product",
+    "description": "Fetch the current Amazon.in price and selected product variant",
+    "access": "read",
+    "domain": "amazon.in",
+    "strategy": "ui",
+    "browser": true,
+    "args": [
+      {
+        "name": "input",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Amazon.in product URL or ASIN"
+      }
+    ],
+    "columns": [
+      "asin",
+      "title",
+      "price",
+      "mrp",
+      "discount",
+      "availability",
+      "size",
+      "colour",
+      "image_url",
+      "product_url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/amazon-in/product.js",
+    "sourceFile": "plugins/amazon-in/product.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "amazon-in",
+    "name": "search",
+    "description": "Search Amazon.in products with inclusive INR price bounds and images",
+    "access": "read",
+    "domain": "amazon.in",
+    "strategy": "ui",
+    "browser": true,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Product search query"
+      },
+      {
+        "name": "min-price",
+        "type": "number",
+        "required": false,
+        "help": "Inclusive minimum price in rupees"
+      },
+      {
+        "name": "max-price",
+        "type": "number",
+        "required": false,
+        "help": "Inclusive maximum price in rupees"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Maximum results (1-50)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "asin",
+      "title",
+      "price",
+      "mrp",
+      "rating",
+      "review_count",
+      "image_url",
+      "product_url",
+      "is_sponsored"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/amazon-in/search.js",
+    "sourceFile": "plugins/amazon-in/search.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "amazon-in",
+    "name": "whoami",
+    "description": "Show the current logged-in amazon-in account",
+    "access": "read",
+    "domain": "amazon.in",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "logged_in",
+      "site",
+      "user_name"
+    ],
+    "type": "js",
+    "modulePath": "plugins/amazon-in/auth.js",
+    "sourceFile": "plugins/amazon-in/auth.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "amazon-in",
+    "name": "wishlist",
+    "description": "Fetch current prices for products in the default Amazon.in wishlist",
+    "access": "read",
+    "domain": "amazon.in",
+    "strategy": "ui",
+    "browser": true,
+    "args": [
+      {
+        "name": "filter",
+        "type": "str",
+        "default": "unpurchased",
+        "required": false,
+        "help": "Wishlist items to include",
+        "choices": [
+          "unpurchased",
+          "all"
+        ]
+      }
+    ],
+    "columns": [
+      "list_name",
+      "item_id",
+      "asin",
+      "title",
+      "price",
+      "mrp",
+      "availability",
+      "size",
+      "colour",
+      "image_url",
+      "product_url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/amazon-in/wishlist.js",
+    "sourceFile": "plugins/amazon-in/wishlist.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
     "site": "apple-podcasts",
     "name": "episodes",
     "description": "List recent episodes of an Apple Podcast (use ID from search)",
@@ -409,6 +978,203 @@
     "type": "js",
     "modulePath": "plugins/arxiv/search.js",
     "sourceFile": "plugins/arxiv/search.js"
+  },
+  {
+    "site": "band",
+    "name": "bands",
+    "description": "List all Bands you belong to",
+    "access": "read",
+    "domain": "www.band.us",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "band_no",
+      "name",
+      "members"
+    ],
+    "type": "js",
+    "modulePath": "plugins/band/bands.js",
+    "sourceFile": "plugins/band/bands.js",
+    "navigateBefore": "https://www.band.us"
+  },
+  {
+    "site": "band",
+    "name": "login",
+    "description": "Open band login",
+    "access": "write",
+    "domain": "band.us",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "status",
+      "logged_in",
+      "site",
+      "user_id",
+      "action",
+      "verify_command"
+    ],
+    "type": "js",
+    "modulePath": "plugins/band/auth.js",
+    "sourceFile": "plugins/band/auth.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "band",
+    "name": "mentions",
+    "description": "Show Band notifications where you are @mentioned",
+    "access": "read",
+    "domain": "www.band.us",
+    "strategy": "intercept",
+    "browser": true,
+    "args": [
+      {
+        "name": "filter",
+        "type": "str",
+        "default": "mentioned",
+        "required": false,
+        "help": "Filter: mentioned (default) | all | post | comment",
+        "choices": [
+          "mentioned",
+          "all",
+          "post",
+          "comment"
+        ]
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max results"
+      },
+      {
+        "name": "unread",
+        "type": "bool",
+        "default": false,
+        "required": false,
+        "help": "Show only unread notifications"
+      }
+    ],
+    "columns": [
+      "time",
+      "band",
+      "type",
+      "from",
+      "text",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/band/mentions.js",
+    "sourceFile": "plugins/band/mentions.js",
+    "navigateBefore": true
+  },
+  {
+    "site": "band",
+    "name": "post",
+    "description": "Export full content of a post including comments",
+    "access": "read",
+    "domain": "www.band.us",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "band_no",
+        "type": "int",
+        "required": true,
+        "positional": true,
+        "help": "Band number"
+      },
+      {
+        "name": "post_no",
+        "type": "int",
+        "required": true,
+        "positional": true,
+        "help": "Post number"
+      },
+      {
+        "name": "output",
+        "type": "str",
+        "default": "",
+        "required": false,
+        "help": "Directory to save attached photos"
+      },
+      {
+        "name": "comments",
+        "type": "bool",
+        "default": true,
+        "required": false,
+        "help": "Include comments (default: true)"
+      }
+    ],
+    "columns": [
+      "type",
+      "author",
+      "date",
+      "text"
+    ],
+    "type": "js",
+    "modulePath": "plugins/band/post.js",
+    "sourceFile": "plugins/band/post.js",
+    "navigateBefore": false
+  },
+  {
+    "site": "band",
+    "name": "posts",
+    "description": "List posts from a Band",
+    "access": "read",
+    "domain": "www.band.us",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "band_no",
+        "type": "int",
+        "required": true,
+        "positional": true,
+        "help": "Band number (get it from: band bands)"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max results"
+      }
+    ],
+    "columns": [
+      "date",
+      "author",
+      "content",
+      "comments",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/band/posts.js",
+    "sourceFile": "plugins/band/posts.js",
+    "navigateBefore": false
+  },
+  {
+    "site": "band",
+    "name": "whoami",
+    "description": "Show the current logged-in band account",
+    "access": "read",
+    "domain": "band.us",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "logged_in",
+      "site",
+      "user_id"
+    ],
+    "type": "js",
+    "modulePath": "plugins/band/auth.js",
+    "sourceFile": "plugins/band/auth.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
   },
   {
     "site": "barchart",
@@ -1005,6 +1771,311 @@
     "type": "js",
     "modulePath": "plugins/binance/trades.js",
     "sourceFile": "plugins/binance/trades.js"
+  },
+  {
+    "site": "blinkit",
+    "name": "add-to-cart",
+    "description": "Add a Blinkit product to cart",
+    "access": "write",
+    "domain": "blinkit.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "productId",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Blinkit product id"
+      },
+      {
+        "name": "quantity",
+        "type": "int",
+        "default": 1,
+        "required": false,
+        "help": "Quantity to add (default 1, max 12)"
+      },
+      {
+        "name": "lat",
+        "type": "str",
+        "required": false,
+        "help": "Delivery latitude (defaults to current Blinkit browser location)"
+      },
+      {
+        "name": "lon",
+        "type": "str",
+        "required": false,
+        "help": "Delivery longitude (defaults to current Blinkit browser location)"
+      }
+    ],
+    "columns": [
+      "status",
+      "productId",
+      "quantity",
+      "itemCount",
+      "itemsTotal",
+      "payable",
+      "message"
+    ],
+    "type": "js",
+    "modulePath": "plugins/blinkit/add-to-cart.js",
+    "sourceFile": "plugins/blinkit/add-to-cart.js",
+    "navigateBefore": false
+  },
+  {
+    "site": "blinkit",
+    "name": "cart",
+    "description": "Show the current Blinkit cart",
+    "access": "read",
+    "domain": "blinkit.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "status",
+      "productId",
+      "name",
+      "variant",
+      "price",
+      "quantity",
+      "total",
+      "itemCount",
+      "payable",
+      "cartState"
+    ],
+    "type": "js",
+    "modulePath": "plugins/blinkit/cart.js",
+    "sourceFile": "plugins/blinkit/cart.js",
+    "navigateBefore": false
+  },
+  {
+    "site": "blinkit",
+    "name": "checkout",
+    "description": "Review Blinkit checkout totals and blockers without placing an order",
+    "access": "read",
+    "domain": "blinkit.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "status",
+      "itemCount",
+      "itemsTotal",
+      "deliveryCharge",
+      "handlingCharge",
+      "payable",
+      "cartState",
+      "checkoutBlocked",
+      "validations"
+    ],
+    "type": "js",
+    "modulePath": "plugins/blinkit/checkout.js",
+    "sourceFile": "plugins/blinkit/checkout.js",
+    "navigateBefore": false
+  },
+  {
+    "site": "blinkit",
+    "name": "location",
+    "description": "Show the selected Blinkit delivery location",
+    "access": "read",
+    "domain": "blinkit.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "selected",
+      "label",
+      "area",
+      "city",
+      "pincode",
+      "hasCoordinates",
+      "source"
+    ],
+    "type": "js",
+    "modulePath": "plugins/blinkit/location.js",
+    "sourceFile": "plugins/blinkit/location.js",
+    "navigateBefore": "https://blinkit.com"
+  },
+  {
+    "site": "blinkit",
+    "name": "login",
+    "description": "Open blinkit login",
+    "access": "write",
+    "domain": "blinkit.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "status",
+      "logged_in",
+      "site",
+      "phone",
+      "user_id",
+      "action",
+      "verify_command"
+    ],
+    "type": "js",
+    "modulePath": "plugins/blinkit/auth.js",
+    "sourceFile": "plugins/blinkit/auth.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "blinkit",
+    "name": "place-order",
+    "description": "Submit the visible Blinkit final order/payment action. Requires --confirm.",
+    "access": "write",
+    "domain": "blinkit.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "confirm",
+        "type": "bool",
+        "default": false,
+        "required": false,
+        "help": "Required acknowledgement that this may place/pay for a real order"
+      }
+    ],
+    "columns": [
+      "status",
+      "confirmed",
+      "itemCount",
+      "payable",
+      "orderId",
+      "url",
+      "message"
+    ],
+    "type": "js",
+    "modulePath": "plugins/blinkit/place-order.js",
+    "sourceFile": "plugins/blinkit/place-order.js",
+    "navigateBefore": false
+  },
+  {
+    "site": "blinkit",
+    "name": "product",
+    "description": "Read Blinkit product details for a delivery location",
+    "access": "read",
+    "domain": "blinkit.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "productId",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Blinkit product id"
+      },
+      {
+        "name": "lat",
+        "type": "str",
+        "required": false,
+        "help": "Delivery latitude (defaults to current Blinkit browser location)"
+      },
+      {
+        "name": "lon",
+        "type": "str",
+        "required": false,
+        "help": "Delivery longitude (defaults to current Blinkit browser location)"
+      }
+    ],
+    "columns": [
+      "productId",
+      "name",
+      "brand",
+      "variant",
+      "price",
+      "mrp",
+      "currency",
+      "inventory",
+      "available",
+      "imageUrl",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/blinkit/product.js",
+    "sourceFile": "plugins/blinkit/product.js",
+    "navigateBefore": false
+  },
+  {
+    "site": "blinkit",
+    "name": "search",
+    "description": "Search Blinkit products for a delivery location",
+    "access": "read",
+    "domain": "blinkit.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Search keyword"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max results (max 48)"
+      },
+      {
+        "name": "lat",
+        "type": "str",
+        "required": false,
+        "help": "Delivery latitude (defaults to current Blinkit browser location)"
+      },
+      {
+        "name": "lon",
+        "type": "str",
+        "required": false,
+        "help": "Delivery longitude (defaults to current Blinkit browser location)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "productId",
+      "name",
+      "brand",
+      "variant",
+      "price",
+      "mrp",
+      "currency",
+      "inventory",
+      "available",
+      "imageUrl",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/blinkit/search.js",
+    "sourceFile": "plugins/blinkit/search.js",
+    "navigateBefore": false
+  },
+  {
+    "site": "blinkit",
+    "name": "whoami",
+    "description": "Show the current logged-in blinkit account",
+    "access": "read",
+    "domain": "blinkit.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "logged_in",
+      "site",
+      "phone",
+      "user_id"
+    ],
+    "type": "js",
+    "modulePath": "plugins/blinkit/auth.js",
+    "sourceFile": "plugins/blinkit/auth.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
   },
   {
     "site": "bloomberg",
@@ -3226,6 +4297,184 @@
     "sourceFile": "plugins/concordia/export-postgraduate-courses.js"
   },
   {
+    "site": "coupang",
+    "name": "add-to-cart",
+    "description": "Add a Coupang product to cart using logged-in browser session",
+    "access": "write",
+    "domain": "www.coupang.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "product-id",
+        "type": "str",
+        "required": false,
+        "positional": true,
+        "help": "Coupang product ID"
+      },
+      {
+        "name": "url",
+        "type": "str",
+        "required": false,
+        "help": "Canonical product URL"
+      }
+    ],
+    "columns": [
+      "ok",
+      "product_id",
+      "url",
+      "message"
+    ],
+    "type": "js",
+    "modulePath": "plugins/coupang/add-to-cart.js",
+    "sourceFile": "plugins/coupang/add-to-cart.js",
+    "navigateBefore": "https://www.coupang.com"
+  },
+  {
+    "site": "coupang",
+    "name": "login",
+    "description": "Open coupang login",
+    "access": "write",
+    "domain": "coupang.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "status",
+      "logged_in",
+      "site",
+      "name",
+      "action",
+      "verify_command"
+    ],
+    "type": "js",
+    "modulePath": "plugins/coupang/auth.js",
+    "sourceFile": "plugins/coupang/auth.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "coupang",
+    "name": "product",
+    "description": "Read full product detail (price, rating, seller, delivery) for a Coupang product",
+    "access": "read",
+    "domain": "www.coupang.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "product-id",
+        "type": "str",
+        "required": false,
+        "positional": true,
+        "help": "Coupang product ID (digits only)"
+      },
+      {
+        "name": "url",
+        "type": "str",
+        "required": false,
+        "help": "Canonical Coupang product URL (alternative to --product-id)"
+      }
+    ],
+    "columns": [
+      "product_id",
+      "title",
+      "price",
+      "original_price",
+      "discount_rate",
+      "rating",
+      "review_count",
+      "seller",
+      "brand",
+      "rocket",
+      "delivery_promise",
+      "image_url",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/coupang/product.js",
+    "sourceFile": "plugins/coupang/product.js",
+    "navigateBefore": "https://www.coupang.com"
+  },
+  {
+    "site": "coupang",
+    "name": "search",
+    "description": "Search Coupang products with logged-in browser session",
+    "access": "read",
+    "domain": "www.coupang.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Search keyword"
+      },
+      {
+        "name": "page",
+        "type": "int",
+        "default": 1,
+        "required": false,
+        "help": "Search result page number"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max results (max 50)"
+      },
+      {
+        "name": "filter",
+        "type": "str",
+        "required": false,
+        "help": "Optional search filter (currently supports: rocket)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "product_id",
+      "title",
+      "price",
+      "unit_price",
+      "rating",
+      "review_count",
+      "rocket",
+      "delivery_type",
+      "delivery_promise",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/coupang/search.js",
+    "sourceFile": "plugins/coupang/search.js",
+    "navigateBefore": "https://www.coupang.com"
+  },
+  {
+    "site": "coupang",
+    "name": "whoami",
+    "description": "Show the current logged-in coupang account",
+    "access": "read",
+    "domain": "coupang.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "logged_in",
+      "site",
+      "name"
+    ],
+    "type": "js",
+    "modulePath": "plugins/coupang/auth.js",
+    "sourceFile": "plugins/coupang/auth.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
     "site": "crates",
     "name": "crate",
     "description": "Single crates.io crate metadata (latest version, downloads, license, repo)",
@@ -4077,6 +5326,513 @@
     "sourceFile": "plugins/dictionary/synonyms.js"
   },
   {
+    "site": "district",
+    "name": "checkout",
+    "description": "Select District movie seats and open the UPI QR payment scanner",
+    "access": "write",
+    "domain": "www.district.in",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "show",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "District seat-layout URL or showId from district showtimes"
+      },
+      {
+        "name": "seats",
+        "type": "str",
+        "required": true,
+        "help": "Comma-separated seat labels to select, e.g. I22,I21"
+      },
+      {
+        "name": "format-id",
+        "type": "str",
+        "required": false,
+        "help": "District formatId from showtimes; required when show is a showId"
+      },
+      {
+        "name": "content-id",
+        "type": "str",
+        "required": false,
+        "help": "District content id; required when show is a showId"
+      },
+      {
+        "name": "timeout",
+        "type": "int",
+        "default": 45,
+        "required": false,
+        "help": "Maximum seconds to wait for selection, review page, and payment handoff"
+      },
+      {
+        "name": "payment",
+        "type": "str",
+        "default": "upi-qr",
+        "required": false,
+        "help": "Payment handoff target: upi-qr opens the scanner; review stops on order review"
+      }
+    ],
+    "columns": [
+      "status",
+      "movie",
+      "cinema",
+      "date",
+      "time",
+      "seats",
+      "ticketCount",
+      "orderAmount",
+      "bookingCharge",
+      "total",
+      "paymentMethod",
+      "paymentState",
+      "upiQrVisible",
+      "paymentAmount",
+      "paymentUrl",
+      "showId"
+    ],
+    "type": "js",
+    "modulePath": "plugins/district/checkout.js",
+    "sourceFile": "plugins/district/checkout.js",
+    "navigateBefore": false,
+    "siteSession": "persistent",
+    "freshPage": true
+  },
+  {
+    "site": "district",
+    "name": "listings",
+    "aliases": [
+      "ls"
+    ],
+    "description": "List public District by Zomato movies, events, and nearby going-out cards",
+    "access": "read",
+    "domain": "www.district.in",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "input",
+        "type": "str",
+        "default": "home",
+        "required": false,
+        "positional": true,
+        "help": "home, movies, events, a district.in URL, or a District path"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Maximum rows to return (1-100)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "title",
+      "category",
+      "date",
+      "venue",
+      "price",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/district/listings.js",
+    "sourceFile": "plugins/district/listings.js"
+  },
+  {
+    "site": "district",
+    "name": "locations",
+    "aliases": [
+      "location-search"
+    ],
+    "description": "Search District-supported cities, areas, malls, and places for booking filters",
+    "access": "read",
+    "domain": "www.district.in",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "City, area, mall, or locality, for example \"bangalore\" or \"indiranagar\""
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Maximum location rows to return (1-50)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "name",
+      "kind",
+      "city",
+      "state",
+      "cityKey",
+      "cityId",
+      "placeId",
+      "lat",
+      "lng",
+      "distanceKm",
+      "source"
+    ],
+    "type": "js",
+    "modulePath": "plugins/district/locations.js",
+    "sourceFile": "plugins/district/locations.js"
+  },
+  {
+    "site": "district",
+    "name": "login",
+    "description": "Open district login",
+    "access": "write",
+    "domain": "www.district.in",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "status",
+      "logged_in",
+      "site",
+      "user_id",
+      "name",
+      "phone_number",
+      "email",
+      "action",
+      "verify_command"
+    ],
+    "type": "js",
+    "modulePath": "plugins/district/auth.js",
+    "sourceFile": "plugins/district/auth.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "district",
+    "name": "search",
+    "aliases": [
+      "s"
+    ],
+    "description": "Search District by Zomato across movies, events, dining, stores, activities, and play",
+    "access": "read",
+    "domain": "www.district.in",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Search query, for example \"hamlet\" or \"arijit\""
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Maximum rows to return (1-100)"
+      },
+      {
+        "name": "tab",
+        "type": "str",
+        "default": "all",
+        "required": false,
+        "help": "Search tab: all, dining, events, movies, stores, activities, or play"
+      }
+    ],
+    "columns": [
+      "rank",
+      "title",
+      "category",
+      "date",
+      "venue",
+      "price",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/district/search.js",
+    "sourceFile": "plugins/district/search.js"
+  },
+  {
+    "site": "district",
+    "name": "seats",
+    "description": "List available seats for a District movie showtime",
+    "access": "read",
+    "domain": "www.district.in",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "show",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "District seat-layout URL or showId from district showtimes"
+      },
+      {
+        "name": "format-id",
+        "type": "str",
+        "required": false,
+        "help": "District formatId from showtimes; required when show is a showId"
+      },
+      {
+        "name": "content-id",
+        "type": "str",
+        "required": false,
+        "help": "District content id; required when show is a showId"
+      },
+      {
+        "name": "class",
+        "type": "str",
+        "required": false,
+        "help": "Optional seat class filter, e.g. premium, premium xl, or recliner"
+      },
+      {
+        "name": "count",
+        "type": "int",
+        "required": false,
+        "help": "Number of seats to choose (1-10); without count, seats are listed normally"
+      },
+      {
+        "name": "together",
+        "type": "str",
+        "required": false,
+        "help": "Require selected seats to be adjacent when count is provided"
+      },
+      {
+        "name": "max-price",
+        "type": "float",
+        "required": false,
+        "help": "Maximum price per seat"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 100,
+        "required": false,
+        "help": "Maximum seats to return (1-300)"
+      },
+      {
+        "name": "timeout",
+        "type": "int",
+        "default": 30,
+        "required": false,
+        "help": "Maximum seconds to wait for the seat map to render"
+      }
+    ],
+    "columns": [
+      "rank",
+      "seat",
+      "row",
+      "number",
+      "column",
+      "seatClass",
+      "price",
+      "status",
+      "flags",
+      "showId",
+      "formatId",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/district/seats.js",
+    "sourceFile": "plugins/district/seats.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "district",
+    "name": "set-location",
+    "aliases": [
+      "setlocation"
+    ],
+    "description": "Set the District browser session location for movie booking filters",
+    "access": "write",
+    "domain": "www.district.in",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "location",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "City, area, mall, or locality, for example \"Bangalore\" or \"Indiranagar\""
+      },
+      {
+        "name": "rank",
+        "type": "int",
+        "default": 1,
+        "required": false,
+        "help": "Pick the Nth District location result (1-20), default: 1"
+      },
+      {
+        "name": "timeout",
+        "type": "int",
+        "default": 45,
+        "required": false,
+        "help": "Maximum seconds to wait for the picker and location change"
+      }
+    ],
+    "columns": [
+      "status",
+      "name",
+      "city",
+      "state",
+      "cityKey",
+      "cityId",
+      "placeId",
+      "subzoneId",
+      "lat",
+      "lng",
+      "availableTabs",
+      "source"
+    ],
+    "type": "js",
+    "modulePath": "plugins/district/set-location.js",
+    "sourceFile": "plugins/district/set-location.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "district",
+    "name": "showtimes",
+    "aliases": [
+      "shows"
+    ],
+    "description": "List District movie showtimes with location, time, cinema, language, price, and format filters",
+    "access": "read",
+    "domain": "www.district.in",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "movie",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Movie name or District movie URL"
+      },
+      {
+        "name": "date",
+        "type": "str",
+        "required": false,
+        "help": "Show date in YYYY-MM-DD format; defaults to District selected date"
+      },
+      {
+        "name": "city",
+        "type": "str",
+        "required": false,
+        "help": "District city name/key, for example Bangalore or Bengaluru"
+      },
+      {
+        "name": "near",
+        "type": "str",
+        "required": false,
+        "help": "Area, mall, or locality to search near, for example Indiranagar"
+      },
+      {
+        "name": "city-key",
+        "type": "str",
+        "required": false,
+        "help": "Legacy District city key override, for example bengaluru"
+      },
+      {
+        "name": "after",
+        "type": "str",
+        "required": false,
+        "help": "Only shows at or after HH:MM, 24-hour time"
+      },
+      {
+        "name": "before",
+        "type": "str",
+        "required": false,
+        "help": "Only shows at or before HH:MM, 24-hour time"
+      },
+      {
+        "name": "cinema",
+        "type": "str",
+        "required": false,
+        "help": "Filter cinema/theatre name, for example PVR, INOX, Orion"
+      },
+      {
+        "name": "language",
+        "type": "str",
+        "required": false,
+        "help": "Filter movie language, for example English, Hindi, Kannada"
+      },
+      {
+        "name": "max-price",
+        "type": "float",
+        "required": false,
+        "help": "Only shows with at least one ticket class at or below this price"
+      },
+      {
+        "name": "quality",
+        "type": "str",
+        "required": false,
+        "help": "Generic format/quality filter, for example 2D, 3D, IMAX, IMAX 3D, 4DX"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 50,
+        "required": false,
+        "help": "Maximum showtime rows to return (1-200)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "movie",
+      "language",
+      "date",
+      "time",
+      "cinema",
+      "format",
+      "priceRange",
+      "available",
+      "showId",
+      "formatId",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/district/showtimes.js",
+    "sourceFile": "plugins/district/showtimes.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "district",
+    "name": "whoami",
+    "description": "Show the current logged-in district account",
+    "access": "read",
+    "domain": "www.district.in",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "logged_in",
+      "site",
+      "user_id",
+      "name",
+      "phone_number",
+      "email"
+    ],
+    "type": "js",
+    "modulePath": "plugins/district/auth.js",
+    "sourceFile": "plugins/district/auth.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
     "site": "dockerhub",
     "name": "image",
     "description": "Fetch a Docker Hub repository's public metadata (stars, pulls, last updated, status)",
@@ -4354,6 +6110,55 @@
     "type": "js",
     "modulePath": "plugins/flathub/search.js",
     "sourceFile": "plugins/flathub/search.js"
+  },
+  {
+    "site": "github",
+    "name": "login",
+    "description": "Open github login",
+    "access": "write",
+    "domain": "github.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "status",
+      "logged_in",
+      "site",
+      "id",
+      "username",
+      "name",
+      "url",
+      "action",
+      "verify_command"
+    ],
+    "type": "js",
+    "modulePath": "plugins/github/auth.js",
+    "sourceFile": "plugins/github/auth.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "github",
+    "name": "whoami",
+    "description": "Show the current logged-in github account",
+    "access": "read",
+    "domain": "github.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "logged_in",
+      "site",
+      "id",
+      "username",
+      "name",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/github/auth.js",
+    "sourceFile": "plugins/github/auth.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
   },
   {
     "site": "github-trending",
@@ -5274,6 +7079,283 @@
     "type": "js",
     "modulePath": "plugins/heidelberg/export-postgraduate-courses.js",
     "sourceFile": "plugins/heidelberg/export-postgraduate-courses.js"
+  },
+  {
+    "site": "hf",
+    "name": "datasets",
+    "description": "Top Hugging Face datasets (downloads / likes / trending / freshness).",
+    "access": "read",
+    "domain": "huggingface.co",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "sort",
+        "type": "string",
+        "default": "downloads",
+        "required": false,
+        "help": "Sort key: downloads, likes, trending, created_at, last_modified"
+      },
+      {
+        "name": "search",
+        "type": "string",
+        "required": false,
+        "help": "Optional name/owner substring filter."
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max datasets (max 100; one API page)."
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "author",
+      "downloads",
+      "likes",
+      "tags",
+      "lastModified",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/hf/datasets.js",
+    "sourceFile": "plugins/hf/datasets.js"
+  },
+  {
+    "site": "hf",
+    "name": "login",
+    "description": "Open hf login",
+    "access": "write",
+    "domain": "huggingface.co",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "status",
+      "logged_in",
+      "site",
+      "username",
+      "fullname",
+      "type",
+      "action",
+      "verify_command"
+    ],
+    "type": "js",
+    "modulePath": "plugins/hf/auth.js",
+    "sourceFile": "plugins/hf/auth.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "hf",
+    "name": "models",
+    "description": "Top Hugging Face models (downloads / likes / trending / freshness).",
+    "access": "read",
+    "domain": "huggingface.co",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "sort",
+        "type": "string",
+        "default": "downloads",
+        "required": false,
+        "help": "Sort key: downloads, likes, trending, created_at, last_modified"
+      },
+      {
+        "name": "search",
+        "type": "string",
+        "required": false,
+        "help": "Optional name/owner substring filter (e.g. \"llama\", \"mistralai/\")"
+      },
+      {
+        "name": "pipeline",
+        "type": "string",
+        "required": false,
+        "help": "Filter by pipeline tag (e.g. text-generation, image-classification)"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max models (max 100; one API page)."
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "author",
+      "pipelineTag",
+      "downloads",
+      "likes",
+      "tags",
+      "lastModified",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/hf/models.js",
+    "sourceFile": "plugins/hf/models.js"
+  },
+  {
+    "site": "hf",
+    "name": "paper",
+    "description": "Hugging Face paper detail by arXiv id (full title / summary / authors / AI keywords)",
+    "access": "read",
+    "domain": "huggingface.co",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "id",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "arXiv id (e.g. \"1706.03762\") — same value HF uses to mirror the paper"
+      }
+    ],
+    "columns": [
+      "id",
+      "title",
+      "authors",
+      "publishedAt",
+      "upvotes",
+      "aiKeywords",
+      "summary",
+      "aiSummary",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/hf/paper.js",
+    "sourceFile": "plugins/hf/paper.js"
+  },
+  {
+    "site": "hf",
+    "name": "spaces",
+    "description": "Top Hugging Face Spaces (likes / created_at / last_modified).",
+    "access": "read",
+    "domain": "huggingface.co",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "sort",
+        "type": "string",
+        "default": "likes",
+        "required": false,
+        "help": "Sort key: likes, created_at, last_modified"
+      },
+      {
+        "name": "search",
+        "type": "string",
+        "required": false,
+        "help": "Optional name/owner substring filter (e.g. \"stability\", \"openai/\")"
+      },
+      {
+        "name": "sdk",
+        "type": "string",
+        "required": false,
+        "help": "Filter by Space SDK: gradio / streamlit / docker / static"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max spaces (max 100; one API page)."
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "author",
+      "sdk",
+      "likes",
+      "tags",
+      "lastModified",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/hf/spaces.js",
+    "sourceFile": "plugins/hf/spaces.js"
+  },
+  {
+    "site": "hf",
+    "name": "top",
+    "description": "Top upvoted Hugging Face papers",
+    "access": "read",
+    "domain": "huggingface.co",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of papers"
+      },
+      {
+        "name": "all",
+        "type": "bool",
+        "default": false,
+        "required": false,
+        "help": "Return all papers (ignore limit)"
+      },
+      {
+        "name": "date",
+        "type": "str",
+        "required": false,
+        "help": "Date (YYYY-MM-DD), defaults to most recent"
+      },
+      {
+        "name": "period",
+        "type": "str",
+        "default": "daily",
+        "required": false,
+        "help": "Time period: daily, weekly, or monthly",
+        "choices": [
+          "daily",
+          "weekly",
+          "monthly"
+        ]
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "title",
+      "upvotes",
+      "authors"
+    ],
+    "type": "js",
+    "modulePath": "plugins/hf/top.js",
+    "sourceFile": "plugins/hf/top.js"
+  },
+  {
+    "site": "hf",
+    "name": "whoami",
+    "description": "Show the current logged-in hf account",
+    "access": "read",
+    "domain": "huggingface.co",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "logged_in",
+      "site",
+      "username",
+      "fullname",
+      "type"
+    ],
+    "type": "js",
+    "modulePath": "plugins/hf/auth.js",
+    "sourceFile": "plugins/hf/auth.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
   },
   {
     "site": "hft",
@@ -7689,6 +9771,162 @@
     "siteSession": "persistent"
   },
   {
+    "site": "linkedin-learning",
+    "name": "course",
+    "description": "Get LinkedIn Learning course detail by slug or course URL",
+    "access": "read",
+    "domain": "www.linkedin.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "slug",
+        "type": "string",
+        "required": true,
+        "positional": true,
+        "help": "Course slug (e.g. agentic-ai-build-your-first-agentic-ai-system) or full /learning/<slug> URL"
+      }
+    ],
+    "columns": [
+      "title",
+      "slug",
+      "description",
+      "difficulty",
+      "duration_sec",
+      "videos_count",
+      "rating",
+      "rating_count",
+      "released",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/linkedin-learning/course.js",
+    "sourceFile": "plugins/linkedin-learning/course.js",
+    "navigateBefore": "https://www.linkedin.com"
+  },
+  {
+    "site": "linkedin-learning",
+    "name": "login",
+    "description": "Open linkedin-learning login",
+    "access": "write",
+    "domain": "linkedin.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "status",
+      "logged_in",
+      "site",
+      "public_id",
+      "plain_id",
+      "name",
+      "action",
+      "verify_command"
+    ],
+    "type": "js",
+    "modulePath": "plugins/linkedin-learning/auth.js",
+    "sourceFile": "plugins/linkedin-learning/auth.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "linkedin-learning",
+    "name": "search",
+    "description": "Search LinkedIn Learning courses, videos, and learning paths by keyword",
+    "access": "read",
+    "domain": "www.linkedin.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "keywords",
+        "type": "string",
+        "required": true,
+        "positional": true,
+        "help": "Search keywords, e.g. \"AI agent\""
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Maximum results to return (1-50)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "type",
+      "title",
+      "instructor",
+      "difficulty",
+      "duration_sec",
+      "rating",
+      "rating_count",
+      "viewers",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/linkedin-learning/search.js",
+    "sourceFile": "plugins/linkedin-learning/search.js",
+    "navigateBefore": "https://www.linkedin.com"
+  },
+  {
+    "site": "linkedin-learning",
+    "name": "trending",
+    "description": "Browse LinkedIn Learning recommended courses across personalized carousels",
+    "access": "read",
+    "domain": "www.linkedin.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Maximum results to return (1-50)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "group",
+      "type",
+      "title",
+      "difficulty",
+      "viewers",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/linkedin-learning/trending.js",
+    "sourceFile": "plugins/linkedin-learning/trending.js",
+    "navigateBefore": "https://www.linkedin.com"
+  },
+  {
+    "site": "linkedin-learning",
+    "name": "whoami",
+    "description": "Show the current logged-in linkedin-learning account",
+    "access": "read",
+    "domain": "linkedin.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "logged_in",
+      "site",
+      "public_id",
+      "plain_id",
+      "name"
+    ],
+    "type": "js",
+    "modulePath": "plugins/linkedin-learning/auth.js",
+    "sourceFile": "plugins/linkedin-learning/auth.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
     "site": "lobsters",
     "name": "active",
     "description": "Lobste.rs most active discussions",
@@ -8304,6 +10542,203 @@
     "type": "js",
     "modulePath": "plugins/luma/auth.js",
     "sourceFile": "plugins/luma/auth.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "manus",
+    "name": "connectors",
+    "description": "List available Manus connectors (integrations).",
+    "access": "read",
+    "domain": "manus.im",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 50,
+        "required": false,
+        "help": "Max connectors to return"
+      }
+    ],
+    "columns": [
+      "UID",
+      "Name",
+      "Brief"
+    ],
+    "type": "js",
+    "modulePath": "plugins/manus/connectors.js",
+    "sourceFile": "plugins/manus/connectors.js",
+    "navigateBefore": true,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "manus",
+    "name": "credits",
+    "description": "Show Manus credit balance and refresh details.",
+    "access": "read",
+    "domain": "manus.im",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "Field",
+      "Value"
+    ],
+    "type": "js",
+    "modulePath": "plugins/manus/credits.js",
+    "sourceFile": "plugins/manus/credits.js",
+    "navigateBefore": true,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "manus",
+    "name": "list",
+    "description": "List Manus sessions (tasks).",
+    "access": "read",
+    "domain": "manus.im",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max sessions to return"
+      },
+      {
+        "name": "archived",
+        "type": "bool",
+        "default": false,
+        "required": false,
+        "help": "Include archived sessions"
+      }
+    ],
+    "columns": [
+      "id",
+      "Title",
+      "Status",
+      "Last Message",
+      "Last Updated",
+      "Credits"
+    ],
+    "type": "js",
+    "modulePath": "plugins/manus/list.js",
+    "sourceFile": "plugins/manus/list.js",
+    "navigateBefore": true,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "manus",
+    "name": "login",
+    "description": "Open manus login",
+    "access": "write",
+    "domain": "manus.im",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "status",
+      "logged_in",
+      "site",
+      "user_id",
+      "name",
+      "action",
+      "verify_command"
+    ],
+    "type": "js",
+    "modulePath": "plugins/manus/auth.js",
+    "sourceFile": "plugins/manus/auth.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "manus",
+    "name": "read",
+    "description": "Show details for a specific Manus session.",
+    "access": "read",
+    "domain": "manus.im",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "uid",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Session UID"
+      }
+    ],
+    "columns": [
+      "Field",
+      "Value"
+    ],
+    "type": "js",
+    "modulePath": "plugins/manus/read.js",
+    "sourceFile": "plugins/manus/read.js",
+    "navigateBefore": true,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "manus",
+    "name": "skills",
+    "description": "List Manus skills (user-added and system).",
+    "access": "read",
+    "domain": "manus.im",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "ID",
+      "Name",
+      "Description",
+      "Source"
+    ],
+    "type": "js",
+    "modulePath": "plugins/manus/skills.js",
+    "sourceFile": "plugins/manus/skills.js",
+    "navigateBefore": true,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "manus",
+    "name": "status",
+    "description": "Show current Manus user profile and credit summary.",
+    "access": "read",
+    "domain": "manus.im",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "Field",
+      "Value"
+    ],
+    "type": "js",
+    "modulePath": "plugins/manus/status.js",
+    "sourceFile": "plugins/manus/status.js",
+    "navigateBefore": true,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "manus",
+    "name": "whoami",
+    "description": "Show the current logged-in manus account",
+    "access": "read",
+    "domain": "manus.im",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "logged_in",
+      "site",
+      "user_id",
+      "name"
+    ],
+    "type": "js",
+    "modulePath": "plugins/manus/auth.js",
+    "sourceFile": "plugins/manus/auth.js",
     "navigateBefore": false,
     "siteSession": "persistent"
   },

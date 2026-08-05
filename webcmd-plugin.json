@@ -4,6 +4,26 @@
   "description": "Webcmd plugin collection",
   "webcmd": ">=0.2.0",
   "plugins": {
+    "amazon": {
+      "path": "plugins/amazon",
+      "version": "0.1.0",
+      "description": "Webcmd commands for amazon",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "amazon-in": {
+      "path": "plugins/amazon-in",
+      "version": "0.1.0",
+      "description": "Webcmd commands for amazon-in",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
     "apple-podcasts": {
       "path": "plugins/apple-podcasts",
       "version": "0.1.0",
@@ -34,6 +54,16 @@
         "handle": "agentrhq"
       }
     },
+    "band": {
+      "path": "plugins/band",
+      "version": "0.1.0",
+      "description": "Webcmd commands for band",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
     "barchart": {
       "path": "plugins/barchart",
       "version": "0.1.0",
@@ -58,6 +88,16 @@
       "path": "plugins/binance",
       "version": "0.1.0",
       "description": "Webcmd commands for binance",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "blinkit": {
+      "path": "plugins/blinkit",
+      "version": "0.1.0",
+      "description": "Webcmd commands for blinkit",
       "webcmd": ">=0.6.0",
       "author": {
         "name": "WebCMD Agent",
@@ -174,6 +214,16 @@
         "handle": "agentrhq"
       }
     },
+    "coupang": {
+      "path": "plugins/coupang",
+      "version": "0.1.0",
+      "description": "Webcmd commands for coupang",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
     "crates": {
       "path": "plugins/crates",
       "version": "0.1.0",
@@ -234,6 +284,16 @@
         "handle": "agentrhq"
       }
     },
+    "district": {
+      "path": "plugins/district",
+      "version": "0.1.0",
+      "description": "Webcmd commands for district",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
     "dockerhub": {
       "path": "plugins/dockerhub",
       "version": "0.1.0",
@@ -268,6 +328,16 @@
       "path": "plugins/flathub",
       "version": "0.1.0",
       "description": "Webcmd commands for flathub",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "github": {
+      "path": "plugins/github",
+      "version": "0.1.0",
+      "description": "Webcmd commands for github",
       "webcmd": ">=0.6.0",
       "author": {
         "name": "WebCMD Agent",
@@ -339,6 +409,16 @@
       "version": "0.1.0",
       "description": "Heidelberg University postgraduate course export adapter",
       "webcmd": ">=0.5.2",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "hf": {
+      "path": "plugins/hf",
+      "version": "0.1.0",
+      "description": "Webcmd commands for hf",
+      "webcmd": ">=0.6.0",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -444,6 +524,16 @@
         "handle": "agentrhq"
       }
     },
+    "linkedin-learning": {
+      "path": "plugins/linkedin-learning",
+      "version": "0.1.0",
+      "description": "Webcmd commands for linkedin-learning",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
     "lobsters": {
       "path": "plugins/lobsters",
       "version": "0.1.0",
@@ -459,6 +549,16 @@
       "version": "0.1.0",
       "description": "Manage hosted Luma events, registration questions, and guests",
       "webcmd": ">=0.5.2",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "manus": {
+      "path": "plugins/manus",
+      "version": "0.1.0",
+      "description": "Webcmd commands for manus",
+      "webcmd": ">=0.6.0",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"

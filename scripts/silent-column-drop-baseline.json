@@ -1,7 +1,7 @@
 [
   {
     "command": "amazon/discussion",
-    "file": "clis/amazon/discussion.js",
+    "file": "plugins/amazon/discussion.js",
     "missing": [
       "average_rating_text",
       "discussion_url",
@@ -13,7 +13,7 @@
   },
   {
     "command": "amazon/offer",
-    "file": "clis/amazon/offer.js",
+    "file": "plugins/amazon/offer.js",
     "missing": [
       "buybox_text",
       "href",
@@ -27,7 +27,7 @@
   },
   {
     "command": "amazon/offer",
-    "file": "clis/amazon/offer.js",
+    "file": "plugins/amazon/offer.js",
     "missing": [
       "currency",
       "merchant_info_text",
@@ -40,7 +40,7 @@
   },
   {
     "command": "amazon/product",
-    "file": "clis/amazon/product.js",
+    "file": "plugins/amazon/product.js",
     "missing": [
       "brand_text",
       "breadcrumbs",
@@ -56,7 +56,7 @@
   },
   {
     "command": "amazon/product",
-    "file": "clis/amazon/product.js",
+    "file": "plugins/amazon/product.js",
     "missing": [
       "breadcrumbs",
       "bullets",
@@ -71,7 +71,7 @@
   },
   {
     "command": "amazon/search",
-    "file": "clis/amazon/search.js",
+    "file": "plugins/amazon/search.js",
     "missing": [
       "badge_texts",
       "href",
@@ -82,7 +82,7 @@
   },
   {
     "command": "amazon/search",
-    "file": "clis/amazon/search.js",
+    "file": "plugins/amazon/search.js",
     "missing": [
       "badges",
       "currency",
@@ -95,7 +95,7 @@
   },
   {
     "command": "band/post",
-    "file": "clis/band/post.js",
+    "file": "plugins/band/post.js",
     "missing": [
       "comments",
       "photos"
@@ -103,14 +103,14 @@
   },
   {
     "command": "band/post",
-    "file": "clis/band/post.js",
+    "file": "plugins/band/post.js",
     "missing": [
       "depth"
     ]
   },
   {
     "command": "band/post",
-    "file": "clis/band/post.js",
+    "file": "plugins/band/post.js",
     "missing": [
       "filename",
       "url"
@@ -170,7 +170,7 @@
   },
   {
     "command": "coupang/search",
-    "file": "clis/coupang/search.js",
+    "file": "plugins/coupang/search.js",
     "missing": [
       "badge",
       "category",
@@ -186,7 +186,7 @@
   },
   {
     "command": "coupang/search",
-    "file": "clis/coupang/search.js",
+    "file": "plugins/coupang/search.js",
     "missing": [
       "originalPrice",
       "unitPrice"
