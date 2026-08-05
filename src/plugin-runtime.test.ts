@@ -142,6 +142,19 @@ function pageMock() {
 }
 
 describe('site auth command helper', () => {
+  it('can register login without claiming a site-owned whoami command', () => {
+    registerSiteAuthCommands({
+      site: 'auth-helper-login-only',
+      domain: 'example.com',
+      loginUrl: 'https://example.com/login',
+      registerWhoami: false,
+      verify: async () => ({ username: 'alice' }),
+    });
+
+    expect(getRegistry().has('auth-helper-login-only/whoami')).toBe(false);
+    expect(getRegistry().has('auth-helper-login-only/login')).toBe(true);
+  });
+
   it('registers whoami aliases and foreground login columns', () => {
     registerSiteAuthCommands({
       site: 'auth-helper-registration',

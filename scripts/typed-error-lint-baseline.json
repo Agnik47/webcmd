@@ -34,7 +34,7 @@
   {
     "rule": "silent-clamp",
     "command": "facebook/marketplace-inbox",
-    "file": "clis/facebook/marketplace-inbox.js",
+    "file": "plugins/facebook/marketplace-inbox.js",
     "line": 9,
     "text": "return Math.min(limit, 100);",
     "occurrence": 0
@@ -42,7 +42,7 @@
   {
     "rule": "silent-clamp",
     "command": "facebook/marketplace-listings",
-    "file": "clis/facebook/marketplace-listings.js",
+    "file": "plugins/facebook/marketplace-listings.js",
     "line": 9,
     "text": "return Math.min(limit, 100);",
     "occurrence": 0
@@ -210,7 +210,7 @@
   {
     "rule": "silent-clamp",
     "command": "reddit/read",
-    "file": "clis/reddit/read.js",
+    "file": "plugins/reddit/read.js",
     "line": 531,
     "text": "for (var i = 0; i < Math.min(t1TopLevel.length, limit); i++) {",
     "occurrence": 0
@@ -322,7 +322,7 @@
   {
     "rule": "silent-clamp",
     "command": "twitter/bookmark-folder",
-    "file": "clis/twitter/bookmark-folder.js",
+    "file": "plugins/twitter/bookmark-folder.js",
     "line": 164,
     "text": "const fetchCount = Math.min(100, limit - allTweets.length + 10);",
     "occurrence": 0
@@ -330,7 +330,7 @@
   {
     "rule": "silent-clamp",
     "command": "twitter/bookmarks",
-    "file": "clis/twitter/bookmarks.js",
+    "file": "plugins/twitter/bookmarks.js",
     "line": 157,
     "text": "const fetchCount = Math.min(100, limit - allTweets.length + 10);",
     "occurrence": 0
@@ -338,7 +338,7 @@
   {
     "rule": "silent-clamp",
     "command": "twitter/following",
-    "file": "clis/twitter/following.js",
+    "file": "plugins/twitter/following.js",
     "line": 232,
     "text": "const fetchCount = Math.min(50, limit - allUsers.length + 10);",
     "occurrence": 0
@@ -346,7 +346,7 @@
   {
     "rule": "silent-clamp",
     "command": "twitter/likes",
-    "file": "clis/twitter/likes.js",
+    "file": "plugins/twitter/likes.js",
     "line": 208,
     "text": "const fetchCount = Math.min(100, limit - allTweets.length + 10);",
     "occurrence": 0
@@ -354,7 +354,7 @@
   {
     "rule": "silent-clamp",
     "command": "twitter/list-tweets",
-    "file": "clis/twitter/list-tweets.js",
+    "file": "plugins/twitter/list-tweets.js",
     "line": 179,
     "text": "const fetchCount = Math.min(100, limit - allTweets.length + 10);",
     "occurrence": 0
@@ -362,7 +362,7 @@
   {
     "rule": "silent-clamp",
     "command": "twitter/timeline",
-    "file": "clis/twitter/timeline.js",
+    "file": "plugins/twitter/timeline.js",
     "line": 187,
     "text": "const fetchCount = Math.min(40, limit - allTweets.length + 5); // over-fetch slightly for promoted filtering",
     "occurrence": 0
@@ -370,7 +370,7 @@
   {
     "rule": "silent-clamp",
     "command": "twitter/tweets",
-    "file": "clis/twitter/tweets.js",
+    "file": "plugins/twitter/tweets.js",
     "line": 316,
     "text": "const fetchCount = Math.min(USER_TWEETS_PAGE_SIZE, limit - all.length + 10);",
     "occurrence": 0
@@ -394,7 +394,7 @@
   {
     "rule": "silent-clamp",
     "command": "youtube/channel",
-    "file": "clis/youtube/channel.js",
+    "file": "plugins/youtube/channel.js",
     "line": 81,
     "text": "const limit = Math.min(kwargs.limit || 10, 30);",
     "occurrence": 0
@@ -402,7 +402,7 @@
   {
     "rule": "silent-clamp",
     "command": "youtube/comments",
-    "file": "clis/youtube/comments.js",
+    "file": "plugins/youtube/comments.js",
     "line": 21,
     "text": "const limit = Math.min(kwargs.limit || 20, 100);",
     "occurrence": 0
@@ -410,7 +410,7 @@
   {
     "rule": "silent-clamp",
     "command": "youtube/feed",
-    "file": "clis/youtube/feed.js",
+    "file": "plugins/youtube/feed.js",
     "line": 20,
     "text": "const limit = Math.min(kwargs.limit || 20, 100);",
     "occurrence": 0
@@ -418,7 +418,7 @@
   {
     "rule": "silent-clamp",
     "command": "youtube/history",
-    "file": "clis/youtube/history.js",
+    "file": "plugins/youtube/history.js",
     "line": 22,
     "text": "await page.autoScroll({ times: Math.min(Math.max(Math.ceil(limit / 20), 1), 8), delayMs: 1200 });",
     "occurrence": 0
@@ -426,7 +426,7 @@
   {
     "rule": "silent-clamp",
     "command": "youtube/history",
-    "file": "clis/youtube/history.js",
+    "file": "plugins/youtube/history.js",
     "line": 19,
     "text": "const limit = Math.min(kwargs.limit || 30, 200);",
     "occurrence": 0
@@ -434,7 +434,7 @@
   {
     "rule": "silent-clamp",
     "command": "youtube/playlist",
-    "file": "clis/youtube/playlist.js",
+    "file": "plugins/youtube/playlist.js",
     "line": 37,
     "text": "const limit = Math.min(kwargs.limit || 50, 200);",
     "occurrence": 0
@@ -442,7 +442,7 @@
   {
     "rule": "silent-clamp",
     "command": "youtube/search",
-    "file": "clis/youtube/search.js",
+    "file": "plugins/youtube/search.js",
     "line": 22,
     "text": "const limit = Math.min(kwargs.limit || 20, 50);",
     "occurrence": 0
@@ -450,7 +450,7 @@
   {
     "rule": "silent-clamp",
     "command": "youtube/subscriptions",
-    "file": "clis/youtube/subscriptions.js",
+    "file": "plugins/youtube/subscriptions.js",
     "line": 20,
     "text": "const limit = Math.min(kwargs.limit || 50, 1000);",
     "occurrence": 0
@@ -458,7 +458,7 @@
   {
     "rule": "silent-clamp",
     "command": "youtube/watch-later",
-    "file": "clis/youtube/watch-later.js",
+    "file": "plugins/youtube/watch-later.js",
     "line": 21,
     "text": "const limit = Math.min(kwargs.limit || 50, 200);",
     "occurrence": 0
@@ -474,7 +474,7 @@
   {
     "rule": "silent-sentinel",
     "command": "twitter/accept",
-    "file": "clis/twitter/accept.js",
+    "file": "plugins/twitter/accept.js",
     "line": 75,
     "text": "const user = lines[0] || 'Unknown';",
     "occurrence": 0
@@ -482,7 +482,7 @@
   {
     "rule": "silent-sentinel",
     "command": "twitter/accept",
-    "file": "clis/twitter/accept.js",
+    "file": "plugins/twitter/accept.js",
     "line": 182,
     "text": "user: res.user || 'Unknown',",
     "occurrence": 0
@@ -490,7 +490,7 @@
   {
     "rule": "silent-sentinel",
     "command": "twitter/bookmarks",
-    "file": "clis/twitter/bookmarks.js",
+    "file": "plugins/twitter/bookmarks.js",
     "line": 55,
     "text": "const screenName = user?.legacy?.screen_name || user?.core?.screen_name || 'unknown';",
     "occurrence": 0
@@ -498,7 +498,7 @@
   {
     "rule": "silent-sentinel",
     "command": "twitter/likes",
-    "file": "clis/twitter/likes.js",
+    "file": "plugins/twitter/likes.js",
     "line": 91,
     "text": "const screenName = user?.legacy?.screen_name || user?.core?.screen_name || 'unknown';",
     "occurrence": 0
@@ -506,7 +506,7 @@
   {
     "rule": "silent-sentinel",
     "command": "twitter/list-tweets",
-    "file": "clis/twitter/list-tweets.js",
+    "file": "plugins/twitter/list-tweets.js",
     "line": 63,
     "text": "const screenName = user?.legacy?.screen_name || user?.core?.screen_name || 'unknown';",
     "occurrence": 0
@@ -514,7 +514,7 @@
   {
     "rule": "silent-sentinel",
     "command": "twitter/reply-dm",
-    "file": "clis/twitter/reply-dm.js",
+    "file": "plugins/twitter/reply-dm.js",
     "line": 84,
     "text": "const user = lines[0] || 'Unknown';",
     "occurrence": 0
@@ -522,7 +522,7 @@
   {
     "rule": "silent-sentinel",
     "command": "twitter/thread",
-    "file": "clis/twitter/thread.js",
+    "file": "plugins/twitter/thread.js",
     "line": 49,
     "text": "const screenName = u?.legacy?.screen_name || u?.core?.screen_name || 'unknown';",
     "occurrence": 0
@@ -530,7 +530,7 @@
   {
     "rule": "silent-sentinel",
     "command": "twitter/timeline",
-    "file": "clis/twitter/timeline.js",
+    "file": "plugins/twitter/timeline.js",
     "line": 76,
     "text": "const screenName = u?.legacy?.screen_name || u?.core?.screen_name || 'unknown';",
     "occurrence": 0
@@ -538,7 +538,7 @@
   {
     "rule": "silent-sentinel",
     "command": "twitter/tweets",
-    "file": "clis/twitter/tweets.js",
+    "file": "plugins/twitter/tweets.js",
     "line": 163,
     "text": "const screenName = user?.legacy?.screen_name || user?.core?.screen_name || 'unknown';",
     "occurrence": 0

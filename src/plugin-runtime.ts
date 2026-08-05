@@ -184,6 +184,7 @@ export interface SiteAuthConfig {
   loginUrl: string;
   verify: (page: IPage, context: { phase: 'identity' }) => MaybePromise<unknown>;
   columns?: string[];
+  registerWhoami?: boolean;
   whoamiDescription?: string;
   whoamiAliases?: string[];
   loginDescription?: string;
@@ -239,29 +240,31 @@ export function registerSiteAuthCommands(config: SiteAuthConfig): void {
   const quickCheck = config.quickCheck;
   const refresh = config.refresh;
 
-  cli({
-    site: config.site,
-    name: 'whoami',
-    access: 'read',
-    description: config.whoamiDescription ?? `Show the current logged-in ${config.site} account`,
-    domain: config.domain,
-    strategy: Strategy.COOKIE,
-    browser: true,
-    navigateBefore: false,
-    siteSession: 'persistent',
-    aliases: config.whoamiAliases ?? [],
-    args: [],
-    columns: commandColumns(config),
-    authStatus: {
-      ...(typeof quickCheck === 'function'
-        ? { quickCheck: async (page) => normalizeQuickCheck(await quickCheck(page)) }
-        : {}),
-      ...(typeof refresh === 'function'
-        ? { refresh: async (page, kwargs) => normalizeRefreshResult(await refresh(page, kwargs)) }
-        : {}),
-    },
-    func: async (page) => [await tryProbe(page)],
-  });
+  if (config.registerWhoami !== false) {
+    cli({
+      site: config.site,
+      name: 'whoami',
+      access: 'read',
+      description: config.whoamiDescription ?? `Show the current logged-in ${config.site} account`,
+      domain: config.domain,
+      strategy: Strategy.COOKIE,
+      browser: true,
+      navigateBefore: false,
+      siteSession: 'persistent',
+      aliases: config.whoamiAliases ?? [],
+      args: [],
+      columns: commandColumns(config),
+      authStatus: {
+        ...(typeof quickCheck === 'function'
+          ? { quickCheck: async (page) => normalizeQuickCheck(await quickCheck(page)) }
+          : {}),
+        ...(typeof refresh === 'function'
+          ? { refresh: async (page, kwargs) => normalizeRefreshResult(await refresh(page, kwargs)) }
+          : {}),
+      },
+      func: async (page) => [await tryProbe(page)],
+    });
+  }
 
   cli({
     site: config.site,

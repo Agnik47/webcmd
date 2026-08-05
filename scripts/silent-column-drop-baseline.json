@@ -211,7 +211,7 @@
   },
   {
     "command": "instagram/note",
-    "file": "clis/instagram/note.js",
+    "file": "plugins/instagram/note.js",
     "missing": [
       "stage",
       "text"
@@ -219,7 +219,7 @@
   },
   {
     "command": "instagram/post",
-    "file": "clis/instagram/post.js",
+    "file": "plugins/instagram/post.js",
     "missing": [
       "failed",
       "settled"
@@ -227,14 +227,14 @@
   },
   {
     "command": "instagram/post",
-    "file": "clis/instagram/post.js",
+    "file": "plugins/instagram/post.js",
     "missing": [
       "state"
     ]
   },
   {
     "command": "instagram/reel",
-    "file": "clis/instagram/reel.js",
+    "file": "plugins/instagram/reel.js",
     "missing": [
       "failed",
       "settled"
@@ -242,7 +242,7 @@
   },
   {
     "command": "instagram/reel",
-    "file": "clis/instagram/reel.js",
+    "file": "plugins/instagram/reel.js",
     "missing": [
       "state"
     ]
@@ -324,7 +324,7 @@
   },
   {
     "command": "twitter/accept",
-    "file": "clis/twitter/accept.js",
+    "file": "plugins/twitter/accept.js",
     "missing": [
       "href",
       "idx",
@@ -333,21 +333,21 @@
   },
   {
     "command": "twitter/bookmarks",
-    "file": "clis/twitter/bookmarks.js",
+    "file": "plugins/twitter/bookmarks.js",
     "missing": [
       "name"
     ]
   },
   {
     "command": "twitter/list-tweets",
-    "file": "clis/twitter/list-tweets.js",
+    "file": "plugins/twitter/list-tweets.js",
     "missing": [
       "name"
     ]
   },
   {
     "command": "twitter/reply-dm",
-    "file": "clis/twitter/reply-dm.js",
+    "file": "plugins/twitter/reply-dm.js",
     "missing": [
       "convId",
       "href",
@@ -357,7 +357,7 @@
   },
   {
     "command": "twitter/thread",
-    "file": "clis/twitter/thread.js",
+    "file": "plugins/twitter/thread.js",
     "missing": [
       "created_at",
       "in_reply_to"
@@ -365,7 +365,7 @@
   },
   {
     "command": "twitter/tweets",
-    "file": "clis/twitter/tweets.js",
+    "file": "plugins/twitter/tweets.js",
     "missing": [
       "name"
     ]
@@ -432,7 +432,7 @@
   },
   {
     "command": "youtube/playlist",
-    "file": "clis/youtube/playlist.js",
+    "file": "plugins/youtube/playlist.js",
     "missing": [
       "channelName",
       "stats",
@@ -441,7 +441,7 @@
   },
   {
     "command": "youtube/watch-later",
-    "file": "clis/youtube/watch-later.js",
+    "file": "plugins/youtube/watch-later.js",
     "missing": [
       "stats",
       "videos"

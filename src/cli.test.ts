@@ -59,7 +59,24 @@ vi.mock('node:child_process', async () => {
   };
 });
 
-import { createProgram, findPackageRoot, normalizeVerifyRows, renderVerifyPreview, resolveBrowserVerifyInvocation, resolveSitemapAvailabilityForUrl, selectFreshByTimestamp } from './cli.js';
+import { createProgram, findPackageRoot, loadAntigravityServe, normalizeVerifyRows, renderVerifyPreview, resolveBrowserVerifyInvocation, resolveSitemapAvailabilityForUrl, selectFreshByTimestamp } from './cli.js';
+
+describe('Antigravity serve plugin loading', () => {
+  it('loads serve.js from the installed Antigravity plugin', async () => {
+    const pluginsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'webcmd-antigravity-plugins-'));
+    const pluginDir = path.join(pluginsDir, 'antigravity');
+    fs.mkdirSync(pluginDir);
+    fs.writeFileSync(path.join(pluginDir, 'package.json'), '{"type":"module"}\n');
+    fs.writeFileSync(path.join(pluginDir, 'serve.js'), 'export const loadedFrom = "installed-plugin";\n');
+    try {
+      await expect(loadAntigravityServe(pluginsDir)).resolves.toMatchObject({
+        loadedFrom: 'installed-plugin',
+      });
+    } finally {
+      fs.rmSync(pluginsDir, { recursive: true, force: true });
+    }
+  });
+});
 
 describe('createProgram root help descriptions', () => {
   function descriptionFor(program: ReturnType<typeof createProgram>, name: string): string | undefined {

@@ -9,7 +9,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import * as readline from 'node:readline/promises';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Command, Option } from 'commander';
 import { findPackageRoot, getBuiltEntryCandidates } from './package-paths.js';
 import { type CliCommand, getRegistry } from './registry.js';
@@ -47,7 +47,7 @@ import { CLI_COMMAND } from './brand.js';
 import type { BrowserDownloadWaitResult, IPage, ScreenshotOptions } from './types.js';
 import type { BrowserWindowMode } from './runtime.js';
 import { configureRootCommandSurface } from './root-command-surface.js';
-import { missingPluginGuidance } from './discovery.js';
+import { missingPluginGuidance, PLUGINS_DIR } from './discovery.js';
 
 const CLI_FILE = fileURLToPath(import.meta.url);
 const BROWSER_TAB_OPTION_DESCRIPTION = 'Target tab/page identity returned by "browser open", "browser tab new", or "browser tab list"';
@@ -3675,8 +3675,7 @@ cli({
     .option('--port <port>', 'Server port (default: 8082)', '8082')
     .option('--timeout <seconds>', 'Maximum time to wait for a reply (default: 120s)')
     .action(async (opts) => {
-      // @ts-expect-error JS adapter — no type declarations
-      const { startServe } = await import('../../clis/antigravity/serve.js');
+      const { startServe } = await loadAntigravityServe();
       await startServe({
         port: parseInt(opts.port, 10),
         timeout: opts.timeout ? parsePositiveIntOption(opts.timeout, '--timeout', 120) : undefined,
@@ -3759,6 +3758,12 @@ cli({
   });
 
   return program;
+}
+
+export async function loadAntigravityServe(pluginsDir: string = PLUGINS_DIR): Promise<{
+  startServe(options: { port: number; timeout?: number }): Promise<void>;
+}> {
+  return import(pathToFileURL(path.join(pluginsDir, 'antigravity', 'serve.js')).href);
 }
 
 export function runCli(BUILTIN_CLIS: string, USER_CLIS: string): void {

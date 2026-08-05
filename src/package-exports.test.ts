@@ -19,6 +19,7 @@ const CLIS_DIR = path.join(ROOT, 'clis');
 /** Recursively collect all JS adapter files in a directory. */
 function collectAdapterFiles(dir: string, opts?: { excludeTests?: boolean }): string[] {
   const results: string[] = [];
+  if (!fs.existsSync(dir)) return results;
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
@@ -60,8 +61,8 @@ describe('adapter imports use package exports', () => {
   const adapterFiles = collectAdapterFiles(CLIS_DIR);
   const runtimeAdapterFiles = collectAdapterFiles(CLIS_DIR, { excludeTests: true });
 
-  it('found adapter files to check', () => {
-    expect(adapterFiles.length).toBeGreaterThan(100);
+  it('has no bundled core adapter files', () => {
+    expect(adapterFiles).toEqual([]);
   });
 
   it('no adapter uses relative imports to src/, browser/, download/, or pipeline/', () => {

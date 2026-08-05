@@ -24,6 +24,16 @@
         "handle": "agentrhq"
       }
     },
+    "antigravity": {
+      "path": "plugins/antigravity",
+      "version": "0.1.0",
+      "description": "Webcmd commands for antigravity",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
     "apple-podcasts": {
       "path": "plugins/apple-podcasts",
       "version": "0.1.0",
@@ -384,6 +394,16 @@
         "handle": "agentrhq"
       }
     },
+    "facebook": {
+      "path": "plugins/facebook",
+      "version": "0.1.0",
+      "description": "Webcmd commands for facebook",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
     "flathub": {
       "path": "plugins/flathub",
       "version": "0.1.0",
@@ -474,6 +494,16 @@
         "handle": "agentrhq"
       }
     },
+    "grok": {
+      "path": "plugins/grok",
+      "version": "0.1.0",
+      "description": "Webcmd commands for grok",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
     "hackernews": {
       "path": "plugins/hackernews",
       "version": "0.1.0",
@@ -548,6 +578,16 @@
       "path": "plugins/indeed",
       "version": "0.1.0",
       "description": "Webcmd commands for indeed",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "instagram": {
+      "path": "plugins/instagram",
+      "version": "0.1.0",
+      "description": "Webcmd commands for instagram",
       "webcmd": ">=0.6.0",
       "author": {
         "name": "WebCMD Agent",
@@ -678,6 +718,16 @@
       "path": "plugins/mercury",
       "version": "0.1.0",
       "description": "Webcmd commands for mercury",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "notebooklm": {
+      "path": "plugins/notebooklm",
+      "version": "0.1.0",
+      "description": "Webcmd commands for notebooklm",
       "webcmd": ">=0.6.0",
       "author": {
         "name": "WebCMD Agent",
@@ -834,6 +884,26 @@
         "handle": "yoldaolmak"
       }
     },
+    "qoder": {
+      "path": "plugins/qoder",
+      "version": "0.1.0",
+      "description": "Webcmd commands for qoder",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "reddit": {
+      "path": "plugins/reddit",
+      "version": "0.1.0",
+      "description": "Webcmd commands for reddit",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
     "rest-countries": {
       "path": "plugins/rest-countries",
       "version": "0.1.0",
@@ -892,6 +962,16 @@
       "author": {
         "name": "Rishabh",
         "handle": "rishabhraj36"
+      }
+    },
+    "slock": {
+      "path": "plugins/slock",
+      "version": "0.1.0",
+      "description": "Webcmd commands for slock",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
       }
     },
     "spotify": {
@@ -954,6 +1034,16 @@
         "handle": "agentrhq"
       }
     },
+    "tiktok": {
+      "path": "plugins/tiktok",
+      "version": "0.1.0",
+      "description": "Webcmd commands for tiktok",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
     "trae-solo": {
       "path": "plugins/trae-solo",
       "version": "0.1.0",
@@ -964,10 +1054,30 @@
         "handle": "agentrhq"
       }
     },
+    "trip": {
+      "path": "plugins/trip",
+      "version": "0.1.0",
+      "description": "Webcmd commands for trip",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
     "tvmaze": {
       "path": "plugins/tvmaze",
       "version": "0.1.0",
       "description": "Webcmd commands for tvmaze",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "twitter": {
+      "path": "plugins/twitter",
+      "version": "0.1.0",
+      "description": "Webcmd commands for twitter",
       "webcmd": ">=0.6.0",
       "author": {
         "name": "WebCMD Agent",
@@ -1088,6 +1198,16 @@
       "path": "plugins/yollomi",
       "version": "0.1.0",
       "description": "Webcmd commands for yollomi",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "youtube": {
+      "path": "plugins/youtube",
+      "version": "0.1.0",
+      "description": "Webcmd commands for youtube",
       "webcmd": ">=0.6.0",
       "author": {
         "name": "WebCMD Agent",
