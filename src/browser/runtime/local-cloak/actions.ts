@@ -180,7 +180,7 @@ export async function dispatchCloakAction(manager: CloakSessionManager, command:
           timeoutMs: command.timeoutMs,
           maxOutputChars: command.maxOutputChars,
           memoryLimitBytes: command.memoryLimitBytes,
-          snapshotDiff: command.snapshotDiff,
+          snapshotDiff: command.noSnapshotDiff ? false : command.snapshotDiff,
           snapshotMode: command.snapshotMode,
           snapshotBaselineStore: snapshotBaselineStore(manager),
         });

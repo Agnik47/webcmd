@@ -56,6 +56,16 @@ describe('local Cloak browser run', () => {
     });
   });
 
+  it('omits snapshotDiff when noSnapshotDiff is requested', async () => {
+    const result = await dispatchCloakAction(manager, command('run-no-diff', 'run', {
+      source: "return 'ok';",
+      noSnapshotDiff: true,
+    }));
+
+    expect(result).toMatchObject({ ok: true, data: { result: 'ok' } });
+    expect(result.data).not.toHaveProperty('snapshotDiff');
+  });
+
   it('reuses the lease and keeps page state without keeping sandbox variables', async () => {
     const first = await dispatchCloakAction(manager, command('run-1', 'run', {
       source: `
