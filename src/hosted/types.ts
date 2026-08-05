@@ -197,7 +197,7 @@ export type HostedBrowserActionName =
 
 export interface HostedBrowserRunRequest {
   command: string;
-  args: Record<string, unknown>;
+  args: HostedBrowserActionArgs;
   profile?: string;
   windowMode?: 'foreground' | 'background';
   trace?: string;
@@ -218,8 +218,11 @@ export interface HostedBrowserRunResponse {
 
 export interface HostedBrowserActionRequest {
   action: HostedBrowserActionName;
-  args: Record<string, unknown>;
+  args: HostedBrowserActionArgs;
   profile?: string;
+}
+
+export interface HostedBrowserActionArgs extends Record<string, unknown> {
   snapshotMode?: 'act' | 'read';
   ref?: string;
   noSnapshotDiff?: boolean;

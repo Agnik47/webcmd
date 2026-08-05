@@ -98,7 +98,7 @@ Examples:
           if (Array.isArray(value)) return value.filter((entry): entry is string => typeof entry === 'string');
           return [];
         }),
-        options: { ...options },
+        options: normalizeBrowserOptions(contract.command, options),
         ...readBrowserGlobals(root, browser),
       };
     });
@@ -146,6 +146,12 @@ Examples:
     options: {},
     ...readBrowserGlobals(root, browser),
   };
+}
+
+function normalizeBrowserOptions(command: string, options: Record<string, unknown>): Record<string, unknown> {
+  if (command !== 'run' || options.snapshotDiff !== false) return { ...options };
+  const { snapshotDiff: _snapshotDiff, ...rest } = options;
+  return { ...rest, noSnapshotDiff: true };
 }
 
 function readBrowserGlobals(root: Command, browser: Command): Pick<

@@ -1581,13 +1581,13 @@ describe('runHostedCli', () => {
     }
   });
 
-  it('sends browser-run file contents to Cloud instead of the local path', async () => {
+  it('sends browser-run file contents and snapshot-diff options to Cloud instead of the local path', async () => {
     const sourceDir = await mkdtemp(path.join(tmpdir(), 'webcmd-hosted-run-source-'));
     const sourcePath = path.join(sourceDir, 'program.js');
     await writeFile(sourcePath, 'return 42;');
     const requests: Array<{ url: string; body?: Record<string, unknown> }> = [];
     try {
-      const result = await runHostedCli(['browser', 'work', 'run', '--file', sourcePath], {
+      const result = await runHostedCli(['browser', 'work', 'run', '--file', sourcePath, '--no-snapshot-diff'], {
         config: makeHostedConfig({ apiBaseUrl: 'https://api.example.com', apiKey: 'key' }),
         stdout: sink().stream,
         stderr: sink().stream,
@@ -1610,7 +1610,7 @@ describe('runHostedCli', () => {
       expect(requests[1]?.body).toMatchObject({
         command: 'browser/run',
         action: 'run',
-        args: { source: 'return 42;' },
+        args: { source: 'return 42;', noSnapshotDiff: true },
       });
       expect(JSON.stringify(requests[1]?.body)).not.toContain(sourcePath);
     } finally {

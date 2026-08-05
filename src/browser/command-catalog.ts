@@ -63,6 +63,7 @@ export function browserOptionFlags(option: HostedArgumentContract, commandPath?:
     : option.name === 'file' ? 'path'
       : option.name === 'timeout' && commandPath === 'run' ? 'seconds'
         : option.name === 'maxOutput' ? 'characters'
+          : option.name === 'snapshotMode' ? 'mode'
           : option.name;
   return `--${longName} <${valueName}>`;
 }

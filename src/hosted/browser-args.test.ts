@@ -29,7 +29,7 @@ describe('hosted browser argument surface', () => {
       .toMatchObject({
         commandName: 'run',
         session: 'work',
-        options: { file: 'job.js', timeout: 12, maxOutput: 1000, snapshotMode: 'read', snapshotDiff: false },
+        options: { file: 'job.js', timeout: 12, maxOutput: 1000, snapshotMode: 'read', noSnapshotDiff: true },
       });
     expect(() => parse(['browser', 'work', 'run', '--tab', 'page-123'])).toThrow(CommanderStructuralError);
   });

@@ -1017,7 +1017,7 @@ cli({
     .addOption(new Option('--timeout <seconds>', 'Execution timeout in seconds').argParser(browserOptionValueParser('run', 'timeout')!))
     .addOption(new Option('--max-output <characters>', 'Maximum returned characters').argParser(browserOptionValueParser('run', 'maxOutput')!))
     .addOption(new Option('--snapshot-mode <mode>', 'Snapshot mode for automatic diff: act or read').default('act').argParser(browserOptionValueParser('run', 'snapshotMode')!))
-    .option('--no-snapshot-diff', 'Skip the automatic before/after semantic diff');
+    .option('--no-snapshot-diff', 'Skip the automatic before/after snapshot diff');
   runCommand.action(rawBrowserAction(async (session, routing, opts) => {
     let source: string;
     try {
