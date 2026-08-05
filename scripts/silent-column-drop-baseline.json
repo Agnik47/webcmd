@@ -153,7 +153,7 @@
   },
   {
     "command": "bloomberg/news",
-    "file": "clis/bloomberg/news.js",
+    "file": "plugins/bloomberg/news.js",
     "missing": [
       "errorCode",
       "message",
@@ -162,7 +162,7 @@
   },
   {
     "command": "bloomberg/news",
-    "file": "clis/bloomberg/news.js",
+    "file": "plugins/bloomberg/news.js",
     "missing": [
       "errorCode",
       "preview"
@@ -194,7 +194,7 @@
   },
   {
     "command": "indeed/job",
-    "file": "clis/indeed/job.js",
+    "file": "plugins/indeed/job.js",
     "missing": [
       "challenge",
       "jobType",
@@ -204,7 +204,7 @@
   },
   {
     "command": "indeed/search",
-    "file": "clis/indeed/search.js",
+    "file": "plugins/indeed/search.js",
     "missing": [
       "jk"
     ]
@@ -317,7 +317,7 @@
   },
   {
     "command": "producthunt/hot",
-    "file": "clis/producthunt/hot.js",
+    "file": "plugins/producthunt/hot.js",
     "missing": [
       "voteCandidates"
     ]
@@ -372,7 +372,7 @@
   },
   {
     "command": "uiverse/code",
-    "file": "clis/uiverse/code.js",
+    "file": "plugins/uiverse/code.js",
     "missing": [
       "code",
       "isTailwind",
@@ -383,7 +383,7 @@
   },
   {
     "command": "uiverse/preview",
-    "file": "clis/uiverse/preview.js",
+    "file": "plugins/uiverse/preview.js",
     "missing": [
       "matchedClassName",
       "matchedTag",
@@ -396,7 +396,7 @@
   },
   {
     "command": "web/fetch-browser",
-    "file": "clis/web/fetch-browser.js",
+    "file": "plugins/web/fetch-browser.js",
     "missing": [
       "accessible",
       "index",
@@ -407,7 +407,7 @@
   },
   {
     "command": "web/fetch-browser",
-    "file": "clis/web/fetch-browser.js",
+    "file": "plugins/web/fetch-browser.js",
     "missing": [
       "bodyTruncated",
       "contentType",
@@ -417,7 +417,7 @@
   },
   {
     "command": "yahoo-finance/quote",
-    "file": "clis/yahoo-finance/quote.js",
+    "file": "plugins/yahoo-finance/quote.js",
     "missing": [
       "currency",
       "exchange"

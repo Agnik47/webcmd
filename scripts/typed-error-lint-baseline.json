@@ -122,7 +122,7 @@
   {
     "rule": "silent-clamp",
     "command": "imdb/person",
-    "file": "clis/imdb/person.js",
+    "file": "plugins/imdb/person.js",
     "line": 23,
     "text": "const limit = Math.max(1, Math.min(Number(args.limit) || 10, 30));",
     "occurrence": 0
@@ -130,7 +130,7 @@
   {
     "rule": "silent-clamp",
     "command": "imdb/reviews",
-    "file": "clis/imdb/reviews.js",
+    "file": "plugins/imdb/reviews.js",
     "line": 22,
     "text": "const limit = Math.max(1, Math.min(Number(args.limit) || 10, 25));",
     "occurrence": 0
@@ -138,7 +138,7 @@
   {
     "rule": "silent-clamp",
     "command": "imdb/search",
-    "file": "clis/imdb/search.js",
+    "file": "plugins/imdb/search.js",
     "line": 27,
     "text": "const limit = Math.max(1, Math.min(Number(args.limit) || 20, 50));",
     "occurrence": 0
@@ -146,7 +146,7 @@
   {
     "rule": "silent-clamp",
     "command": "imdb/top",
-    "file": "clis/imdb/top.js",
+    "file": "plugins/imdb/top.js",
     "line": 31,
     "text": "const limit = Math.max(1, Math.min(Number(args.limit) || 20, 250));",
     "occurrence": 0
@@ -154,7 +154,7 @@
   {
     "rule": "silent-clamp",
     "command": "imdb/trending",
-    "file": "clis/imdb/trending.js",
+    "file": "plugins/imdb/trending.js",
     "line": 31,
     "text": "const limit = Math.max(1, Math.min(Number(args.limit) || 20, 100));",
     "occurrence": 0
@@ -178,7 +178,7 @@
   {
     "rule": "silent-clamp",
     "command": "producthunt/browse",
-    "file": "clis/producthunt/browse.js",
+    "file": "plugins/producthunt/browse.js",
     "line": 30,
     "text": "const count = Math.min(Number(args.limit) || 20, 50);",
     "occurrence": 0
@@ -186,7 +186,7 @@
   {
     "rule": "silent-clamp",
     "command": "producthunt/hot",
-    "file": "clis/producthunt/hot.js",
+    "file": "plugins/producthunt/hot.js",
     "line": 21,
     "text": "const count = Math.min(Number(args.limit) || 20, 50);",
     "occurrence": 0
@@ -194,7 +194,7 @@
   {
     "rule": "silent-clamp",
     "command": "producthunt/posts",
-    "file": "clis/producthunt/posts.js",
+    "file": "plugins/producthunt/posts.js",
     "line": 24,
     "text": "const count = Math.min(Number(args.limit) || 20, 50);",
     "occurrence": 0
@@ -202,7 +202,7 @@
   {
     "rule": "silent-clamp",
     "command": "producthunt/today",
-    "file": "clis/producthunt/today.js",
+    "file": "plugins/producthunt/today.js",
     "line": 21,
     "text": "const count = Math.min(Number(args.limit) || 20, 50);",
     "occurrence": 0
@@ -314,7 +314,7 @@
   {
     "rule": "silent-clamp",
     "command": "substack/search",
-    "file": "clis/substack/search.js",
+    "file": "plugins/substack/search.js",
     "line": 75,
     "text": "const limit = Math.max(1, Math.min(Number(args.limit) || 20, 50));",
     "occurrence": 0
@@ -466,7 +466,7 @@
   {
     "rule": "silent-clamp",
     "command": "zlibrary/search",
-    "file": "clis/zlibrary/search.js",
+    "file": "plugins/zlibrary/search.js",
     "line": 31,
     "text": "const limit = Math.max(1, Math.min(Number(args.limit) || 10, 25));",
     "occurrence": 0
@@ -546,7 +546,7 @@
   {
     "rule": "silent-sentinel",
     "command": "web/fetch-browser",
-    "file": "clis/web/fetch-browser.js",
+    "file": "plugins/web/fetch-browser.js",
     "line": 378,
     "text": "lines.push(`  [frame ${frame.index}] ${frame.sameOrigin ? 'same-origin' : 'cross-origin'} ${frame.accessible ? 'accessible' : 'blocked'} text=${frame.textLength || 0} ${frame.src || '-'}`);",
     "occurrence": 0
@@ -554,7 +554,7 @@
   {
     "rule": "silent-sentinel",
     "command": "web/fetch-browser",
-    "file": "clis/web/fetch-browser.js",
+    "file": "plugins/web/fetch-browser.js",
     "line": 390,
     "text": "lines.push(`  ${entry.method} ${entry.status || '-'} ${entry.contentType || '-'} ${entry.url}`);",
     "occurrence": 0
@@ -562,7 +562,7 @@
   {
     "rule": "silent-sentinel",
     "command": "web/fetch-browser",
-    "file": "clis/web/fetch-browser.js",
+    "file": "plugins/web/fetch-browser.js",
     "line": 384,
     "text": "lines.push(`  ${item.scope}: ${selector} (${item.url || '-'})`);",
     "occurrence": 0
@@ -570,7 +570,7 @@
   {
     "rule": "silent-sentinel",
     "command": "web/fetch-browser",
-    "file": "clis/web/fetch-browser.js",
+    "file": "plugins/web/fetch-browser.js",
     "line": 375,
     "text": "lines.push(`url: ${diag.url || '-'}`);",
     "occurrence": 0

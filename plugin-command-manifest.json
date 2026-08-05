@@ -411,6 +411,193 @@
     "sourceFile": "plugins/arxiv/search.js"
   },
   {
+    "site": "barchart",
+    "name": "flow",
+    "description": "Barchart unusual options activity / options flow",
+    "access": "read",
+    "domain": "www.barchart.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "type",
+        "type": "str",
+        "default": "all",
+        "required": false,
+        "help": "Filter: all, call, or put",
+        "choices": [
+          "all",
+          "call",
+          "put"
+        ]
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of results"
+      }
+    ],
+    "columns": [
+      "symbol",
+      "type",
+      "strike",
+      "expiration",
+      "last",
+      "volume",
+      "openInterest",
+      "volOiRatio",
+      "iv"
+    ],
+    "type": "js",
+    "modulePath": "plugins/barchart/flow.js",
+    "sourceFile": "plugins/barchart/flow.js",
+    "navigateBefore": "https://www.barchart.com"
+  },
+  {
+    "site": "barchart",
+    "name": "greeks",
+    "description": "Barchart options greeks overview (IV, delta, gamma, theta, vega)",
+    "access": "read",
+    "domain": "www.barchart.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "symbol",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Stock ticker (e.g. AAPL)"
+      },
+      {
+        "name": "expiration",
+        "type": "str",
+        "required": false,
+        "help": "Expiration date (YYYY-MM-DD). Defaults to the nearest available expiration."
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Number of near-the-money strikes per type (1-100)"
+      }
+    ],
+    "columns": [
+      "type",
+      "strike",
+      "last",
+      "iv",
+      "delta",
+      "gamma",
+      "theta",
+      "vega",
+      "rho",
+      "volume",
+      "openInterest",
+      "expiration"
+    ],
+    "type": "js",
+    "modulePath": "plugins/barchart/greeks.js",
+    "sourceFile": "plugins/barchart/greeks.js",
+    "navigateBefore": "https://www.barchart.com"
+  },
+  {
+    "site": "barchart",
+    "name": "options",
+    "description": "Barchart options chain with greeks, IV, volume, and open interest",
+    "access": "read",
+    "domain": "www.barchart.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "symbol",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Stock ticker (e.g. AAPL)"
+      },
+      {
+        "name": "type",
+        "type": "str",
+        "default": "Call",
+        "required": false,
+        "help": "Option type: Call or Put",
+        "choices": [
+          "Call",
+          "Put"
+        ]
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max number of strikes to return"
+      }
+    ],
+    "columns": [
+      "strike",
+      "bid",
+      "ask",
+      "last",
+      "change",
+      "volume",
+      "openInterest",
+      "iv",
+      "delta",
+      "gamma",
+      "theta",
+      "vega",
+      "expiration"
+    ],
+    "type": "js",
+    "modulePath": "plugins/barchart/options.js",
+    "sourceFile": "plugins/barchart/options.js",
+    "navigateBefore": "https://www.barchart.com"
+  },
+  {
+    "site": "barchart",
+    "name": "quote",
+    "description": "Barchart stock quote with price, volume, and key metrics",
+    "access": "read",
+    "domain": "www.barchart.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "symbol",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Stock ticker (e.g. AAPL, MSFT, TSLA)"
+      }
+    ],
+    "columns": [
+      "symbol",
+      "name",
+      "price",
+      "change",
+      "changePct",
+      "open",
+      "high",
+      "low",
+      "prevClose",
+      "volume",
+      "avgVolume",
+      "marketCap",
+      "peRatio",
+      "eps"
+    ],
+    "type": "js",
+    "modulePath": "plugins/barchart/quote.js",
+    "sourceFile": "plugins/barchart/quote.js",
+    "navigateBefore": "https://www.barchart.com"
+  },
+  {
     "site": "bbc",
     "name": "news",
     "description": "BBC News headlines (RSS)",
@@ -820,6 +1007,349 @@
     "sourceFile": "plugins/binance/trades.js"
   },
   {
+    "site": "bloomberg",
+    "name": "businessweek",
+    "description": "Bloomberg Businessweek top stories",
+    "access": "read",
+    "domain": "www.bloomberg.com",
+    "strategy": "public",
+    "browser": true,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 1,
+        "required": false,
+        "help": "Number of stories to return (max 20)"
+      }
+    ],
+    "columns": [
+      "title",
+      "summary",
+      "link",
+      "mediaLinks"
+    ],
+    "type": "js",
+    "modulePath": "plugins/bloomberg/businessweek.js",
+    "sourceFile": "plugins/bloomberg/businessweek.js"
+  },
+  {
+    "site": "bloomberg",
+    "name": "crypto",
+    "description": "Bloomberg Crypto top stories (RSS)",
+    "access": "read",
+    "domain": "feeds.bloomberg.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 1,
+        "required": false,
+        "help": "Number of feed items to return (max 20)"
+      }
+    ],
+    "columns": [
+      "title",
+      "summary",
+      "link",
+      "mediaLinks"
+    ],
+    "type": "js",
+    "modulePath": "plugins/bloomberg/crypto.js",
+    "sourceFile": "plugins/bloomberg/crypto.js"
+  },
+  {
+    "site": "bloomberg",
+    "name": "economics",
+    "description": "Bloomberg Economics top stories (RSS)",
+    "access": "read",
+    "domain": "feeds.bloomberg.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 1,
+        "required": false,
+        "help": "Number of feed items to return (max 20)"
+      }
+    ],
+    "columns": [
+      "title",
+      "summary",
+      "link",
+      "mediaLinks"
+    ],
+    "type": "js",
+    "modulePath": "plugins/bloomberg/economics.js",
+    "sourceFile": "plugins/bloomberg/economics.js"
+  },
+  {
+    "site": "bloomberg",
+    "name": "feeds",
+    "description": "List the Bloomberg RSS feed aliases used by the adapter",
+    "access": "read",
+    "domain": "feeds.bloomberg.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [],
+    "columns": [
+      "name",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/bloomberg/feeds.js",
+    "sourceFile": "plugins/bloomberg/feeds.js"
+  },
+  {
+    "site": "bloomberg",
+    "name": "green",
+    "description": "Bloomberg Green (climate & energy) top stories (RSS)",
+    "access": "read",
+    "domain": "feeds.bloomberg.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 1,
+        "required": false,
+        "help": "Number of feed items to return (max 20)"
+      }
+    ],
+    "columns": [
+      "title",
+      "summary",
+      "link",
+      "mediaLinks"
+    ],
+    "type": "js",
+    "modulePath": "plugins/bloomberg/green.js",
+    "sourceFile": "plugins/bloomberg/green.js"
+  },
+  {
+    "site": "bloomberg",
+    "name": "industries",
+    "description": "Bloomberg Industries top stories (RSS)",
+    "access": "read",
+    "domain": "feeds.bloomberg.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 1,
+        "required": false,
+        "help": "Number of feed items to return (max 20)"
+      }
+    ],
+    "columns": [
+      "title",
+      "summary",
+      "link",
+      "mediaLinks"
+    ],
+    "type": "js",
+    "modulePath": "plugins/bloomberg/industries.js",
+    "sourceFile": "plugins/bloomberg/industries.js"
+  },
+  {
+    "site": "bloomberg",
+    "name": "main",
+    "description": "Bloomberg homepage top stories (RSS)",
+    "access": "read",
+    "domain": "feeds.bloomberg.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 1,
+        "required": false,
+        "help": "Number of feed items to return (max 20)"
+      }
+    ],
+    "columns": [
+      "title",
+      "summary",
+      "link",
+      "mediaLinks"
+    ],
+    "type": "js",
+    "modulePath": "plugins/bloomberg/main.js",
+    "sourceFile": "plugins/bloomberg/main.js"
+  },
+  {
+    "site": "bloomberg",
+    "name": "markets",
+    "description": "Bloomberg Markets top stories (RSS)",
+    "access": "read",
+    "domain": "feeds.bloomberg.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 1,
+        "required": false,
+        "help": "Number of feed items to return (max 20)"
+      }
+    ],
+    "columns": [
+      "title",
+      "summary",
+      "link",
+      "mediaLinks"
+    ],
+    "type": "js",
+    "modulePath": "plugins/bloomberg/markets.js",
+    "sourceFile": "plugins/bloomberg/markets.js"
+  },
+  {
+    "site": "bloomberg",
+    "name": "news",
+    "description": "Read a Bloomberg story/article page and return title, full content, and media links",
+    "access": "read",
+    "domain": "www.bloomberg.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "link",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Bloomberg story/article URL or relative Bloomberg path"
+      }
+    ],
+    "columns": [
+      "title",
+      "summary",
+      "link",
+      "mediaLinks",
+      "content"
+    ],
+    "type": "js",
+    "modulePath": "plugins/bloomberg/news.js",
+    "sourceFile": "plugins/bloomberg/news.js",
+    "navigateBefore": "https://www.bloomberg.com"
+  },
+  {
+    "site": "bloomberg",
+    "name": "opinions",
+    "description": "Bloomberg Opinion top stories (RSS)",
+    "access": "read",
+    "domain": "feeds.bloomberg.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 1,
+        "required": false,
+        "help": "Number of feed items to return (max 20)"
+      }
+    ],
+    "columns": [
+      "title",
+      "summary",
+      "link",
+      "mediaLinks"
+    ],
+    "type": "js",
+    "modulePath": "plugins/bloomberg/opinions.js",
+    "sourceFile": "plugins/bloomberg/opinions.js"
+  },
+  {
+    "site": "bloomberg",
+    "name": "politics",
+    "description": "Bloomberg Politics top stories (RSS)",
+    "access": "read",
+    "domain": "feeds.bloomberg.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 1,
+        "required": false,
+        "help": "Number of feed items to return (max 20)"
+      }
+    ],
+    "columns": [
+      "title",
+      "summary",
+      "link",
+      "mediaLinks"
+    ],
+    "type": "js",
+    "modulePath": "plugins/bloomberg/politics.js",
+    "sourceFile": "plugins/bloomberg/politics.js"
+  },
+  {
+    "site": "bloomberg",
+    "name": "pursuits",
+    "description": "Bloomberg Pursuits (lifestyle) top stories (RSS)",
+    "access": "read",
+    "domain": "feeds.bloomberg.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 1,
+        "required": false,
+        "help": "Number of feed items to return (max 20)"
+      }
+    ],
+    "columns": [
+      "title",
+      "summary",
+      "link",
+      "mediaLinks"
+    ],
+    "type": "js",
+    "modulePath": "plugins/bloomberg/pursuits.js",
+    "sourceFile": "plugins/bloomberg/pursuits.js"
+  },
+  {
+    "site": "bloomberg",
+    "name": "tech",
+    "description": "Bloomberg Tech top stories (RSS)",
+    "access": "read",
+    "domain": "feeds.bloomberg.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 1,
+        "required": false,
+        "help": "Number of feed items to return (max 20)"
+      }
+    ],
+    "columns": [
+      "title",
+      "summary",
+      "link",
+      "mediaLinks"
+    ],
+    "type": "js",
+    "modulePath": "plugins/bloomberg/tech.js",
+    "sourceFile": "plugins/bloomberg/tech.js"
+  },
+  {
     "site": "bluesky",
     "name": "feeds",
     "description": "Popular Bluesky feed generators",
@@ -1215,6 +1745,104 @@
     "sourceFile": "plugins/bmwblog/search.js"
   },
   {
+    "site": "booking",
+    "name": "search",
+    "description": "Search Booking.com hotels by destination and dates (server-rendered card scrape).",
+    "access": "read",
+    "example": "webcmd booking search Tokyo --checkin 2026-06-15 --checkout 2026-06-17 -f yaml",
+    "domain": "www.booking.com",
+    "strategy": "public",
+    "browser": true,
+    "args": [
+      {
+        "name": "destination",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Destination keyword (city, district, or hotel name)"
+      },
+      {
+        "name": "checkin",
+        "type": "str",
+        "required": true,
+        "help": "Check-in date YYYY-MM-DD"
+      },
+      {
+        "name": "checkout",
+        "type": "str",
+        "required": true,
+        "help": "Check-out date YYYY-MM-DD"
+      },
+      {
+        "name": "adults",
+        "type": "int",
+        "default": 2,
+        "required": false,
+        "help": "Number of adults (1-30)"
+      },
+      {
+        "name": "rooms",
+        "type": "int",
+        "default": 1,
+        "required": false,
+        "help": "Number of rooms (1-30)"
+      },
+      {
+        "name": "children",
+        "type": "int",
+        "default": 0,
+        "required": false,
+        "help": "Number of children (0-10)"
+      },
+      {
+        "name": "currency",
+        "type": "str",
+        "required": false,
+        "help": "Force result currency (e.g. USD, JPY, CNY)"
+      },
+      {
+        "name": "lang",
+        "type": "str",
+        "required": false,
+        "help": "Force result language (e.g. en-us, zh-cn, ja)"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 25,
+        "required": false,
+        "help": "Max rows to return (1-100; Booking pages 25 per request)"
+      },
+      {
+        "name": "offset",
+        "type": "int",
+        "default": 0,
+        "required": false,
+        "help": "Result offset for pagination (multiple of 25)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "name",
+      "country",
+      "slug",
+      "star_rating",
+      "review_score",
+      "review_count",
+      "price_amount",
+      "price_currency",
+      "distance",
+      "recommended_room",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/booking/search.js",
+    "sourceFile": "plugins/booking/search.js"
+  },
+  {
     "site": "brave",
     "name": "search",
     "description": "Search Brave Search",
@@ -1464,6 +2092,143 @@
     "modulePath": "plugins/chatwise/status.js",
     "sourceFile": "plugins/chatwise/status.js",
     "navigateBefore": true
+  },
+  {
+    "site": "chess",
+    "name": "analyze",
+    "description": "Open a Chess.com game in the browser analysis board",
+    "access": "read",
+    "domain": "www.chess.com",
+    "strategy": "ui",
+    "browser": true,
+    "args": [
+      {
+        "name": "game-url",
+        "type": "string",
+        "required": true,
+        "positional": true,
+        "help": "Full game URL, e.g. https://www.chess.com/game/live/168842570216"
+      }
+    ],
+    "columns": [
+      "kind",
+      "game_id",
+      "analysis_url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/chess/analyze.js",
+    "sourceFile": "plugins/chess/analyze.js",
+    "navigateBefore": false
+  },
+  {
+    "site": "chess",
+    "name": "game",
+    "description": "Chess.com single-game detail (white, black, result, ECO, time control) by full game URL",
+    "access": "read",
+    "domain": "www.chess.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "game-url",
+        "type": "string",
+        "required": true,
+        "positional": true,
+        "help": "Full game URL, e.g. https://www.chess.com/game/live/168842570216"
+      }
+    ],
+    "columns": [
+      "kind",
+      "game_id",
+      "date",
+      "white",
+      "white_rating",
+      "black",
+      "black_rating",
+      "result",
+      "winner_color",
+      "termination",
+      "eco",
+      "time_control",
+      "rated",
+      "ply_count",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/chess/game.js",
+    "sourceFile": "plugins/chess/game.js"
+  },
+  {
+    "site": "chess",
+    "name": "games",
+    "description": "Chess.com recent games for a player, newest first",
+    "access": "read",
+    "domain": "api.chess.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "username",
+        "type": "string",
+        "required": true,
+        "positional": true,
+        "help": "Chess.com username"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Number of recent games (1-100)"
+      }
+    ],
+    "columns": [
+      "date",
+      "time_class",
+      "rated",
+      "my_color",
+      "my_rating",
+      "my_result",
+      "opponent",
+      "opponent_rating",
+      "accuracy_white",
+      "accuracy_black",
+      "eco",
+      "opening_name",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/chess/games.js",
+    "sourceFile": "plugins/chess/games.js"
+  },
+  {
+    "site": "chess",
+    "name": "stats",
+    "description": "Chess.com player ratings + win/loss record across game kinds",
+    "access": "read",
+    "domain": "api.chess.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "username",
+        "type": "string",
+        "required": true,
+        "positional": true,
+        "help": "Chess.com username (case-insensitive)"
+      }
+    ],
+    "columns": [
+      "kind",
+      "rating_current",
+      "rating_best",
+      "wins",
+      "losses",
+      "draws"
+    ],
+    "type": "js",
+    "modulePath": "plugins/chess/stats.js",
+    "sourceFile": "plugins/chess/stats.js"
   },
   {
     "site": "cincinnati",
@@ -4786,6 +5551,301 @@
     "sourceFile": "plugins/iit/export-postgraduate-courses.js"
   },
   {
+    "site": "imdb",
+    "name": "person",
+    "description": "Get actor or director info",
+    "access": "read",
+    "domain": "www.imdb.com",
+    "strategy": "public",
+    "browser": true,
+    "args": [
+      {
+        "name": "id",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "IMDb person ID (nm0634240) or URL"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Max filmography entries"
+      }
+    ],
+    "columns": [
+      "field",
+      "value"
+    ],
+    "type": "js",
+    "modulePath": "plugins/imdb/person.js",
+    "sourceFile": "plugins/imdb/person.js"
+  },
+  {
+    "site": "imdb",
+    "name": "reviews",
+    "description": "Get user reviews for a movie or TV show",
+    "access": "read",
+    "domain": "www.imdb.com",
+    "strategy": "public",
+    "browser": true,
+    "args": [
+      {
+        "name": "id",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "IMDb title ID (tt1375666) or URL"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Number of reviews"
+      }
+    ],
+    "columns": [
+      "rank",
+      "title",
+      "rating",
+      "author",
+      "date",
+      "text"
+    ],
+    "type": "js",
+    "modulePath": "plugins/imdb/reviews.js",
+    "sourceFile": "plugins/imdb/reviews.js"
+  },
+  {
+    "site": "imdb",
+    "name": "search",
+    "description": "Search IMDb for movies, TV shows, and people",
+    "access": "read",
+    "domain": "www.imdb.com",
+    "strategy": "public",
+    "browser": true,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Search query"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of results"
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "title",
+      "year",
+      "type",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/imdb/search.js",
+    "sourceFile": "plugins/imdb/search.js"
+  },
+  {
+    "site": "imdb",
+    "name": "title",
+    "description": "Get movie or TV show details",
+    "access": "read",
+    "domain": "www.imdb.com",
+    "strategy": "public",
+    "browser": true,
+    "args": [
+      {
+        "name": "id",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "IMDb title ID (tt1375666) or URL"
+      }
+    ],
+    "columns": [
+      "field",
+      "value"
+    ],
+    "type": "js",
+    "modulePath": "plugins/imdb/title.js",
+    "sourceFile": "plugins/imdb/title.js"
+  },
+  {
+    "site": "imdb",
+    "name": "top",
+    "description": "IMDb Top 250 Movies",
+    "access": "read",
+    "domain": "www.imdb.com",
+    "strategy": "public",
+    "browser": true,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of results"
+      }
+    ],
+    "columns": [
+      "rank",
+      "title",
+      "rating",
+      "votes",
+      "genre",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/imdb/top.js",
+    "sourceFile": "plugins/imdb/top.js"
+  },
+  {
+    "site": "imdb",
+    "name": "trending",
+    "description": "IMDb Most Popular Movies",
+    "access": "read",
+    "domain": "www.imdb.com",
+    "strategy": "public",
+    "browser": true,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of results"
+      }
+    ],
+    "columns": [
+      "rank",
+      "title",
+      "rating",
+      "genre",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/imdb/trending.js",
+    "sourceFile": "plugins/imdb/trending.js"
+  },
+  {
+    "site": "indeed",
+    "name": "job",
+    "aliases": [
+      "detail",
+      "view"
+    ],
+    "description": "Read the full Indeed job posting by jk (job key)",
+    "access": "read",
+    "domain": "www.indeed.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "id",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Job key (16-char hex from `indeed search`, e.g. \"dccc07ac5a6a3683\")"
+      }
+    ],
+    "columns": [
+      "id",
+      "title",
+      "company",
+      "location",
+      "salary",
+      "job_type",
+      "description",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/indeed/job.js",
+    "sourceFile": "plugins/indeed/job.js",
+    "navigateBefore": false
+  },
+  {
+    "site": "indeed",
+    "name": "search",
+    "description": "Indeed keyword job search (rendered DOM via browser session, US site)",
+    "access": "read",
+    "domain": "www.indeed.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Job keyword (title / skill / company)"
+      },
+      {
+        "name": "location",
+        "type": "string",
+        "default": "",
+        "required": false,
+        "help": "Location filter (e.g. \"remote\", \"New York, NY\", \"San Francisco\")"
+      },
+      {
+        "name": "fromage",
+        "type": "string",
+        "default": "",
+        "required": false,
+        "help": "Recency filter, days back: 1 / 3 / 7 / 14"
+      },
+      {
+        "name": "sort",
+        "type": "string",
+        "default": "relevance",
+        "required": false,
+        "help": "Sort order: relevance | date"
+      },
+      {
+        "name": "start",
+        "type": "int",
+        "default": 0,
+        "required": false,
+        "help": "Pagination offset (multiple of 10, 0-based)"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 15,
+        "required": false,
+        "help": "Max rows to return (1-25, capped at one page)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "title",
+      "company",
+      "location",
+      "salary",
+      "tags",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/indeed/search.js",
+    "sourceFile": "plugins/indeed/search.js",
+    "navigateBefore": false
+  },
+  {
     "site": "jhu",
     "name": "export-postgraduate-courses",
     "description": "Export Johns Hopkins University postgraduate programs using the official Academic Catalogue.",
@@ -7374,6 +8434,158 @@
     "sourceFile": "plugins/mdn/search.js"
   },
   {
+    "site": "medium",
+    "name": "feed",
+    "description": "Medium popular posts Feed",
+    "access": "read",
+    "domain": "medium.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "topic",
+        "type": "str",
+        "default": "",
+        "required": false,
+        "help": "Topic (for example technology, programming, ai)"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of posts to return"
+      }
+    ],
+    "columns": [
+      "rank",
+      "title",
+      "author",
+      "date",
+      "readTime",
+      "claps"
+    ],
+    "type": "js",
+    "modulePath": "plugins/medium/feed.js",
+    "sourceFile": "plugins/medium/feed.js",
+    "navigateBefore": "https://medium.com"
+  },
+  {
+    "site": "medium",
+    "name": "search",
+    "description": "Search Medium posts",
+    "access": "read",
+    "domain": "medium.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "keyword",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Search keyword"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of posts to return"
+      }
+    ],
+    "columns": [
+      "rank",
+      "title",
+      "author",
+      "date",
+      "readTime",
+      "claps",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/medium/search.js",
+    "sourceFile": "plugins/medium/search.js",
+    "navigateBefore": "https://medium.com"
+  },
+  {
+    "site": "medium",
+    "name": "tag",
+    "description": "Latest Medium articles tagged with a given keyword (RSS feed)",
+    "access": "read",
+    "domain": "medium.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "tag",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Lowercase tag slug (e.g. \"programming\", \"machine-learning\")"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max articles (1-25 — single RSS page)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "title",
+      "author",
+      "description",
+      "categories",
+      "published",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/medium/tag.js",
+    "sourceFile": "plugins/medium/tag.js"
+  },
+  {
+    "site": "medium",
+    "name": "user",
+    "description": "Get Medium user posts",
+    "access": "read",
+    "domain": "medium.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "username",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Medium username(for example @username or username)"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of posts to return"
+      }
+    ],
+    "columns": [
+      "rank",
+      "title",
+      "date",
+      "readTime",
+      "claps",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/medium/user.js",
+    "sourceFile": "plugins/medium/user.js",
+    "navigateBefore": "https://medium.com"
+  },
+  {
     "site": "npm",
     "name": "downloads",
     "description": "Daily download counts for an npm package over a window",
@@ -8220,6 +9432,137 @@
     "type": "js",
     "modulePath": "plugins/packagist/search.js",
     "sourceFile": "plugins/packagist/search.js"
+  },
+  {
+    "site": "producthunt",
+    "name": "browse",
+    "description": "Best products in a Product Hunt category",
+    "access": "read",
+    "domain": "www.producthunt.com",
+    "strategy": "intercept",
+    "browser": true,
+    "args": [
+      {
+        "name": "category",
+        "type": "string",
+        "required": true,
+        "positional": true,
+        "help": "Category slug, e.g. vibe-coding, ai-agents, developer-tools"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of results (max 50)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "name",
+      "tagline",
+      "reviews",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/producthunt/browse.js",
+    "sourceFile": "plugins/producthunt/browse.js",
+    "navigateBefore": true
+  },
+  {
+    "site": "producthunt",
+    "name": "hot",
+    "description": "Today's top Product Hunt launches with vote counts",
+    "access": "read",
+    "domain": "www.producthunt.com",
+    "strategy": "intercept",
+    "browser": true,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of results (max 50)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "name",
+      "votes",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/producthunt/hot.js",
+    "sourceFile": "plugins/producthunt/hot.js",
+    "navigateBefore": true
+  },
+  {
+    "site": "producthunt",
+    "name": "posts",
+    "description": "Latest Product Hunt launches (optional category filter)",
+    "access": "read",
+    "domain": "www.producthunt.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of results (max 50)"
+      },
+      {
+        "name": "category",
+        "type": "string",
+        "default": "",
+        "required": false,
+        "help": "Category filter: ai-agents, ai-coding-agents, ai-code-editors, ai-chatbots, ai-workflow-automation, vibe-coding, developer-tools, productivity, design-creative, marketing-sales, no-code-platforms, llms, finance, social-community, engineering-development"
+      }
+    ],
+    "columns": [
+      "rank",
+      "name",
+      "tagline",
+      "author",
+      "date",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/producthunt/posts.js",
+    "sourceFile": "plugins/producthunt/posts.js"
+  },
+  {
+    "site": "producthunt",
+    "name": "today",
+    "description": "Today's Product Hunt launches (most recent day in feed)",
+    "access": "read",
+    "domain": "www.producthunt.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max results"
+      }
+    ],
+    "columns": [
+      "rank",
+      "name",
+      "tagline",
+      "author",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/producthunt/today.js",
+    "sourceFile": "plugins/producthunt/today.js"
   },
   {
     "site": "pubmed",
@@ -9814,6 +11157,129 @@
     "sourceFile": "plugins/steam/top-sellers.js"
   },
   {
+    "site": "substack",
+    "name": "feed",
+    "description": "Substack popular posts Feed",
+    "access": "read",
+    "domain": "substack.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "category",
+        "type": "str",
+        "default": "all",
+        "required": false,
+        "help": "Post category: all, tech, business, culture, politics, science, health"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of posts to return"
+      }
+    ],
+    "columns": [
+      "rank",
+      "title",
+      "author",
+      "date",
+      "readTime",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/substack/feed.js",
+    "sourceFile": "plugins/substack/feed.js",
+    "navigateBefore": "https://substack.com"
+  },
+  {
+    "site": "substack",
+    "name": "publication",
+    "description": "Get a specific Substack Newsletter latest posts",
+    "access": "read",
+    "domain": "substack.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "url",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Newsletter URL(for example https://example.substack.com)"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of posts to return"
+      }
+    ],
+    "columns": [
+      "rank",
+      "title",
+      "date",
+      "description",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/substack/publication.js",
+    "sourceFile": "plugins/substack/publication.js",
+    "navigateBefore": "https://substack.com"
+  },
+  {
+    "site": "substack",
+    "name": "search",
+    "description": "Search Substack posts and newsletters",
+    "access": "read",
+    "domain": "substack.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "keyword",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Search keyword"
+      },
+      {
+        "name": "type",
+        "type": "str",
+        "default": "posts",
+        "required": false,
+        "help": "Search type(posts=posts, publications=Newsletter)",
+        "choices": [
+          "posts",
+          "publications"
+        ]
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of results to return"
+      }
+    ],
+    "columns": [
+      "rank",
+      "title",
+      "author",
+      "date",
+      "description",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/substack/search.js",
+    "sourceFile": "plugins/substack/search.js"
+  },
+  {
     "site": "techcrunch",
     "name": "article",
     "description": "Read a TechCrunch article from its URL",
@@ -10822,6 +12288,182 @@
     "navigateBefore": false
   },
   {
+    "site": "uiverse",
+    "name": "code",
+    "description": "Export Uiverse component code (HTML, CSS, React, or Vue)",
+    "access": "read",
+    "domain": "uiverse.io",
+    "strategy": "public",
+    "browser": true,
+    "args": [
+      {
+        "name": "input",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Uiverse URL or author/slug identifier"
+      },
+      {
+        "name": "target",
+        "type": "str",
+        "required": true,
+        "help": "Code target to export",
+        "choices": [
+          "html",
+          "css",
+          "react",
+          "vue"
+        ]
+      }
+    ],
+    "columns": [
+      "target",
+      "username",
+      "slug",
+      "language",
+      "length"
+    ],
+    "type": "js",
+    "modulePath": "plugins/uiverse/code.js",
+    "sourceFile": "plugins/uiverse/code.js",
+    "navigateBefore": "https://uiverse.io"
+  },
+  {
+    "site": "uiverse",
+    "name": "preview",
+    "description": "Capture a screenshot of the Uiverse preview element",
+    "access": "read",
+    "domain": "uiverse.io",
+    "strategy": "public",
+    "browser": true,
+    "args": [
+      {
+        "name": "input",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Uiverse URL or author/slug identifier"
+      },
+      {
+        "name": "output",
+        "type": "str",
+        "required": false,
+        "help": "Output image path (defaults to a temp file)"
+      },
+      {
+        "name": "padding",
+        "type": "int",
+        "default": 8,
+        "required": false,
+        "help": "Extra padding around the captured preview in pixels"
+      }
+    ],
+    "columns": [
+      "username",
+      "slug",
+      "width",
+      "height",
+      "output"
+    ],
+    "type": "js",
+    "modulePath": "plugins/uiverse/preview.js",
+    "sourceFile": "plugins/uiverse/preview.js",
+    "navigateBefore": "https://uiverse.io"
+  },
+  {
+    "site": "web",
+    "name": "fetch-browser",
+    "description": "Fetch any web page and export as Markdown",
+    "access": "read",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "url",
+        "type": "str",
+        "required": true,
+        "help": "Any web page URL"
+      },
+      {
+        "name": "output",
+        "type": "str",
+        "default": "./web-articles",
+        "required": false,
+        "help": "Output directory"
+      },
+      {
+        "name": "download-images",
+        "type": "boolean",
+        "default": true,
+        "required": false,
+        "help": "Download images locally"
+      },
+      {
+        "name": "wait",
+        "type": "int",
+        "default": 3,
+        "required": false,
+        "help": "Seconds to wait after page load"
+      },
+      {
+        "name": "wait-for",
+        "type": "str",
+        "required": false,
+        "valueRequired": true,
+        "help": "CSS selector to wait for in the main document or same-origin iframes"
+      },
+      {
+        "name": "wait-until",
+        "type": "str",
+        "default": "domstable",
+        "required": false,
+        "help": "Readiness policy after navigation: domstable or networkidle",
+        "choices": [
+          "domstable",
+          "networkidle"
+        ]
+      },
+      {
+        "name": "frames",
+        "type": "str",
+        "default": "same-origin",
+        "required": false,
+        "help": "Iframe handling mode: relevant same-origin, all-same-origin, or none",
+        "choices": [
+          "same-origin",
+          "all-same-origin",
+          "none"
+        ]
+      },
+      {
+        "name": "diagnose",
+        "type": "boolean",
+        "default": false,
+        "required": false,
+        "help": "Print render diagnostics (frames, empty containers, XHR/API-like requests) to stderr"
+      },
+      {
+        "name": "stdout",
+        "type": "boolean",
+        "default": false,
+        "required": false,
+        "help": "Print markdown to stdout instead of saving to a file"
+      }
+    ],
+    "columns": [
+      "title",
+      "author",
+      "publish_time",
+      "status",
+      "size",
+      "saved"
+    ],
+    "type": "js",
+    "modulePath": "plugins/web/fetch-browser.js",
+    "sourceFile": "plugins/web/fetch-browser.js",
+    "navigateBefore": false
+  },
+  {
     "site": "wikidata",
     "name": "entity",
     "description": "Fetch a Wikidata entity by Q/P/L id (label, description, aliases, claim summary)",
@@ -11217,6 +12859,40 @@
     "sourceFile": "plugins/yahoo/search.js"
   },
   {
+    "site": "yahoo-finance",
+    "name": "quote",
+    "description": "Yahoo Finance stock quote",
+    "access": "read",
+    "domain": "finance.yahoo.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "symbol",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Stock ticker (e.g. AAPL, MSFT, TSLA)"
+      }
+    ],
+    "columns": [
+      "symbol",
+      "name",
+      "price",
+      "change",
+      "changePercent",
+      "open",
+      "high",
+      "low",
+      "volume",
+      "marketCap"
+    ],
+    "type": "js",
+    "modulePath": "plugins/yahoo-finance/quote.js",
+    "sourceFile": "plugins/yahoo-finance/quote.js",
+    "navigateBefore": "https://finance.yahoo.com"
+  },
+  {
     "site": "yale",
     "name": "export-postgraduate-courses",
     "description": "Export Yale University postgraduate and professional programs from official Yale sources.",
@@ -11388,6 +13064,72 @@
     "type": "js",
     "modulePath": "plugins/ycombinator/company.js",
     "sourceFile": "plugins/ycombinator/company.js",
+    "navigateBefore": false
+  },
+  {
+    "site": "zlibrary",
+    "name": "info",
+    "description": "Get book details and available download formats from a Z-Library book page",
+    "access": "read",
+    "domain": "z-library.im",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "url",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Z-Library book page URL (e.g. https://z-library.im/book/...)"
+      }
+    ],
+    "columns": [
+      "title",
+      "pdf",
+      "epub",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/zlibrary/info.js",
+    "sourceFile": "plugins/zlibrary/info.js",
+    "navigateBefore": false
+  },
+  {
+    "site": "zlibrary",
+    "name": "search",
+    "description": "Search Z-Library for books by title, author, ISBN, or keyword",
+    "access": "read",
+    "domain": "z-library.im",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Search keyword (title, author, ISBN, etc.)"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Max results (1–25)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "title",
+      "author",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/zlibrary/search.js",
+    "sourceFile": "plugins/zlibrary/search.js",
     "navigateBefore": false
   }
 ]
