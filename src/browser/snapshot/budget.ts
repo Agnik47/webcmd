@@ -14,6 +14,16 @@ export interface SnapshotAllocation {
   truncated: boolean;
 }
 
+export type SnapshotRepresentationCost = (
+  node: RenderedSnapshotNode,
+  representation: SnapshotRepresentation,
+  depth: number,
+) => number;
+
+export interface SnapshotAllocationOptions {
+  representationCost?: SnapshotRepresentationCost;
+}
+
 type Candidate = {
   node: RenderedSnapshotNode;
   parent: Candidate | null;
@@ -52,9 +62,10 @@ export function allocateSnapshot(
   frames: RenderedSnapshotFrame[],
   maxChars: number,
   envelopeChars: number,
+  options: SnapshotAllocationOptions = {},
 ): SnapshotAllocation {
   const buckets: Candidate[][] = [[], [], [], [], []];
-  collectCandidates(frames, buckets);
+  collectCandidates(frames, buckets, options.representationCost ?? snapshotRepresentationCost);
   breadthFirstRecordsWithinP2(buckets[2]!);
   const allocation = reserveEnvelopeAndMarkers(frames, maxChars, envelopeChars);
   if (envelopeChars > maxChars) return finish(allocation);
@@ -81,6 +92,7 @@ function finish(allocation: SnapshotAllocation): SnapshotAllocation {
 function collectCandidates(
   frames: RenderedSnapshotFrame[],
   buckets: Candidate[][],
+  cost: SnapshotRepresentationCost,
 ): void {
   const visit = (
     node: RenderedSnapshotNode,
@@ -95,8 +107,8 @@ function collectCandidates(
       missingFrontier: undefined,
     };
     representationCosts.set(node, {
-      identity: representationCost(node, "identity", depth),
-      full: representationCost(node, "full", depth),
+      identity: cost(node, "identity", depth),
+      full: cost(node, "full", depth),
     });
     buckets[node.priority]!.push(candidate);
     for (const child of node.children)
@@ -408,7 +420,7 @@ function representedTextChars(
   return label ? Math.min(direct, label.length) : 0;
 }
 
-function representationCost(
+export function snapshotRepresentationCost(
   node: RenderedSnapshotNode,
   representation: SnapshotRepresentation,
   depth: number,
@@ -434,7 +446,7 @@ function representationCostFor(
   depth: number,
 ): number {
   return representationCosts.get(node)?.[representation] ??
-    representationCost(node, representation, depth);
+    snapshotRepresentationCost(node, representation, depth);
 }
 
 export function snapshotIdentityAttrs(node: RenderedSnapshotNode): Array<[string, string]> {

@@ -11,10 +11,12 @@ import {
 import {
   allocateSnapshot,
   renderSnapshotMarker,
+  snapshotRepresentationCost,
   snapshotIdentityAttrs,
   snapshotIdentityLabel,
   type SnapshotAllocation,
   type SnapshotRepresentation,
+  type SnapshotRepresentationCost,
 } from './budget.js';
 import type {
   AiSnapshot,
@@ -28,6 +30,7 @@ import type {
 
 const MAX_LABEL_CHARS = 140;
 const LOW_SIGNAL_DIFF_ATTRS = new Set(['ref']);
+const OUTPUT_CEILING_WARNING = 'Critical snapshot content was omitted while enforcing the output ceiling.';
 
 export type SnapshotDiff = {
   before: AiSnapshot;
@@ -105,7 +108,7 @@ export function renderSnapshotDiff(
   const value = diff.pageChanged && diff.frames.length === 0
     ? [renderPageOpen(diff.before, '- ', true), renderPageOpen(diff.after, '+ ', true)].join('\n')
     : null;
-  if (value !== null) return boundedRenderResult(value, maxChars);
+  if (value !== null) return boundedRenderResult(value, maxChars, true);
 
   const budgeted = budgetDiffFrames(diff.frames);
   const limit = Number.isFinite(maxChars)
@@ -115,6 +118,7 @@ export function renderSnapshotDiff(
     budgeted.frames,
     limit,
     diffEnvelopeChars(diff.after, budgeted) + diffSyntaxReserve(budgeted),
+    { representationCost: diffRepresentationCost },
   );
   const rendered = renderDiffPage(diff, budgeted, allocation);
   const bounded = rendered.length > limit
@@ -127,8 +131,8 @@ export function renderSnapshotDiff(
     criticalOmitted,
     warnings: criticalOmitted
       ? [allocation.criticalOmitted
-          ? 'Critical snapshot content was omitted; inspect the nearest [more ref=...] scope.'
-          : 'Critical snapshot content was omitted while enforcing the output ceiling.']
+        ? 'Critical snapshot content was omitted; inspect the nearest [more ref=...] scope.'
+          : OUTPUT_CEILING_WARNING]
       : [],
   };
 }
@@ -144,11 +148,20 @@ function emptyRenderResult(value: string): SnapshotRenderResult {
   return { value, truncated: false, criticalOmitted: 0, warnings: [] };
 }
 
-function boundedRenderResult(value: string, maxChars?: number): SnapshotRenderResult {
+function boundedRenderResult(
+  value: string,
+  maxChars?: number,
+  criticalOnTruncate = false,
+): SnapshotRenderResult {
   const bounded = Number.isFinite(maxChars)
     ? boundSnapshotText(value, maxChars!)
     : { value, truncated: false };
-  return { ...bounded, criticalOmitted: 0, warnings: [] };
+  const criticalOmitted = criticalOnTruncate && bounded.truncated ? 1 : 0;
+  return {
+    ...bounded,
+    criticalOmitted,
+    warnings: criticalOmitted ? [OUTPUT_CEILING_WARNING] : [],
+  };
 }
 
 function renderDiffPage(
@@ -420,7 +433,7 @@ function diffSyntaxReserve(budgeted: BudgetedDiff): number {
   const visit = (node: RenderedSnapshotNode, depth: number): void => {
     const diff = budgeted.nodeDiffs.get(node)!;
     const compact = singleTextChild(node) !== null;
-    if (diff.type !== 'context' && !compact) chars += 4;
+    if (diff.type !== 'context') chars += compact ? 2 : 4;
     if (diff.type === 'modified' && !sameRef(diff.before, diff.after))
       chars += renderRemovedNodeLine(diff.before, depth).length + 1;
     if (!compact)
@@ -439,6 +452,13 @@ function diffSyntaxReserve(budgeted: BudgetedDiff): number {
       for (const root of frame.roots) visit(root, 2);
   return chars;
 }
+
+const diffRepresentationCost: SnapshotRepresentationCost = (node, representation, depth) => {
+  const singleText = representation === 'full' ? singleTextChild(node) : null;
+  if (singleText !== null)
+    return `${indent(depth)}${formatTag(node.role, node.attrs, true)}${escapeText(singleText)}</${node.role}>\n`.length;
+  return snapshotRepresentationCost(node, representation, depth);
+};
 
 function renderBudgetedFrame(
   frame: RenderedSnapshotFrame,

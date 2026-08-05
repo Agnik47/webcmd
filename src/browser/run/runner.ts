@@ -540,9 +540,11 @@ export async function runBrowserProgram(
         );
         savedSnapshotDiff = bounded.value;
         snapshotTruncated ||= rendered.truncated || bounded.truncated;
-        if (rendered.criticalOmitted) warnings.push({
+        if (rendered.criticalOmitted || bounded.truncated) warnings.push({
           code: 'BROWSER_RUN_CRITICAL_SNAPSHOT_OMITTED',
-          message: rendered.warnings[0]!,
+          message: rendered.criticalOmitted
+            ? rendered.warnings[0] ?? 'Critical snapshot content was omitted; inspect the nearest [more ref=...] scope.'
+            : 'Critical snapshot content was omitted while enforcing the output ceiling.',
         });
       } catch (snapshotError) {
         baselineStore.clear(input.pageId);

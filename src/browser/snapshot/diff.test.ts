@@ -139,6 +139,30 @@ describe('snapshot diff', () => {
     expect(bounded.truncated).toBe(true);
   });
 
+  it('reports critical omission metadata when a page-only diff is bounded', () => {
+    const before = { ...snap([], ''), title: 'Before' };
+    const after = { ...snap([], ''), title: `After ${'title '.repeat(30)}` };
+
+    const bounded = renderSnapshotDiff(diffSnapshots(before, after), 60);
+
+    expect(bounded.value.length).toBeLessThanOrEqual(60);
+    expect(bounded.truncated).toBe(true);
+    expect(bounded.criticalOmitted).toBeGreaterThan(0);
+    expect(bounded.warnings[0]).toMatch(/output ceiling/i);
+  });
+
+  it('retains a compact one-line text change when the rendered diff exactly fits', () => {
+    const before = snap([node({ role: 'button', name: 'Save', ref: 'l3' })], '');
+    const after = snap([node({ role: 'button', name: 'Saved', ref: 'l3' })], '');
+    const full = renderSnapshotDiff(diffSnapshots(before, after));
+
+    const exact = renderSnapshotDiff(diffSnapshots(before, after), full.value.length);
+
+    expect(exact.value).toBe(full.value);
+    expect(exact.truncated).toBe(false);
+    expect(exact.criticalOmitted).toBe(0);
+  });
+
   it('does not hard-cut selected changes without critical omission metadata', () => {
     const before = snap([node({ role: 'button', name: 'Save', ref: 'l3' })], '');
     const after = snap([node({ role: 'button', name: 'Saved', ref: 'l3' })], '');

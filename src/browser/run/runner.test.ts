@@ -121,6 +121,27 @@ describe('runBrowserProgram', () => {
     }));
   });
 
+  it('warns when redaction expands an otherwise complete snapshot diff past the output limit', async () => {
+    const beforeHtml = '<main><button>Before</button></main>';
+    const source = `
+      await page.setContent('<main><a href="https://u:p@example.test/path?token=a&key=b&secret=c&password=d&auth=e&api_key=f&session_id=g&csrf=h">Account</a></main>');
+      return null;
+    `;
+    await page.setContent(beforeHtml);
+    const generous = await run(source, { maxOutputChars: 1000 });
+    expect(generous.snapshotDiff).toContain('[REDACTED]');
+
+    await page.setContent(beforeHtml);
+    const output = await run(source, { maxOutputChars: generous.snapshotDiff!.length - 1 });
+
+    expect(output.snapshotDiff!.length).toBeLessThanOrEqual(generous.snapshotDiff!.length - 1);
+    expect(output.limits.snapshotTruncated).toBe(true);
+    expect(output.warnings).toContainEqual(expect.objectContaining({
+      code: 'BROWSER_RUN_CRITICAL_SNAPSHOT_OMITTED',
+      message: expect.stringMatching(/output ceiling/i),
+    }));
+  });
+
   it('does not execute the program when the pre-snapshot fails', async () => {
     context.newCDPSession = (() => Promise.reject(new Error('pre snapshot failed'))) as BrowserContext['newCDPSession'];
 
