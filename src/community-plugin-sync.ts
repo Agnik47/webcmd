@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {
   validatePluginAuthor,
+  type PluginAuthor,
   type PluginManifest,
   type SubPluginEntry,
 } from './plugin-manifest.js';
@@ -116,7 +117,7 @@ function renderCommunityPlugins(
       continue;
     }
     lines.push(
-      `| [\`${markdownCell(name)}\`](./plugins/${name}/) | ${markdownCell(plugin.description!)} | [${markdownCell(author.name)}](https://github.com/${author.handle}) |`,
+      `| [\`${markdownCell(name)}\`](./plugins/${name}/) | ${markdownCell(plugin.description!)} | ${renderAuthor(author)} |`,
     );
   }
 
@@ -129,6 +130,13 @@ function renderCommunityPlugins(
 
   lines.push(COMMUNITY_PLUGINS_END);
   return lines.join('\n');
+}
+
+function renderAuthor(author: PluginAuthor): string {
+  const name = markdownCell(author.name);
+  return author.handle.toLowerCase() === 'agentrhq'
+    ? name
+    : `[${name}](https://github.com/${author.handle})`;
 }
 
 function replaceGeneratedSection(readme: string, section: string): string {
