@@ -24,10 +24,12 @@ The current Libretto-derived renderer constructs the complete rendered tree and 
 
 Hosted `act` currently delegates to Browser Use's interactive-only AX serialization, while local `act` uses Webcmd's renderer. This prevents Webcmd from applying one compression policy consistently and can discard information before hosted risk analysis is possible.
 
+OpenCLI's typed snapshot implementation currently parses raw CDP AX responses privately. Cloud therefore cannot reuse the same parser through the released package and maintains separate snapshot behavior. OpenCLI also lacks Libretto's modal scoping step, so background page structure can compete with the blocking dialog the agent must handle first.
+
 ## Non-Goals
 
 - No LLM, embedding, classifier, or model call in snapshot rendering.
-- No site-specific, language-specific, or e-commerce regex pruning.
+- No BareBrowse-style site-specific, language-specific, or e-commerce regex pruning.
 - No task-context or `--focus` option in the first implementation.
 - No automatic `act` to `read` mode switch.
 - No additional browser round trip for automatic expansion.
@@ -42,7 +44,24 @@ Hosted `act` currently delegates to Browser Use's interactive-only AX serializat
 
 `read` remains a separate content-extraction path and does not enter the structural renderer.
 
-### 2. Extend the existing render traversal
+### 2. Scope structural snapshots to an open modal
+
+After each frame's AX nodes are linked into a tree and before refs, subtree sizes, summaries, or rendering are assigned, Webcmd checks for an open modal. A node is an open modal when it is not ignored and either:
+
+- Chromium AX reports `properties.modal === true`; or
+- its role is `dialog` or `alertdialog` and its DOM attributes contain `aria-modal="true"`.
+
+If multiple open modals exist in one frame, the last modal in tree order becomes that frame's sole snapshot root, matching Libretto's behavior and the usual topmost/most-recently-opened stacking order. If no open modal exists, roots are unchanged. Scoping is frame-local and deterministic.
+
+OpenCLI adds `aria-modal` to the captured interesting-attribute set and prioritizes attribute lookup for dialog and alertdialog nodes, so the DOM fallback remains available when Chromium omits the AX `modal` property.
+
+The capture module already carries the Libretto MIT attribution; the modal-scoping derivation remains under that notice.
+
+This rule applies to `act`, `tree`, and their diffs because those modes represent the currently actionable UI. It does not apply to `read`, which extracts the semantic document rather than the focus-trapped interaction surface.
+
+When a run opens or closes a modal, the diff treats the modal-scope transition as a scope change. Background nodes that merely moved out of scope are not rendered as removals; the active modal or newly restored page state is the changed context.
+
+### 3. Extend the existing render traversal
 
 The current renderer already visits every captured node before applying the four-child output cap. It will calculate subtree metadata during that traversal rather than adding a second independent tree walk.
 
@@ -63,7 +82,7 @@ The summary is internal. Only omitted, nonzero counts appear in agent output.
 
 `critical` includes focused or invalid controls and alert, alertdialog, dialog, or status nodes. During before/after rendering, state modifications and added or removed critical nodes also count as critical. `changed` is populated only when diff context exists.
 
-### 3. Use deterministic priority tiers
+### 4. Use deterministic priority tiers
 
 Candidates are assigned to five stable buckets. No global sort or heap is required.
 
@@ -77,7 +96,7 @@ DOM order breaks ties within a bucket.
 
 A semantic record is a listitem, row, treeitem, or article under a list, table, grid, tree, or feed. A sibling group is also treated as repeated records when at least three siblings share the same role and each contains an actionable descendant. Record identity consists of the record's accessible name, its first labeled actionable descendant, and compact state attributes. It does not use content keywords.
 
-### 4. Replace per-parent caps with one global output budget
+### 5. Replace per-parent caps with one global output budget
 
 The renderer removes `MAX_CHILDREN_PER_PARENT`. It uses one hard character ceiling for the complete output, including the page/frame envelope and omission markers.
 
@@ -87,7 +106,7 @@ The renderer reserves marker space before allocating optional content. It emits 
 
 The absolute ceiling always wins. P0 nodes are rendered in their smallest state-preserving form first. If even all compact P0 identities cannot fit, the output includes `criticalOmitted`, sets the truncation limit, and returns a warning. Critical information is never discarded silently.
 
-### 5. Expand high-risk content inside the same render pass
+### 6. Expand high-risk content inside the same render pass
 
 Automatic expansion means spending unused output budget on omitted candidates, not issuing another capture request.
 
@@ -95,7 +114,7 @@ The renderer first emits the compact structural skeleton and P0 state. It then c
 
 This preserves the existing single-snapshot latency model while allocating the same output allowance to more useful information.
 
-### 6. Make omission explicit and recoverable
+### 7. Make omission explicit and recoverable
 
 Omitted content produces one compact marker at the nearest structural scope ref:
 
@@ -113,7 +132,7 @@ Every structural container that can own an omission marker receives a snapshot-s
 
 The response continues using the existing `warnings` and `limits` fields. Any omission sets `limits.snapshotTruncated = true`. A nonzero `criticalOmitted` also appends a warning explaining that the caller should inspect the marker's ref.
 
-### 7. Make scoped tree inspection a real recovery path
+### 8. Make scoped tree inspection a real recovery path
 
 The existing command remains the explicit fallback:
 
@@ -145,8 +164,12 @@ If a recaptured page no longer contains the requested ref, Webcmd returns the ex
 
 ### `read`
 
-- Continues to use `extractArticle(...)` and `articleHtmlToMarkdown(...)` locally.
-- Cloud switches from its minimal DOM extractor to the released OpenCLI extractor when the package dependency is bumped.
+- Remains semantic content extraction, not an AX-tree verbosity level or alias for `tree`.
+- Uses the existing Mozilla Readability-backed `extractArticle(...)` pipeline followed by `articleHtmlToMarkdown(...)`.
+- Preserves article metadata such as title, byline, publication time, site name, and extraction source when available.
+- Cloud switches from its minimal DOM text extractor to the same released OpenCLI extraction pipeline when the package dependency is bumped.
+- If semantic extraction finds no readable content, it returns the existing warning and directs the caller to `tree`; it does not silently fall back to a large DOM or AX dump.
+- Open modal scoping does not affect `read` because it describes interaction state, not document semantics.
 - Does not participate in structural scoring or diffs.
 
 ### Automatic run diffs
@@ -158,9 +181,15 @@ If a recaptured page no longer contains the requested ref, Webcmd returns the ex
 
 ## Hosted and Local Parity
 
-OpenCLI is the source of truth for normalized AX capture, rendering, omission summaries, and diff behavior. The release that exposes the full `read` extractor to cloud also exposes the pure browser snapshot capture/render surface needed by `webcmd-cloud`.
+OpenCLI is the source of truth for raw CDP AX parsing, normalized tree construction, modal scoping, ref assignment, rendering, omission summaries, and diff behavior. The implementation publishes one supported package entrypoint, `@agentrhq/webcmd/browser/snapshot`, that exposes the typed snapshot capture/render/diff surface and its public types. Raw CDP response parsing remains encapsulated by `captureSnapshot(page)` rather than becoming a second cloud parser API.
 
-After publishing that release, cloud bumps its pinned `@agentrhq/webcmd` dependency once and reuses both capabilities. Hosted `act` no longer asks Browser Use to discard noninteractive AX nodes before Webcmd rendering. Browser Use continues to provide browser infrastructure, proxying, streaming, and CDP connectivity; Webcmd owns the agent-facing snapshot policy.
+The same release publishes the existing semantic article extractor as `@agentrhq/webcmd/browser/article-extract`. These exports are necessary to prevent local/cloud forks; no generic parser framework or additional snapshot package is introduced.
+
+After publishing that release, cloud bumps its pinned `@agentrhq/webcmd` dependency once and directly imports both shared capabilities. Hosted `act` and `tree` obtain the underlying Browser Use-backed Playwright `Page` through the existing `RemotePlaywrightPage.playwrightPage()` boundary, pass it to the shared `captureSnapshot(page)` implementation, and then use the shared renderer. Cloud does not parse Browser Use's formatted AX string, copy OpenCLI's normalization code, or keep a second modal/pruning implementation. Browser Use continues to provide browser infrastructure, proxying, streaming, and CDP connectivity; Webcmd owns the agent-facing snapshot policy.
+
+If a hosted browser backend does not expose that Playwright-page capability, the public structural snapshot returns the existing AX-unavailable error. It does not fall back to a differently pruned formatted string.
+
+The cloud worker public-export allowlist is changed only if hosted adapter modules need to import the snapshot entrypoint. Cloud's own browser runtime can import its pinned dependency directly, so the first implementation does not expand adapter capabilities unnecessarily.
 
 The OpenCLI-compatible hosted response remains:
 
@@ -172,6 +201,20 @@ The OpenCLI-compatible hosted response remains:
 - optional `article` for `read`.
 
 The legacy internal cloud `args.source: "ax" | "dom"` response remains unchanged. Only calls using the public `snapshotMode` contract enter the shared renderer.
+
+## Rejected BareBrowse Heuristics
+
+Webcmd adopts BareBrowse's useful separation between interaction and semantic reading, but not its destructive domain rules. The structural compressor must not include:
+
+- keyword-based condensation of nonmatching product cards;
+- price, stock, delivery, shipping, color, review, recommendation, or related-content regexes;
+- link deduplication solely by accessible name;
+- language-specific button, link, footer, or filter labels;
+- footer truncation inferred from heading level or phrases such as “back to top”;
+- unconditional filter-group deletion;
+- paragraph-link deletion based only on parent role.
+
+These rules can remove the exact evidence a task asks for and provide no reliable uncertainty signal. Webcmd uses language-independent AX roles, explicit state, modal semantics, structural repetition, change context, global budgets, and recoverable omission markers instead. A domain heuristic may be reconsidered only after a benchmark demonstrates a repeatable failure that cannot be solved by those generic signals; it requires a separate approved design rather than entering this renderer opportunistically.
 
 ## Performance
 
@@ -222,12 +265,18 @@ The implementation is rejected if it only reduces snapshot size while lowering t
 - omission markers contain only nonzero counts and a recoverable scope ref;
 - `criticalOmitted` sets both the limit and warning;
 - scoped tree rendering does not apply a per-parent child cap;
+- an open AX or `aria-modal` dialog becomes the frame root and the last modal in tree order wins;
+- ignored and non-modal dialogs do not scope the tree;
+- modal open/close diffs do not report the whole background as removed or added;
 - `read` remains outside structural rendering and diffing.
+- `read` failure returns its warning and `tree` guidance without a DOM/AX fallback.
 
 ### Parity tests
 
 - the same normalized fixture produces identical local and hosted `act`/`tree` output;
+- the same raw AX fixture produces identical parsing, modal scoping, refs, and summaries locally and in cloud;
 - hosted public `snapshotMode` uses the shared renderer;
+- hosted public snapshot handling does not call Browser Use's formatted interactive-only serializer;
 - hosted legacy `args.source` keeps its current response shape;
 - cloud `read` matches OpenCLI after the dependency bump.
 
@@ -241,10 +290,10 @@ The implementation is rejected if it only reduces snapshot size while lowering t
 ## Rollout
 
 1. Add the benchmark fixtures and baseline results before changing the renderer.
-2. Implement the shared summary, priority buckets, global budget, markers, and scoped recovery in OpenCLI.
+2. Add Libretto-compatible modal scoping and implement the shared summary, priority buckets, global budget, markers, and scoped recovery in OpenCLI.
 3. Calibrate the default budgets against the accepted competitor gates.
-4. Publish OpenCLI with the shared snapshot and article-extraction exports.
-5. Bump cloud once, replace interactive-only public snapshot rendering, and remove the temporary minimal `read` extractor.
+4. Publish OpenCLI with the single shared snapshot entrypoint and semantic article-extraction export.
+5. Bump cloud once, reuse the shared parser/capture/renderer, replace interactive-only public snapshot rendering, and remove the temporary minimal `read` extractor.
 6. Run local/cloud parity, performance, and fixed-token task benchmarks.
 7. Replace the positional renderer only if every acceptance gate passes; otherwise retain the current renderer and keep the benchmark evidence.
 
