@@ -110,6 +110,12 @@ function renderCommunityPlugins(
 
   for (const [name, plugin] of Object.entries(plugins)) {
     const author = plugin.author!;
+    if (
+      author.name.toLowerCase() === 'webcmd agent'
+      || author.handle.toLowerCase() === 'agentrhq'
+    ) {
+      continue;
+    }
     lines.push(
       `| [\`${markdownCell(name)}\`](./plugins/${name}/) | ${markdownCell(plugin.description!)} | ${renderAuthor(author)} |`,
     );
