@@ -132,7 +132,7 @@ describe('migrate-cli-sites', () => {
     const result = spawnSync(process.execPath, [script, 'pypi'], { cwd: root, encoding: 'utf8' });
 
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain('plugins/pypi/search.js already exists; merge pypi manually');
+    expect(result.stderr).toContain(`${path.join('plugins', 'pypi', 'search.js')} already exists; merge pypi manually`);
     expect(fs.readFileSync(path.join(root, 'plugins', 'pypi', 'search.js'), 'utf8')).toBe('existing plugin command\n');
     expect(fs.readFileSync(path.join(root, 'plugins', 'pypi', 'webcmd-plugin.json'), 'utf8')).toContain('Kemal Kaya');
     expect(fs.existsSync(path.join(root, 'clis', 'pypi', 'search.js'))).toBe(true);

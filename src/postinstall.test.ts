@@ -14,7 +14,13 @@ describe('postinstall', () => {
   it('installs only core completion files and prints explicit plugin guidance', () => {
     const home = fs.mkdtempSync(path.join(os.tmpdir(), 'webcmd-postinstall-'));
     roots.push(home);
-    const env: NodeJS.ProcessEnv = { ...process.env, HOME: home, SHELL: '/bin/zsh', npm_config_global: 'true' };
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      HOME: home,
+      USERPROFILE: home,
+      SHELL: '/bin/zsh',
+      npm_config_global: 'true',
+    };
     delete env.CI;
     delete env.CONTINUOUS_INTEGRATION;
 

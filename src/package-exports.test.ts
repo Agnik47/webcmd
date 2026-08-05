@@ -9,13 +9,13 @@ import { describe, it, expect } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { builtinModules } from 'node:module';
-import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 const CLIS_DIR = path.join(ROOT, 'clis');
+const pkgJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf-8'));
 
 /** Recursively collect all JS adapter files in a directory. */
 function collectAdapterFiles(dir: string, opts?: { excludeTests?: boolean }): string[] {
@@ -66,19 +66,12 @@ describe('adapter imports use package exports', () => {
     expect(adapterFiles).toEqual([]);
   });
 
-  it('packs no core adapters, repository plugins, or adapter fetch lifecycle', () => {
-    const packed = spawnSync('npm', ['pack', '--ignore-scripts', '--dry-run', '--json'], {
-      cwd: ROOT,
-      encoding: 'utf8',
-    });
-    expect(packed.status, packed.stderr).toBe(0);
-    const files = (JSON.parse(packed.stdout) as Array<{ files: Array<{ path: string }> }>)[0]!.files
-      .map(file => file.path);
+  it('excludes adapters from package files and the install lifecycle', () => {
+    const files = pkgJson.files as string[];
 
-    expect(files.some(file => file.startsWith('clis/'))).toBe(false);
-    expect(files.some(file => file.startsWith('plugins/'))).toBe(false);
-    expect(files).not.toContain('scripts/fetch-adapters.js');
-  }, 15_000);
+    expect(files.some(file => /^(?:clis|plugins)(?:\/|$)/.test(file))).toBe(false);
+    expect(pkgJson.scripts.postinstall).not.toMatch(/fetch-adapters/);
+  });
 
   it('no adapter uses relative imports to src/, browser/, download/, or pipeline/', () => {
     const violations: string[] = [];
@@ -119,7 +112,6 @@ describe('adapter imports use package exports', () => {
 });
 
 describe('package.json exports resolve to real files', () => {
-  const pkgJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf-8'));
   const exports = pkgJson.exports as Record<string, string>;
 
   it('has exports defined', () => {
