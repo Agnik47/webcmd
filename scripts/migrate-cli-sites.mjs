@@ -14,10 +14,27 @@ for (const site of sites) {
   if (site !== 'pypi' && fs.existsSync(path.join(root, 'plugins', site))) {
     fail(`plugins/${site} already exists`);
   }
+  if (site === 'pypi') {
+    const source = path.join(root, 'clis', site);
+    const plugin = path.join(root, 'plugins', site);
+    for (const file of walk(source)) {
+      const target = destination(file, source, plugin);
+      if (fs.existsSync(target)) {
+        fail(`${path.relative(root, target)} already exists; merge pypi manually`);
+      }
+    }
+  }
 }
 
-const manifest = readJson(path.join(root, 'cli-manifest.json'), []);
-for (const site of sites) migrate(site, manifest.filter(entry => entry.site === site));
+const manifestPath = path.join(root, 'cli-manifest.json');
+let manifest = readJson(manifestPath, []);
+for (const site of sites) {
+  migrate(site, manifest.filter(entry => entry.site === site));
+  manifest = manifest
+    .filter(entry => entry.site !== site)
+    .sort((a, b) => String(a.site).localeCompare(String(b.site)) || String(a.name).localeCompare(String(b.name)));
+  writeJson(manifestPath, manifest);
+}
 
 function migrate(site, commands) {
   const source = path.join(root, 'clis', site);
@@ -40,21 +57,28 @@ function migrate(site, commands) {
   fs.rmSync(source, { recursive: true, force: true });
 
   const description = `Webcmd commands for ${site}`;
-  writeJson(path.join(plugin, 'package.json'), {
-    name: `webcmd-plugin-${site}`,
-    version: '0.1.0',
-    type: 'module',
-    description,
-    peerDependencies: { '@agentrhq/webcmd': '>=0.6.0' },
-  });
-  writeJson(path.join(plugin, 'webcmd-plugin.json'), {
-    name: site,
-    version: '0.1.0',
-    description,
-    webcmd: '>=0.6.0',
-    author: { name: 'WebCMD Agent', handle: 'agentrhq' },
-  });
-  fs.writeFileSync(path.join(plugin, 'README.md'), readme(site, description, commands));
+  const packageJson = path.join(plugin, 'package.json');
+  if (!fs.existsSync(packageJson)) {
+    writeJson(packageJson, {
+      name: `webcmd-plugin-${site}`,
+      version: '0.1.0',
+      type: 'module',
+      description,
+      peerDependencies: { '@agentrhq/webcmd': '>=0.6.0' },
+    });
+  }
+  const pluginManifest = path.join(plugin, 'webcmd-plugin.json');
+  if (!fs.existsSync(pluginManifest)) {
+    writeJson(pluginManifest, {
+      name: site,
+      version: '0.1.0',
+      description,
+      webcmd: '>=0.6.0',
+      author: { name: 'WebCMD Agent', handle: 'agentrhq' },
+    });
+  }
+  const readmePath = path.join(plugin, 'README.md');
+  if (!fs.existsSync(readmePath)) fs.writeFileSync(readmePath, readme(site, description, commands));
 
   for (const baseline of ['silent-column-drop-baseline.json', 'typed-error-lint-baseline.json']) {
     const file = path.join(root, 'scripts', baseline);

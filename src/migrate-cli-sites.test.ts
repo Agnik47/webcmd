@@ -28,9 +28,11 @@ function fixture(): string {
     import { requireSearchQuery } from '../_shared/common.js';
   `);
   fs.writeFileSync(path.join(root, 'plugins', 'sibling', 'keep.txt'), 'unchanged\n');
-  fs.writeFileSync(path.join(root, 'cli-manifest.json'), JSON.stringify([{
-    site: 'example', name: 'search', description: 'Search examples', sourceFile: 'example/search.js',
-  }]));
+  fs.writeFileSync(path.join(root, 'cli-manifest.json'), JSON.stringify([
+    { site: 'zeta', name: 'last', description: 'Last', sourceFile: 'zeta/last.js' },
+    { site: 'example', name: 'search', description: 'Search examples', sourceFile: 'example/search.js' },
+    { site: 'alpha', name: 'first', description: 'First', sourceFile: 'alpha/first.js' },
+  ]));
   fs.writeFileSync(path.join(root, 'scripts', 'silent-column-drop-baseline.json'), JSON.stringify([{
     command: 'example/search', file: 'clis/example/search.js', missing: ['url'],
   }]));
@@ -71,6 +73,8 @@ describe('migrate-cli-sites', () => {
     expect(fs.readFileSync(path.join(root, 'plugins', 'sibling', 'keep.txt'), 'utf8')).toBe('unchanged\n');
     expect(fs.readFileSync(path.join(root, 'scripts', 'silent-column-drop-baseline.json'), 'utf8')).toContain('plugins/example/search.js');
     expect(fs.readFileSync(path.join(root, 'scripts', 'typed-error-lint-baseline.json'), 'utf8')).toContain('plugins/example/search.js');
+    expect(JSON.parse(fs.readFileSync(path.join(root, 'cli-manifest.json'), 'utf8')).map((entry: { site: string; name: string }) => `${entry.site}/${entry.name}`))
+      .toEqual(['alpha/first', 'zeta/last']);
   });
 
   it('refuses an existing plugin collision before moving anything', () => {
@@ -89,10 +93,33 @@ describe('migrate-cli-sites', () => {
     fs.renameSync(path.join(root, 'clis', 'example'), path.join(root, 'clis', 'pypi'));
     fs.mkdirSync(path.join(root, 'plugins', 'pypi'));
     fs.writeFileSync(path.join(root, 'plugins', 'pypi', 'releases.js'), 'plugin only\n');
+    fs.writeFileSync(path.join(root, 'plugins', 'pypi', 'README.md'), 'existing readme\n');
+    fs.writeFileSync(path.join(root, 'plugins', 'pypi', 'package.json'), '{"existing":true}\n');
+    fs.writeFileSync(path.join(root, 'plugins', 'pypi', 'webcmd-plugin.json'), '{"author":{"name":"Kemal Kaya","handle":"yoldaolmak"}}\n');
 
     execFileSync(process.execPath, [script, 'pypi'], { cwd: root });
 
     expect(fs.readFileSync(path.join(root, 'plugins', 'pypi', 'releases.js'), 'utf8')).toBe('plugin only\n');
     expect(fs.existsSync(path.join(root, 'plugins', 'pypi', 'search.js'))).toBe(true);
+    expect(fs.readFileSync(path.join(root, 'plugins', 'pypi', 'README.md'), 'utf8')).toBe('existing readme\n');
+    expect(fs.readFileSync(path.join(root, 'plugins', 'pypi', 'package.json'), 'utf8')).toBe('{"existing":true}\n');
+    expect(fs.readFileSync(path.join(root, 'plugins', 'pypi', 'webcmd-plugin.json'), 'utf8')).toContain('Kemal Kaya');
+  });
+
+  it('refuses a colliding PyPI command before overwriting either side or attribution', () => {
+    const root = fixture();
+    fs.renameSync(path.join(root, 'clis', 'example'), path.join(root, 'clis', 'pypi'));
+    fs.mkdirSync(path.join(root, 'plugins', 'pypi'));
+    fs.writeFileSync(path.join(root, 'plugins', 'pypi', 'search.js'), 'existing plugin command\n');
+    fs.writeFileSync(path.join(root, 'plugins', 'pypi', 'webcmd-plugin.json'), '{"author":{"name":"Kemal Kaya","handle":"yoldaolmak"}}\n');
+
+    const result = spawnSync(process.execPath, [script, 'pypi'], { cwd: root, encoding: 'utf8' });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('plugins/pypi/search.js already exists; merge pypi manually');
+    expect(fs.readFileSync(path.join(root, 'plugins', 'pypi', 'search.js'), 'utf8')).toBe('existing plugin command\n');
+    expect(fs.readFileSync(path.join(root, 'plugins', 'pypi', 'webcmd-plugin.json'), 'utf8')).toContain('Kemal Kaya');
+    expect(fs.existsSync(path.join(root, 'clis', 'pypi', 'search.js'))).toBe(true);
+    expect(fs.existsSync(path.join(root, 'plugins', 'pypi', 'helper.js'))).toBe(false);
   });
 });
