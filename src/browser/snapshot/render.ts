@@ -143,9 +143,21 @@ export function renderSnapshotResult(
     mode === "act" ? DEFAULT_ACT_SNAPSHOT_CHARS : DEFAULT_TREE_SNAPSHOT_CHARS
   )));
   const frames = renderSnapshotFrames(scoped, mode);
-  const allocation = allocateSnapshot(frames, maxChars, pageAndFrameEnvelopeChars(scoped, frames));
+  const envelopeChars = pageAndFrameEnvelopeChars(scoped, frames);
+  const allocation = allocateSnapshot(frames, maxChars, envelopeChars);
   const value = renderAllocatedSnapshot(scoped, frames, allocation);
-  if (value.length > maxChars) throw new Error("snapshot allocator exceeded its hard character ceiling");
+  if (value.length > maxChars) {
+    if (envelopeChars <= maxChars)
+      throw new Error("snapshot allocator exceeded its hard character ceiling");
+    const bounded = boundSnapshotText(value, maxChars);
+    return {
+      ...bounded,
+      criticalOmitted: allocation.criticalOmitted,
+      warnings: allocation.criticalOmitted
+        ? ["Critical snapshot content was omitted; inspect the nearest [more ref=...] scope."]
+        : [],
+    };
+  }
   return {
     value,
     truncated: allocation.truncated,
@@ -233,15 +245,8 @@ function renderAllocatedSnapshot(
       continue;
     }
     lines.push(renderFrameLine(frame, 1, "", false));
-    for (const root of frame.roots) {
-      renderAllocatedNode(root, 2, lines, allocation);
-      const ref = rootMarkerRef(root);
-      const summary = ref ? allocation.omittedByScope.get(ref) : undefined;
-      if (ref && summary && hasOmittedSummary(summary) && !renderedMarkers.has(ref)) {
-        lines.push(`${indent(2)}${renderSnapshotMarker(ref, summary)}`);
-        renderedMarkers.add(ref);
-      }
-    }
+    for (const root of frame.roots)
+      renderAllocatedNode(root, 2, lines, allocation, renderedMarkers);
     lines.push(`${indent(1)}</frame>`);
   }
   lines.push("</page>");
@@ -253,38 +258,62 @@ function renderAllocatedNode(
   depth: number,
   lines: string[],
   allocation: SnapshotAllocation,
+  renderedMarkers: Set<string>,
 ): void {
   const representation = allocation.selected.get(node);
-  if (!representation) return;
+  if (!representation) {
+    renderAllocatedMarker(node.scopeRef, depth, lines, allocation, renderedMarkers);
+    for (const child of node.children)
+      if (child.kind === "node")
+        renderAllocatedNode(child, depth, lines, allocation, renderedMarkers);
+    return;
+  }
   const attrs = representation === "identity"
     ? snapshotIdentityAttrs(node)
     : node.attrs;
   const label = representation === "identity" ? snapshotIdentityLabel(node) : null;
-  if (label && !node.record) {
+  const hasMarker = node.scopeRef
+    ? hasOmittedSummary(allocation.omittedByScope.get(node.scopeRef))
+    : false;
+  if (label && !node.record && !hasMarker) {
     lines.push(`${indent(depth)}${formatTag(node.role, attrs, true)}${escapeText(label)}</${node.role}>`);
     return;
   }
   lines.push(`${indent(depth)}${formatTag(node.role, attrs, true)}`);
   if (label) lines.push(`${indent(depth + 1)}${escapeText(label)}`);
   for (const child of node.children)
-    if (child.kind === "node") renderAllocatedNode(child, depth + 1, lines, allocation);
+    if (child.kind === "node")
+      renderAllocatedNode(child, depth + 1, lines, allocation, renderedMarkers);
     else if (representation === "full") lines.push(`${indent(depth + 1)}${escapeText(child.text)}`);
+  renderAllocatedMarker(
+    node.scopeRef,
+    depth + 1,
+    lines,
+    allocation,
+    renderedMarkers,
+  );
   lines.push(`${indent(depth)}</${node.role}>`);
 }
 
-function rootMarkerRef(node: RenderedSnapshotNode): string | null {
-  if (node.scopeRef) return node.scopeRef;
-  for (const child of node.children)
-    if (child.kind === "node") {
-      const ref = rootMarkerRef(child);
-      if (ref) return ref;
-    }
-  return null;
+function renderAllocatedMarker(
+  ref: string | null,
+  depth: number,
+  lines: string[],
+  allocation: SnapshotAllocation,
+  renderedMarkers: Set<string>,
+): void {
+  if (!ref || renderedMarkers.has(ref)) return;
+  const summary = allocation.omittedByScope.get(ref);
+  if (!hasOmittedSummary(summary)) return;
+  lines.push(`${indent(depth)}${renderSnapshotMarker(ref, summary!)}`);
+  renderedMarkers.add(ref);
 }
 
-function hasOmittedSummary(summary: SnapshotSubtreeSummary): boolean {
-  return summary.nodes > 0 || summary.actions > 0 || summary.records > 0 ||
-    summary.textChars > 0 || summary.changed > 0 || summary.critical > 0;
+function hasOmittedSummary(summary: SnapshotSubtreeSummary | undefined): boolean {
+  return Boolean(summary && (
+    summary.nodes > 0 || summary.actions > 0 || summary.records > 0 ||
+    summary.textChars > 0 || summary.changed > 0 || summary.critical > 0
+  ));
 }
 
 function renderFrameLine(

@@ -158,6 +158,46 @@ describe("renderSnapshot", () => {
     for (let index = 1; index <= 10; index += 1) expect(result.value).toContain(`Result ${index}`);
   });
 
+  it("reclaims marker space when the complete snapshot fits", () => {
+    const result = renderSnapshotResult(snap([
+      node({ role: "main", ref: "l1", children: [
+        node({ role: "button", name: "First", ref: "l2" }),
+        node({ role: "button", name: "Second", ref: "l3" }),
+      ] }),
+    ]), { mode: "act", maxChars: 228 });
+
+    expect(result.truncated).toBe(false);
+    expect(result.value).toContain("First");
+    expect(result.value).toContain("Second");
+    expect(result.value).not.toContain("[more ref=");
+  });
+
+  it("places nested omissions at their nearest recoverable ref", () => {
+    const result = renderSnapshotResult(snap([
+      node({ role: "main", ref: "l1", children: [
+        node({
+          role: "list",
+          ref: "l12",
+          children: Array.from({ length: 10 }, (_, index) =>
+            node({ role: "button", name: `Nested ${index + 1}` }),
+          ),
+        }),
+      ] }),
+    ]), { mode: "act", maxChars: 350 });
+
+    expect(result.value).toMatch(/\[more ref=l12\b/);
+  });
+
+  it("bounds output when the page envelope exceeds the ceiling", () => {
+    const result = renderSnapshotResult(wideSnapshot({ lateFocused: true }), {
+      mode: "act",
+      maxChars: 10,
+    });
+
+    expect(result.value.length).toBeLessThanOrEqual(10);
+    expect(result.truncated).toBe(true);
+  });
+
   it("summarizes critical state, actions, records, and text during rendering", () => {
     const frames = renderSnapshotFrames(snap([node({
       role: "list", ref: "l10", children: [
