@@ -6551,6 +6551,766 @@
     "sourceFile": "plugins/openreview/venue.js"
   },
   {
+    "site": "osv",
+    "name": "query",
+    "description": "OSV.dev vulnerabilities affecting a package (optionally pinned to a version)",
+    "access": "read",
+    "domain": "osv.dev",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "package",
+        "type": "string",
+        "required": true,
+        "positional": true,
+        "help": "Package name (e.g. \"lodash\", \"django\")"
+      },
+      {
+        "name": "ecosystem",
+        "type": "string",
+        "required": true,
+        "help": "OSV ecosystem (npm / PyPI / Go / Maven / NuGet / RubyGems / crates.io / Packagist / ...)"
+      },
+      {
+        "name": "version",
+        "type": "string",
+        "required": false,
+        "help": "Pin to a specific version (e.g. \"4.17.20\"); omit for all known vulns"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 30,
+        "required": false,
+        "help": "Max rows to return (1-200)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "summary",
+      "severity",
+      "aliases",
+      "published",
+      "modified",
+      "affectedPackages",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/osv/query.js",
+    "sourceFile": "plugins/osv/query.js"
+  },
+  {
+    "site": "osv",
+    "name": "vulnerability",
+    "description": "Single OSV.dev vulnerability detail (severity, affected packages, CVE/GHSA aliases)",
+    "access": "read",
+    "domain": "osv.dev",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "id",
+        "type": "string",
+        "required": true,
+        "positional": true,
+        "help": "OSV vulnerability id (e.g. \"GHSA-29mw-wpgm-hmr9\", \"CVE-2020-28500\")"
+      }
+    ],
+    "columns": [
+      "id",
+      "summary",
+      "severity",
+      "aliases",
+      "published",
+      "modified",
+      "affectedPackages",
+      "cwes",
+      "referenceCount",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/osv/vulnerability.js",
+    "sourceFile": "plugins/osv/vulnerability.js"
+  },
+  {
+    "site": "packagist",
+    "name": "package",
+    "description": "Fetch a Packagist package's metadata (version, downloads, license, repo, GitHub stars)",
+    "access": "read",
+    "domain": "packagist.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "name",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Composer package \"<vendor>/<package>\" (e.g. \"symfony/console\", \"monolog/monolog\")"
+      }
+    ],
+    "columns": [
+      "package",
+      "version",
+      "releasedAt",
+      "license",
+      "description",
+      "repository",
+      "githubStars",
+      "favers",
+      "downloads",
+      "monthlyDownloads",
+      "dailyDownloads",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/packagist/package.js",
+    "sourceFile": "plugins/packagist/package.js"
+  },
+  {
+    "site": "packagist",
+    "name": "search",
+    "description": "Search Packagist (PHP / Composer) packages by keyword",
+    "access": "read",
+    "domain": "packagist.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Search keyword (e.g. \"symfony\", \"laravel http\")"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 30,
+        "required": false,
+        "help": "Max packages (1-100, single Packagist page)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "package",
+      "description",
+      "downloads",
+      "favers",
+      "repository",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/packagist/search.js",
+    "sourceFile": "plugins/packagist/search.js"
+  },
+  {
+    "site": "pubmed",
+    "name": "article",
+    "aliases": [
+      "paper",
+      "read"
+    ],
+    "description": "Get detailed information for a PubMed article by PMID",
+    "access": "read",
+    "domain": "pubmed.ncbi.nlm.nih.gov",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "pmid",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "PubMed ID, e.g. 37780221"
+      },
+      {
+        "name": "full-abstract",
+        "type": "boolean",
+        "default": false,
+        "required": false,
+        "help": "Do not truncate the abstract in table output"
+      }
+    ],
+    "columns": [
+      "pmid",
+      "title",
+      "authors",
+      "journal",
+      "year",
+      "date",
+      "article_type",
+      "language",
+      "doi",
+      "pmc",
+      "affiliations",
+      "grants",
+      "mesh_terms",
+      "keywords",
+      "abstract",
+      "url"
+    ],
+    "defaultFormat": "plain",
+    "type": "js",
+    "modulePath": "plugins/pubmed/article.js",
+    "sourceFile": "plugins/pubmed/article.js"
+  },
+  {
+    "site": "pubmed",
+    "name": "author",
+    "description": "Search PubMed articles by author name and optional affiliation",
+    "access": "read",
+    "domain": "pubmed.ncbi.nlm.nih.gov",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "name",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Author name, e.g. \"Smith J\""
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max results (1-100)"
+      },
+      {
+        "name": "affiliation",
+        "type": "str",
+        "required": false,
+        "help": "Filter by author affiliation"
+      },
+      {
+        "name": "position",
+        "type": "str",
+        "default": "any",
+        "required": false,
+        "help": "Author position: any, first, or last",
+        "choices": [
+          "any",
+          "first",
+          "last"
+        ]
+      },
+      {
+        "name": "year-from",
+        "type": "int",
+        "required": false,
+        "help": "Filter publication year from"
+      },
+      {
+        "name": "year-to",
+        "type": "int",
+        "required": false,
+        "help": "Filter publication year to"
+      },
+      {
+        "name": "sort",
+        "type": "str",
+        "default": "date",
+        "required": false,
+        "help": "Sort by date or relevance",
+        "choices": [
+          "date",
+          "relevance"
+        ]
+      }
+    ],
+    "columns": [
+      "rank",
+      "pmid",
+      "title",
+      "authors",
+      "journal",
+      "year",
+      "article_type",
+      "doi",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/pubmed/author.js",
+    "sourceFile": "plugins/pubmed/author.js"
+  },
+  {
+    "site": "pubmed",
+    "name": "citations",
+    "description": "Get PubMed citation relationships for an article",
+    "access": "read",
+    "domain": "pubmed.ncbi.nlm.nih.gov",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "pmid",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "PubMed ID, e.g. 37780221"
+      },
+      {
+        "name": "direction",
+        "type": "str",
+        "default": "citedby",
+        "required": false,
+        "help": "citedby or references",
+        "choices": [
+          "citedby",
+          "references"
+        ]
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max results (1-100)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "pmid",
+      "title",
+      "authors",
+      "journal",
+      "year",
+      "article_type",
+      "doi",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/pubmed/citations.js",
+    "sourceFile": "plugins/pubmed/citations.js"
+  },
+  {
+    "site": "pubmed",
+    "name": "clinical-trial",
+    "description": "Search PubMed clinical trials with a trial-study preset",
+    "access": "read",
+    "domain": "pubmed.ncbi.nlm.nih.gov",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Clinical topic query, e.g. \"breast cancer\""
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max results (1-100)"
+      },
+      {
+        "name": "year-from",
+        "type": "int",
+        "required": false,
+        "help": "Filter publication year from"
+      },
+      {
+        "name": "year-to",
+        "type": "int",
+        "required": false,
+        "help": "Filter publication year to"
+      },
+      {
+        "name": "free-full-text",
+        "type": "boolean",
+        "default": false,
+        "required": false,
+        "help": "Only include free full text articles"
+      },
+      {
+        "name": "sort",
+        "type": "str",
+        "default": "date",
+        "required": false,
+        "help": "Sort by date or relevance",
+        "choices": [
+          "date",
+          "relevance"
+        ]
+      }
+    ],
+    "columns": [
+      "rank",
+      "pmid",
+      "title",
+      "authors",
+      "journal",
+      "year",
+      "article_type",
+      "doi",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/pubmed/clinical-trial.js",
+    "sourceFile": "plugins/pubmed/clinical-trial.js"
+  },
+  {
+    "site": "pubmed",
+    "name": "journal",
+    "description": "Search PubMed articles by journal name",
+    "access": "read",
+    "domain": "pubmed.ncbi.nlm.nih.gov",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "journal",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Journal name, e.g. \"Nature\" or \"The Lancet\""
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max results (1-100)"
+      },
+      {
+        "name": "year-from",
+        "type": "int",
+        "required": false,
+        "help": "Filter publication year from"
+      },
+      {
+        "name": "year-to",
+        "type": "int",
+        "required": false,
+        "help": "Filter publication year to"
+      },
+      {
+        "name": "sort",
+        "type": "str",
+        "default": "relevance",
+        "required": false,
+        "help": "Sort by relevance or date",
+        "choices": [
+          "relevance",
+          "date"
+        ]
+      }
+    ],
+    "columns": [
+      "rank",
+      "pmid",
+      "title",
+      "authors",
+      "journal",
+      "year",
+      "article_type",
+      "doi",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/pubmed/journal.js",
+    "sourceFile": "plugins/pubmed/journal.js"
+  },
+  {
+    "site": "pubmed",
+    "name": "mesh",
+    "description": "Search PubMed articles by MeSH term",
+    "access": "read",
+    "domain": "pubmed.ncbi.nlm.nih.gov",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "term",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "MeSH term, e.g. \"Neoplasms\" or \"Machine Learning\""
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max results (1-100)"
+      },
+      {
+        "name": "major",
+        "type": "boolean",
+        "default": false,
+        "required": false,
+        "help": "Only include articles where this is a major MeSH topic"
+      },
+      {
+        "name": "sort",
+        "type": "str",
+        "default": "relevance",
+        "required": false,
+        "help": "Sort by relevance or date",
+        "choices": [
+          "relevance",
+          "date"
+        ]
+      }
+    ],
+    "columns": [
+      "rank",
+      "pmid",
+      "title",
+      "authors",
+      "journal",
+      "year",
+      "article_type",
+      "doi",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/pubmed/mesh.js",
+    "sourceFile": "plugins/pubmed/mesh.js"
+  },
+  {
+    "site": "pubmed",
+    "name": "related",
+    "description": "Find articles related to a PubMed article",
+    "access": "read",
+    "domain": "pubmed.ncbi.nlm.nih.gov",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "pmid",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "PubMed ID, e.g. 37780221"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max results (1-100)"
+      },
+      {
+        "name": "score",
+        "type": "boolean",
+        "default": false,
+        "required": false,
+        "help": "Show similarity scores when available"
+      }
+    ],
+    "columns": [
+      "rank",
+      "pmid",
+      "title",
+      "authors",
+      "journal",
+      "year",
+      "article_type",
+      "score",
+      "doi",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/pubmed/related.js",
+    "sourceFile": "plugins/pubmed/related.js"
+  },
+  {
+    "site": "pubmed",
+    "name": "review",
+    "description": "Search PubMed review articles with a review preset",
+    "access": "read",
+    "domain": "pubmed.ncbi.nlm.nih.gov",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Review topic query, e.g. \"immunotherapy\""
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max results (1-100)"
+      },
+      {
+        "name": "year-from",
+        "type": "int",
+        "required": false,
+        "help": "Filter publication year from"
+      },
+      {
+        "name": "year-to",
+        "type": "int",
+        "required": false,
+        "help": "Filter publication year to"
+      },
+      {
+        "name": "has-abstract",
+        "type": "boolean",
+        "default": false,
+        "required": false,
+        "help": "Only include articles with abstracts"
+      },
+      {
+        "name": "sort",
+        "type": "str",
+        "default": "date",
+        "required": false,
+        "help": "Sort by date or relevance",
+        "choices": [
+          "date",
+          "relevance"
+        ]
+      }
+    ],
+    "columns": [
+      "rank",
+      "pmid",
+      "title",
+      "authors",
+      "journal",
+      "year",
+      "article_type",
+      "doi",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/pubmed/review.js",
+    "sourceFile": "plugins/pubmed/review.js"
+  },
+  {
+    "site": "pubmed",
+    "name": "search",
+    "description": "Search PubMed articles with advanced filters",
+    "access": "read",
+    "domain": "pubmed.ncbi.nlm.nih.gov",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Search query, e.g. \"machine learning cancer\""
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max results (1-100)"
+      },
+      {
+        "name": "author",
+        "type": "str",
+        "required": false,
+        "help": "Filter by author name"
+      },
+      {
+        "name": "journal",
+        "type": "str",
+        "required": false,
+        "help": "Filter by journal name"
+      },
+      {
+        "name": "year-from",
+        "type": "int",
+        "required": false,
+        "help": "Filter publication year from"
+      },
+      {
+        "name": "year-to",
+        "type": "int",
+        "required": false,
+        "help": "Filter publication year to"
+      },
+      {
+        "name": "article-type",
+        "type": "str",
+        "required": false,
+        "help": "Filter by publication type, e.g. Review or Clinical Trial"
+      },
+      {
+        "name": "has-abstract",
+        "type": "boolean",
+        "default": false,
+        "required": false,
+        "help": "Only include articles with abstracts"
+      },
+      {
+        "name": "free-full-text",
+        "type": "boolean",
+        "default": false,
+        "required": false,
+        "help": "Only include free full text articles"
+      },
+      {
+        "name": "humans-only",
+        "type": "boolean",
+        "default": false,
+        "required": false,
+        "help": "Only include human studies"
+      },
+      {
+        "name": "english-only",
+        "type": "boolean",
+        "default": false,
+        "required": false,
+        "help": "Only include English articles"
+      },
+      {
+        "name": "sort",
+        "type": "str",
+        "default": "relevance",
+        "required": false,
+        "help": "Sort by relevance, date, author, or journal",
+        "choices": [
+          "relevance",
+          "date",
+          "author",
+          "journal"
+        ]
+      }
+    ],
+    "columns": [
+      "rank",
+      "pmid",
+      "title",
+      "authors",
+      "journal",
+      "year",
+      "article_type",
+      "doi",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/pubmed/search.js",
+    "sourceFile": "plugins/pubmed/search.js"
+  },
+  {
     "site": "pypi",
     "name": "package",
     "description": "Inspect public PyPI package metadata",
@@ -6620,6 +7380,376 @@
     "sourceFile": "plugins/pypi/releases.js"
   },
   {
+    "site": "rest-countries",
+    "name": "country",
+    "description": "Look up countries by name (common / official, substring match)",
+    "access": "read",
+    "domain": "restcountries.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "name",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Country name (e.g. \"japan\", \"united kingdom\")"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 25,
+        "required": false,
+        "help": "Max rows (1-250)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "commonName",
+      "officialName",
+      "cca2",
+      "cca3",
+      "ccn3",
+      "capital",
+      "region",
+      "subregion",
+      "population",
+      "area",
+      "languages",
+      "currencies",
+      "latitude",
+      "longitude",
+      "timezones",
+      "independent",
+      "unMember",
+      "landlocked",
+      "flag",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/rest-countries/country.js",
+    "sourceFile": "plugins/rest-countries/country.js"
+  },
+  {
+    "site": "rest-countries",
+    "name": "region",
+    "description": "List countries in a region (africa / americas / asia / europe / oceania / antarctic)",
+    "access": "read",
+    "domain": "restcountries.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "region",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Region name (case-insensitive)"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 250,
+        "required": false,
+        "help": "Max rows (1-250)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "commonName",
+      "officialName",
+      "cca2",
+      "cca3",
+      "ccn3",
+      "capital",
+      "region",
+      "subregion",
+      "population",
+      "area",
+      "languages",
+      "currencies",
+      "latitude",
+      "longitude",
+      "timezones",
+      "independent",
+      "unMember",
+      "landlocked",
+      "flag",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/rest-countries/region.js",
+    "sourceFile": "plugins/rest-countries/region.js"
+  },
+  {
+    "site": "rfc",
+    "name": "rfc",
+    "description": "Single IETF RFC metadata (title, abstract, working group, authors, std level)",
+    "access": "read",
+    "domain": "datatracker.ietf.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "number",
+        "type": "int",
+        "required": true,
+        "positional": true,
+        "help": "RFC number (e.g. 9000, 791, 2616)"
+      }
+    ],
+    "columns": [
+      "rfc",
+      "title",
+      "state",
+      "stdLevel",
+      "group",
+      "groupType",
+      "pages",
+      "published",
+      "authors",
+      "abstract",
+      "rfcEditorUrl",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/rfc/rfc.js",
+    "sourceFile": "plugins/rfc/rfc.js"
+  },
+  {
+    "site": "rubygems",
+    "name": "gem",
+    "description": "Fetch a RubyGems.org gem's metadata (version, downloads, license, links)",
+    "access": "read",
+    "domain": "rubygems.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "name",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Gem name (e.g. \"rails\", \"sidekiq\")"
+      }
+    ],
+    "columns": [
+      "gem",
+      "version",
+      "releasedAt",
+      "downloads",
+      "versionDownloads",
+      "license",
+      "authors",
+      "homepage",
+      "source",
+      "bugs",
+      "info",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/rubygems/gem.js",
+    "sourceFile": "plugins/rubygems/gem.js"
+  },
+  {
+    "site": "rubygems",
+    "name": "search",
+    "description": "Search RubyGems.org gems by keyword",
+    "access": "read",
+    "domain": "rubygems.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Search keyword (e.g. \"rails\", \"redis\")"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 30,
+        "required": false,
+        "help": "Max gems (1-100, single RubyGems page)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "gem",
+      "version",
+      "downloads",
+      "license",
+      "authors",
+      "info",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/rubygems/search.js",
+    "sourceFile": "plugins/rubygems/search.js"
+  },
+  {
+    "site": "semanticscholar",
+    "name": "citations",
+    "description": "List papers that cite a Semantic Scholar paper (paginated)",
+    "access": "read",
+    "domain": "api.semanticscholar.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "id",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "paperId (40-char hex), DOI, arXiv id, or prefixed id"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max citing papers (1-1000, single Semantic Scholar page)"
+      },
+      {
+        "name": "offset",
+        "type": "int",
+        "default": 0,
+        "required": false,
+        "help": "Page offset (0-based)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "paperId",
+      "doi",
+      "title",
+      "year",
+      "firstAuthor",
+      "citationCount",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/semanticscholar/citations.js",
+    "sourceFile": "plugins/semanticscholar/citations.js"
+  },
+  {
+    "site": "semanticscholar",
+    "name": "paper",
+    "description": "Semantic Scholar paper detail (citation graph + AI tldr) by paperId, DOI, or arXiv id",
+    "access": "read",
+    "domain": "api.semanticscholar.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "id",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "paperId (40-char hex), DOI, arXiv id, or prefixed id (e.g. \"ARXIV:1706.03762\", \"PMID:12345\")"
+      }
+    ],
+    "columns": [
+      "paperId",
+      "doi",
+      "title",
+      "year",
+      "firstAuthor",
+      "citationCount",
+      "influentialCitationCount",
+      "referenceCount",
+      "tldr",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/semanticscholar/paper.js",
+    "sourceFile": "plugins/semanticscholar/paper.js"
+  },
+  {
+    "site": "semanticscholar",
+    "name": "recommendations",
+    "description": "Semantic Scholar AI-curated related papers for a paperId, DOI, or arXiv id",
+    "access": "read",
+    "domain": "api.semanticscholar.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "id",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "paperId (40-char hex), DOI, arXiv id, or prefixed id"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Max recommendations (1-500)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "paperId",
+      "doi",
+      "title",
+      "year",
+      "firstAuthor",
+      "citationCount",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/semanticscholar/recommendations.js",
+    "sourceFile": "plugins/semanticscholar/recommendations.js"
+  },
+  {
+    "site": "semanticscholar",
+    "name": "search",
+    "description": "Search Semantic Scholar papers by free text",
+    "access": "read",
+    "domain": "api.semanticscholar.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Search text (e.g. \"attention is all you need\", \"diffusion model\")"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max papers (1-100, single Semantic Scholar page)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "paperId",
+      "doi",
+      "title",
+      "year",
+      "firstAuthor",
+      "citationCount",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/semanticscholar/search.js",
+    "sourceFile": "plugins/semanticscholar/search.js"
+  },
+  {
     "site": "skyscanner",
     "name": "flights",
     "description": "Skyscanner visible round-trip flight results from a warmed browser session",
@@ -6680,6 +7810,461 @@
     "modulePath": "plugins/skyscanner/flights.js",
     "sourceFile": "plugins/skyscanner/flights.js",
     "navigateBefore": false
+  },
+  {
+    "site": "stackoverflow",
+    "name": "bounties",
+    "description": "Active bounties on Stack Overflow",
+    "access": "read",
+    "domain": "stackoverflow.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Max number of results"
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "bounty",
+      "title",
+      "score",
+      "answers",
+      "views",
+      "is_answered",
+      "tags",
+      "author",
+      "creation_date",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/stackoverflow/bounties.js",
+    "sourceFile": "plugins/stackoverflow/bounties.js"
+  },
+  {
+    "site": "stackoverflow",
+    "name": "hot",
+    "description": "Hot Stack Overflow questions",
+    "access": "read",
+    "domain": "stackoverflow.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Max number of results"
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "title",
+      "score",
+      "answers",
+      "views",
+      "is_answered",
+      "tags",
+      "author",
+      "creation_date",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/stackoverflow/hot.js",
+    "sourceFile": "plugins/stackoverflow/hot.js"
+  },
+  {
+    "site": "stackoverflow",
+    "name": "read",
+    "description": "Read a Stack Overflow question with answers and comments",
+    "access": "read",
+    "domain": "stackoverflow.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "id",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Stack Overflow question id (numeric, e.g. 79935770)"
+      },
+      {
+        "name": "answers-limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Max answers to include (1-100; accepted answer always included first)"
+      },
+      {
+        "name": "comments-limit",
+        "type": "int",
+        "default": 5,
+        "required": false,
+        "help": "Max comments per question/answer (1-100)"
+      },
+      {
+        "name": "max-length",
+        "type": "int",
+        "default": 4000,
+        "required": false,
+        "help": "Max characters per body / answer / comment (min 100)"
+      }
+    ],
+    "columns": [
+      "type",
+      "author",
+      "score",
+      "accepted",
+      "text"
+    ],
+    "type": "js",
+    "modulePath": "plugins/stackoverflow/read.js",
+    "sourceFile": "plugins/stackoverflow/read.js"
+  },
+  {
+    "site": "stackoverflow",
+    "name": "related",
+    "description": "List Stack Overflow questions related to a given question id.",
+    "access": "read",
+    "domain": "stackoverflow.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "id",
+        "type": "string",
+        "required": true,
+        "positional": true,
+        "help": "Stack Overflow question id (numeric, e.g. 79935770)."
+      },
+      {
+        "name": "sort",
+        "type": "string",
+        "default": "rank",
+        "required": false,
+        "help": "Sort key: rank, activity, votes, creation (rank = SO relevance default)."
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max related questions (1-100)."
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "title",
+      "score",
+      "answers",
+      "views",
+      "isAnswered",
+      "tags",
+      "author",
+      "createdAt",
+      "lastActivityAt",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/stackoverflow/related.js",
+    "sourceFile": "plugins/stackoverflow/related.js"
+  },
+  {
+    "site": "stackoverflow",
+    "name": "search",
+    "description": "Search Stack Overflow questions",
+    "access": "read",
+    "domain": "stackoverflow.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "query",
+        "type": "string",
+        "required": true,
+        "positional": true,
+        "help": "Search query"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Max number of results"
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "title",
+      "score",
+      "answers",
+      "views",
+      "is_answered",
+      "tags",
+      "author",
+      "creation_date",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/stackoverflow/search.js",
+    "sourceFile": "plugins/stackoverflow/search.js"
+  },
+  {
+    "site": "stackoverflow",
+    "name": "tag",
+    "description": "List Stack Overflow questions tagged with a given tag (most active first).",
+    "access": "read",
+    "domain": "stackoverflow.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "tag",
+        "type": "string",
+        "required": true,
+        "positional": true,
+        "help": "Tag slug (e.g. python, rust, typescript)."
+      },
+      {
+        "name": "sort",
+        "type": "string",
+        "default": "activity",
+        "required": false,
+        "help": "Sort key: activity, votes, creation, hot, week, month"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max questions to return (max 100)."
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "title",
+      "score",
+      "answers",
+      "views",
+      "isAnswered",
+      "tags",
+      "author",
+      "createdAt",
+      "lastActivityAt",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/stackoverflow/tag.js",
+    "sourceFile": "plugins/stackoverflow/tag.js"
+  },
+  {
+    "site": "stackoverflow",
+    "name": "unanswered",
+    "description": "Top voted unanswered questions on Stack Overflow",
+    "access": "read",
+    "domain": "stackoverflow.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Max number of results"
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "title",
+      "score",
+      "answers",
+      "views",
+      "tags",
+      "author",
+      "creation_date",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/stackoverflow/unanswered.js",
+    "sourceFile": "plugins/stackoverflow/unanswered.js"
+  },
+  {
+    "site": "stackoverflow",
+    "name": "user",
+    "description": "Find Stack Overflow users by display name (highest reputation first).",
+    "access": "read",
+    "domain": "stackoverflow.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "name",
+        "type": "string",
+        "required": true,
+        "positional": true,
+        "help": "Display name (or substring) to search."
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Max users to return (max 100)."
+      }
+    ],
+    "columns": [
+      "userId",
+      "displayName",
+      "reputation",
+      "goldBadges",
+      "silverBadges",
+      "bronzeBadges",
+      "location",
+      "createdAt",
+      "lastAccessAt",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/stackoverflow/user.js",
+    "sourceFile": "plugins/stackoverflow/user.js"
+  },
+  {
+    "site": "steam",
+    "name": "app",
+    "description": "Steam storefront detail for a single app id",
+    "access": "read",
+    "domain": "store.steampowered.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "id",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Numeric Steam app id (e.g. \"620\" for Portal 2)"
+      },
+      {
+        "name": "currency",
+        "type": "str",
+        "default": "us",
+        "required": false,
+        "help": "Storefront country code (e.g. us / cn / jp / de)"
+      }
+    ],
+    "columns": [
+      "id",
+      "name",
+      "type",
+      "isFree",
+      "releaseDate",
+      "developers",
+      "publishers",
+      "price",
+      "currency",
+      "metacritic",
+      "recommendations",
+      "genres",
+      "categories",
+      "shortDescription",
+      "website",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/steam/app.js",
+    "sourceFile": "plugins/steam/app.js"
+  },
+  {
+    "site": "steam",
+    "name": "search",
+    "description": "Search the Steam storefront by name keyword",
+    "access": "read",
+    "domain": "store.steampowered.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Search keyword (e.g. \"portal\", \"stardew\")"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max results (1-50)"
+      },
+      {
+        "name": "currency",
+        "type": "str",
+        "default": "us",
+        "required": false,
+        "help": "Storefront country code (e.g. us / cn / jp / de)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "name",
+      "price",
+      "currency",
+      "metascore",
+      "platforms",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/steam/search.js",
+    "sourceFile": "plugins/steam/search.js"
+  },
+  {
+    "site": "steam",
+    "name": "top-sellers",
+    "description": "Steam top selling games",
+    "access": "read",
+    "domain": "store.steampowered.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Number of games"
+      }
+    ],
+    "columns": [
+      "rank",
+      "name",
+      "price",
+      "discount",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/steam/top-sellers.js",
+    "sourceFile": "plugins/steam/top-sellers.js"
   },
   {
     "site": "techcrunch",
@@ -6756,6 +8341,95 @@
     "type": "js",
     "modulePath": "plugins/techcrunch/search.js",
     "sourceFile": "plugins/techcrunch/search.js"
+  },
+  {
+    "site": "tvmaze",
+    "name": "search",
+    "description": "TVmaze TV show search by title (returns id, name, network, premiered/ended, rating)",
+    "access": "read",
+    "domain": "tvmaze.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "query",
+        "type": "string",
+        "required": true,
+        "positional": true,
+        "help": "TV show title or fragment to search for"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max rows to return (1-50)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "name",
+      "type",
+      "language",
+      "genres",
+      "status",
+      "premiered",
+      "ended",
+      "network",
+      "rating",
+      "matchScore",
+      "summary",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/tvmaze/search.js",
+    "sourceFile": "plugins/tvmaze/search.js"
+  },
+  {
+    "site": "tvmaze",
+    "name": "show",
+    "description": "Single TVmaze TV show detail by id (network, schedule, rating, IMDB/TheTVDB cross-refs)",
+    "access": "read",
+    "domain": "tvmaze.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "id",
+        "type": "int",
+        "required": true,
+        "positional": true,
+        "help": "TVmaze show id (positive integer)"
+      }
+    ],
+    "columns": [
+      "id",
+      "name",
+      "type",
+      "language",
+      "genres",
+      "status",
+      "premiered",
+      "ended",
+      "runtime",
+      "averageRuntime",
+      "network",
+      "country",
+      "schedule",
+      "rating",
+      "imdb",
+      "thetvdb",
+      "officialSite",
+      "summary",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/tvmaze/show.js",
+    "sourceFile": "plugins/tvmaze/show.js"
   },
   {
     "site": "ualberta",
@@ -6839,6 +8513,357 @@
     "modulePath": "plugins/ualberta/export-postgraduate-courses.js",
     "sourceFile": "plugins/ualberta/export-postgraduate-courses.js",
     "navigateBefore": false
+  },
+  {
+    "site": "wikidata",
+    "name": "entity",
+    "description": "Fetch a Wikidata entity by Q/P/L id (label, description, aliases, claim summary)",
+    "access": "read",
+    "domain": "www.wikidata.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "id",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Entity id (e.g. Q937 = Albert Einstein, P31 = instance of)"
+      },
+      {
+        "name": "language",
+        "type": "str",
+        "default": "en",
+        "required": false,
+        "help": "Display language (ISO 639, falls back to English when missing)"
+      }
+    ],
+    "columns": [
+      "qid",
+      "type",
+      "label",
+      "description",
+      "aliases",
+      "claimPropertyCount",
+      "sitelinkCount",
+      "enwikiTitle",
+      "modified",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/wikidata/entity.js",
+    "sourceFile": "plugins/wikidata/entity.js"
+  },
+  {
+    "site": "wikidata",
+    "name": "search",
+    "description": "Search Wikidata items by keyword (returns Q-IDs)",
+    "access": "read",
+    "domain": "www.wikidata.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Search keyword (label / alias)"
+      },
+      {
+        "name": "language",
+        "type": "str",
+        "default": "en",
+        "required": false,
+        "help": "Search & display language (ISO 639, e.g. en, fr, zh)"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max items (1-50)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "qid",
+      "label",
+      "description",
+      "matchType",
+      "matchText",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/wikidata/search.js",
+    "sourceFile": "plugins/wikidata/search.js"
+  },
+  {
+    "site": "wikipedia",
+    "name": "page",
+    "description": "Full plain-text extract of a Wikipedia article (optional paragraph cap).",
+    "access": "read",
+    "domain": "wikipedia.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "title",
+        "type": "string",
+        "required": true,
+        "positional": true,
+        "help": "Article title (e.g. \"Transformer (machine learning model)\")"
+      },
+      {
+        "name": "lang",
+        "type": "string",
+        "default": "en",
+        "required": false,
+        "help": "Language code (en, zh, ja, de, ...)."
+      },
+      {
+        "name": "paragraphs",
+        "type": "int",
+        "default": 0,
+        "required": false,
+        "help": "Cap to first N paragraphs (0 = full article)."
+      }
+    ],
+    "columns": [
+      "title",
+      "description",
+      "pageId",
+      "paragraphs",
+      "extract",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/wikipedia/page.js",
+    "sourceFile": "plugins/wikipedia/page.js"
+  },
+  {
+    "site": "wikipedia",
+    "name": "random",
+    "description": "Get a random Wikipedia article",
+    "access": "read",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "lang",
+        "type": "str",
+        "default": "en",
+        "required": false,
+        "help": "Language code (e.g. en, zh, ja)"
+      }
+    ],
+    "columns": [
+      "title",
+      "description",
+      "extract",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/wikipedia/random.js",
+    "sourceFile": "plugins/wikipedia/random.js"
+  },
+  {
+    "site": "wikipedia",
+    "name": "search",
+    "description": "Search Wikipedia articles",
+    "access": "read",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Search keyword"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Max results"
+      },
+      {
+        "name": "lang",
+        "type": "str",
+        "default": "en",
+        "required": false,
+        "help": "Language code (e.g. en, zh, ja)"
+      }
+    ],
+    "columns": [
+      "title",
+      "snippet",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/wikipedia/search.js",
+    "sourceFile": "plugins/wikipedia/search.js"
+  },
+  {
+    "site": "wikipedia",
+    "name": "summary",
+    "description": "Get Wikipedia article summary",
+    "access": "read",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "title",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Article title (e.g. \"Transformer (machine learning model)\")"
+      },
+      {
+        "name": "lang",
+        "type": "str",
+        "default": "en",
+        "required": false,
+        "help": "Language code (e.g. en, zh, ja)"
+      }
+    ],
+    "columns": [
+      "title",
+      "description",
+      "extract",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/wikipedia/summary.js",
+    "sourceFile": "plugins/wikipedia/summary.js"
+  },
+  {
+    "site": "wikipedia",
+    "name": "trending",
+    "description": "Most-read Wikipedia articles (yesterday)",
+    "access": "read",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Max results"
+      },
+      {
+        "name": "lang",
+        "type": "str",
+        "default": "en",
+        "required": false,
+        "help": "Language code (e.g. en, zh, ja)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "title",
+      "description",
+      "views"
+    ],
+    "type": "js",
+    "modulePath": "plugins/wikipedia/trending.js",
+    "sourceFile": "plugins/wikipedia/trending.js"
+  },
+  {
+    "site": "wttr",
+    "name": "current",
+    "description": "Current weather conditions for a location (city, lat,lon, or airport code)",
+    "access": "read",
+    "domain": "wttr.in",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "location",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "City name, \"lat,lon\", airport ICAO code, or \"@domain\""
+      }
+    ],
+    "columns": [
+      "location",
+      "region",
+      "country",
+      "latitude",
+      "longitude",
+      "observedAt",
+      "tempC",
+      "tempF",
+      "feelsLikeC",
+      "feelsLikeF",
+      "description",
+      "humidity",
+      "cloudCover",
+      "pressure",
+      "precipMm",
+      "visibilityKm",
+      "uvIndex",
+      "windKmph",
+      "windDirection",
+      "windDirectionDegree"
+    ],
+    "type": "js",
+    "modulePath": "plugins/wttr/current.js",
+    "sourceFile": "plugins/wttr/current.js"
+  },
+  {
+    "site": "wttr",
+    "name": "forecast",
+    "description": "Multi-day weather forecast (up to 3 days, wttr.in free tier max)",
+    "access": "read",
+    "domain": "wttr.in",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "location",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "City name, \"lat,lon\", airport ICAO code, or \"@domain\""
+      },
+      {
+        "name": "days",
+        "type": "int",
+        "default": 3,
+        "required": false,
+        "help": "Max forecast days (1-3, wttr.in caps the response at 3 days)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "date",
+      "minTempC",
+      "maxTempC",
+      "avgTempC",
+      "minTempF",
+      "maxTempF",
+      "avgTempF",
+      "sunHour",
+      "totalSnowCm",
+      "uvIndex",
+      "description",
+      "sunrise",
+      "sunset"
+    ],
+    "type": "js",
+    "modulePath": "plugins/wttr/forecast.js",
+    "sourceFile": "plugins/wttr/forecast.js"
   },
   {
     "site": "yale",

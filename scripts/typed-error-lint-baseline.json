@@ -306,7 +306,7 @@
   {
     "rule": "silent-clamp",
     "command": "stackoverflow/read",
-    "file": "clis/stackoverflow/read.js",
+    "file": "plugins/stackoverflow/read.js",
     "line": 125,
     "text": "const pageSize = Math.min(SE_MAX_PAGE_SIZE, answers.length * commentsLimit);",
     "occurrence": 0
@@ -378,7 +378,7 @@
   {
     "rule": "silent-clamp",
     "command": "wikipedia/search",
-    "file": "clis/wikipedia/search.js",
+    "file": "plugins/wikipedia/search.js",
     "line": 19,
     "text": "const limit = Math.max(1, Math.min(Number(args.limit), 50));",
     "occurrence": 0
@@ -386,7 +386,7 @@
   {
     "rule": "silent-clamp",
     "command": "wikipedia/trending",
-    "file": "clis/wikipedia/trending.js",
+    "file": "plugins/wikipedia/trending.js",
     "line": 18,
     "text": "const limit = Math.max(1, Math.min(Number(args.limit), 50));",
     "occurrence": 0
