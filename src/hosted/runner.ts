@@ -682,7 +682,11 @@ async function renderHostedBrowserResponse(
 ): Promise<void> {
   const result = response.result;
   if (invocation.action === 'snapshot' && result && typeof result === 'object') {
-    const record = result as { url?: unknown; snapshot?: unknown };
+    const record = result as { tree?: unknown; url?: unknown; snapshot?: unknown };
+    if (typeof record.tree === 'string') {
+      await writeToStream(stdout, `${record.tree}\n`);
+      return;
+    }
     await writeToStream(stdout, `URL: ${typeof record.url === 'string' ? record.url : ''}\n\n`);
     await writeToStream(stdout, `${typeof record.snapshot === 'string' ? record.snapshot : JSON.stringify(record.snapshot, null, 2)}\n`);
     return;

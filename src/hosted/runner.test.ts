@@ -1618,6 +1618,50 @@ describe('runHostedCli', () => {
     }
   });
 
+  it('forwards browser snapshot mode to hosted browser actions', async () => {
+    const requests: Array<{ url: string; body?: Record<string, unknown> }> = [];
+    const result = await runHostedCli(['browser', 'work', 'snapshot', '--snapshot-mode', 'read', '--max-output', '1000'], {
+      config: makeHostedConfig({ apiBaseUrl: 'https://api.example.com', apiKey: 'key' }),
+      stdout: sink().stream,
+      stderr: sink().stream,
+      fetchImpl: async (url, init) => {
+        const body = init?.body ? JSON.parse(String(init.body)) as Record<string, unknown> : undefined;
+        requests.push({ url: String(url), ...(body ? { body } : {}) });
+        if (String(url).endsWith('/v1/manifest')) return manifestResponse();
+        return new Response(JSON.stringify({
+          ok: true,
+          run: { executionId: 'exec_browser_snapshot', session: 'work', profile: { id: 'profile_default', displayName: 'default' } },
+          result: { ok: true, tree: '<page />', page: { url: 'https://example.test', title: 'Example' }, warnings: [], limits: { snapshotTruncated: false } },
+        }), { status: 200 });
+      },
+    });
+
+    expect(result).toEqual({ handled: true, exitCode: 0 });
+    expect(requests[1]?.body).toMatchObject({
+      action: 'snapshot',
+      args: { snapshotMode: 'read', maxOutput: 1000 },
+    });
+  });
+
+  it('prints hosted snapshot trees', async () => {
+    const stdout = sink();
+    const result = await runHostedCli(['browser', 'work', 'snapshot'], {
+      config: makeHostedConfig({ apiBaseUrl: 'https://api.example.com', apiKey: 'key' }),
+      stdout: stdout.stream,
+      stderr: sink().stream,
+      fetchImpl: async (url) => String(url).endsWith('/v1/manifest')
+        ? manifestResponse()
+        : new Response(JSON.stringify({
+            ok: true,
+            run: { executionId: 'exec_browser_snapshot', session: 'work', profile: { id: 'profile_default', displayName: 'default' } },
+            result: { ok: true, tree: '<page />', page: { url: 'https://example.test', title: 'Example' }, warnings: [], limits: { snapshotTruncated: false } },
+          }), { status: 200 }),
+    });
+
+    expect(result).toEqual({ handled: true, exitCode: 0 });
+    expect(stdout.text()).toBe('<page />\n');
+  });
+
   it('reconstructs AutoFix commands without treating global option values as command words', async () => {
     const stderr = sink();
     const result = await runHostedCli(['--profile', 'default', 'github', 'whoami'], {
