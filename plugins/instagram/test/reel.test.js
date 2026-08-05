@@ -108,8 +108,8 @@ describe('instagram reel registration', () => {
             },
         ]);
     });
-    it('copies query-style local video filenames to a safe temp upload path before setFileInput', async () => {
-        const videoPath = createTempVideo('demo.mp4?sign=abc&t=123video.MP4');
+    it('copies unsafe local video filenames to a safe temp upload path before setFileInput', async () => {
+        const videoPath = createTempVideo('demo video.MP4');
         const page = createPageMock([
             { ok: false },
             { ok: true },

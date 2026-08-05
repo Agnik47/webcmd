@@ -9,6 +9,7 @@ import { resolveInstagramRuntimeInfo } from './_shared/runtime-info.js';
 const INSTAGRAM_HOME_URL = 'https://www.instagram.com/';
 const SUPPORTED_VIDEO_EXTENSIONS = new Set(['.mp4']);
 const INSTAGRAM_REEL_TIMEOUT_SECONDS = 600;
+const INSTAGRAM_REEL_PREVIEW_DEBUG_PATH = path.join(os.tmpdir(), 'instagram_reel_preview_debug.png');
 function requirePage(page) {
     if (!page)
         throw new CommandExecutionError('Browser session required for instagram reel');
@@ -223,10 +224,10 @@ async function waitForVideoPreview(page, maxWaitSeconds = 20) {
         if (attempt < maxWaitSeconds * 2 - 1)
             await page.wait({ time: 0.5 });
     }
-    await page.screenshot({ path: '/tmp/instagram_reel_preview_debug.png' });
+    await page.screenshot({ path: INSTAGRAM_REEL_PREVIEW_DEBUG_PATH });
     throw new CommandExecutionError('Instagram reel preview did not appear after upload', lastDetail
-        ? `Inspect /tmp/instagram_reel_preview_debug.png. Last visible dialog text: ${lastDetail}`
-        : 'Inspect /tmp/instagram_reel_preview_debug.png for the upload state');
+        ? `Inspect ${INSTAGRAM_REEL_PREVIEW_DEBUG_PATH}. Last visible dialog text: ${lastDetail}`
+        : `Inspect ${INSTAGRAM_REEL_PREVIEW_DEBUG_PATH} for the upload state`);
 }
 async function clickAction(page, labels, scope = 'any') {
     const result = await page.evaluate(buildClickActionJs(labels, scope));

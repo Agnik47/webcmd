@@ -136,6 +136,6 @@ describe('instagram download command', () => {
             ],
         });
         await cmd.func(page, { url: 'https://www.instagram.com/p/DWUR_azCWbN/' });
-        expect(mockHttpDownload).toHaveBeenCalledWith('https://cdn.example.com/photo.webp?foo=1', expect.stringContaining(`${os.homedir()}/Downloads/Instagram/DWUR_azCWbN/DWUR_azCWbN_01.webp`), expect.objectContaining({ timeout: 60000 }));
+        expect(mockHttpDownload).toHaveBeenCalledWith('https://cdn.example.com/photo.webp?foo=1', path.join(os.homedir(), 'Downloads', 'Instagram', 'DWUR_azCWbN', 'DWUR_azCWbN_01.webp'), expect.objectContaining({ timeout: 60000 }));
     });
 });

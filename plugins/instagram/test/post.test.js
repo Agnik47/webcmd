@@ -8,6 +8,8 @@ import * as privatePublish from '../_shared/private-publish.js';
 import { buildClickActionJs, buildEnsureComposerOpenJs, buildInspectUploadStageJs, buildPublishStatusProbeJs } from '../post.js';
 import '../post.js';
 const tempDirs = [];
+const protocolTracePath = path.join(os.tmpdir(), 'instagram_post_protocol_trace.json');
+const previewDebugPath = path.join(os.tmpdir(), 'instagram_post_preview_debug.png');
 function createTempImage(name = 'demo.jpg', bytes = Buffer.from([0xff, 0xd8, 0xff, 0xd9])) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'webcmd-instagram-post-'));
     tempDirs.push(dir);
@@ -365,6 +367,8 @@ describe('instagram post registration', () => {
     });
     afterEach(() => {
         vi.restoreAllMocks();
+        delete process.env.WEBCMD_INSTAGRAM_CAPTURE;
+        fs.rmSync(protocolTracePath, { force: true });
     });
     it('registers the post command with a required-value media arg', () => {
         const cmd = getRegistry().get('instagram/post');
@@ -643,7 +647,7 @@ describe('instagram post registration', () => {
                 url: 'https://www.instagram.com/p/CAPTURE123/',
             },
         ]);
-        delete process.env.WEBCMD_INSTAGRAM_CAPTURE;
+        expect(fs.existsSync(protocolTracePath)).toBe(true);
     });
     it('retries media Next when preview is visible before the button becomes clickable', async () => {
         const firstImagePath = createTempImage('carousel-delay-1.jpg');
@@ -933,7 +937,7 @@ describe('instagram post registration', () => {
             media: imagePath,
             content: 'preview missing',
         })).rejects.toThrow('Instagram image preview did not appear after upload');
-        expect(page.screenshot).toHaveBeenCalledWith({ path: '/tmp/instagram_post_preview_debug.png' });
+        expect(page.screenshot).toHaveBeenCalledWith({ path: previewDebugPath });
     });
     it('fails clearly when Instagram shows an upload-stage error dialog', async () => {
         const imagePath = createTempImage('upload-error.jpg');

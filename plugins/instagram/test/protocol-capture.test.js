@@ -1,12 +1,15 @@
 import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { buildInstallInstagramProtocolCaptureJs, buildReadInstagramProtocolCaptureJs, dumpInstagramProtocolCaptureIfEnabled, instagramPrivateApiFetch, installInstagramProtocolCapture, readInstagramProtocolCapture, } from '../_shared/protocol-capture.js';
+const traceOutputPath = path.join(os.tmpdir(), 'instagram_post_protocol_trace.json');
 describe('instagram protocol capture helpers', () => {
     afterEach(() => {
         vi.restoreAllMocks();
         delete process.env.WEBCMD_INSTAGRAM_CAPTURE;
         try {
-            fs.rmSync('/tmp/instagram_post_protocol_trace.json', { force: true });
+            fs.rmSync(traceOutputPath, { force: true });
         }
         catch { }
     });
@@ -53,7 +56,7 @@ describe('instagram protocol capture helpers', () => {
             errors: [],
         });
     });
-    it('dumps protocol traces to /tmp only when capture env is enabled', async () => {
+    it('dumps protocol traces to the system temp directory only when capture env is enabled', async () => {
         process.env.WEBCMD_INSTAGRAM_CAPTURE = '1';
         const page = {
             evaluate: vi.fn().mockResolvedValue({
@@ -62,7 +65,7 @@ describe('instagram protocol capture helpers', () => {
             }),
         };
         await dumpInstagramProtocolCaptureIfEnabled(page);
-        const raw = fs.readFileSync('/tmp/instagram_post_protocol_trace.json', 'utf8');
+        const raw = fs.readFileSync(traceOutputPath, 'utf8');
         expect(raw).toContain('rupload_igphoto');
     });
     it('does not dump protocol traces when capture env is disabled', async () => {
@@ -71,7 +74,7 @@ describe('instagram protocol capture helpers', () => {
         };
         await dumpInstagramProtocolCaptureIfEnabled(page);
         expect(page.evaluate).not.toHaveBeenCalled();
-        expect(fs.existsSync('/tmp/instagram_post_protocol_trace.json')).toBe(false);
+        expect(fs.existsSync(traceOutputPath)).toBe(false);
     });
 });
 describe('instagram private api fetch', () => {

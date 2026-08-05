@@ -1,8 +1,10 @@
 import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import { resolveInstagramRuntimeInfo } from './runtime-info.js';
 const DEFAULT_CAPTURE_VAR = '__webcmd_ig_protocol_capture';
 const DEFAULT_CAPTURE_ERRORS_VAR = '__webcmd_ig_protocol_capture_errors';
-const TRACE_OUTPUT_PATH = '/tmp/instagram_post_protocol_trace.json';
+export const INSTAGRAM_PROTOCOL_TRACE_OUTPUT_PATH = path.join(os.tmpdir(), 'instagram_post_protocol_trace.json');
 const INSTAGRAM_PROTOCOL_CAPTURE_PATTERN = [
     '/rupload_igphoto/',
     '/rupload_igvideo/',
@@ -238,7 +240,7 @@ export async function dumpInstagramProtocolCaptureIfEnabled(page) {
     if (process.env.WEBCMD_INSTAGRAM_CAPTURE !== '1')
         return;
     const payload = await readInstagramProtocolCapture(page);
-    fs.writeFileSync(TRACE_OUTPUT_PATH, JSON.stringify(payload, null, 2));
+    fs.writeFileSync(INSTAGRAM_PROTOCOL_TRACE_OUTPUT_PATH, JSON.stringify(payload, null, 2));
 }
 function buildCookieHeader(cookies) {
     return cookies

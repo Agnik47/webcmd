@@ -1,15 +1,19 @@
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import { cli, Strategy } from '@agentrhq/webcmd/registry';
 import { ArgumentError, AuthRequiredError, CommandExecutionError } from '@agentrhq/webcmd/errors';
-import { installInstagramProtocolCapture, readInstagramProtocolCapture, } from './_shared/protocol-capture.js';
+import { INSTAGRAM_PROTOCOL_TRACE_OUTPUT_PATH, installInstagramProtocolCapture, readInstagramProtocolCapture, } from './_shared/protocol-capture.js';
 import { publishMediaViaPrivateApi, publishImagesViaPrivateApi, resolveInstagramPrivatePublishConfig, } from './_shared/private-publish.js';
 import { resolveInstagramRuntimeInfo } from './_shared/runtime-info.js';
 const INSTAGRAM_HOME_URL = 'https://www.instagram.com/';
 const SUPPORTED_IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp']);
 const SUPPORTED_VIDEO_EXTENSIONS = new Set(['.mp4']);
 const MAX_MEDIA_ITEMS = 10;
-const INSTAGRAM_PROTOCOL_TRACE_OUTPUT_PATH = '/tmp/instagram_post_protocol_trace.json';
+const INSTAGRAM_POST_PREVIEW_DEBUG_PATH = path.join(os.tmpdir(), 'instagram_post_preview_debug.png');
+const INSTAGRAM_POST_CAPTION_DEBUG_PATH = path.join(os.tmpdir(), 'instagram_post_caption_debug.png');
+const INSTAGRAM_POST_CAPTION_FILL_DEBUG_PATH = path.join(os.tmpdir(), 'instagram_post_caption_fill_debug.png');
+const INSTAGRAM_POST_SHARE_DEBUG_PATH = path.join(os.tmpdir(), 'instagram_post_share_debug.png');
 async function gotoInstagramHome(page, forceReload = false) {
     if (forceReload) {
         await page.goto(`${INSTAGRAM_HOME_URL}?__webcmd_reset=${Date.now()}`);
@@ -779,14 +783,14 @@ async function waitForPreview(page, maxWaitSeconds = 12) {
         if (state.state === 'preview')
             return;
         if (state.state === 'failed') {
-            await page.screenshot({ path: '/tmp/instagram_post_preview_debug.png' });
-            throw makeUploadFailure('Inspect /tmp/instagram_post_preview_debug.png. ' + (state.detail || ''));
+            await page.screenshot({ path: INSTAGRAM_POST_PREVIEW_DEBUG_PATH });
+            throw makeUploadFailure(`Inspect ${INSTAGRAM_POST_PREVIEW_DEBUG_PATH}. ` + (state.detail || ''));
         }
         if (attempt < attempts - 1)
             await page.wait({ time: 1 });
     }
-    await page.screenshot({ path: '/tmp/instagram_post_preview_debug.png' });
-    throw new CommandExecutionError('Instagram image preview did not appear after upload', 'The selected file input may not match the active composer; inspect /tmp/instagram_post_preview_debug.png');
+    await page.screenshot({ path: INSTAGRAM_POST_PREVIEW_DEBUG_PATH });
+    throw new CommandExecutionError('Instagram image preview did not appear after upload', `The selected file input may not match the active composer; inspect ${INSTAGRAM_POST_PREVIEW_DEBUG_PATH}`);
 }
 async function waitForPreviewMaybe(page, maxWaitSeconds = 4) {
     const attempts = Math.max(1, Math.ceil(maxWaitSeconds * 2));
@@ -966,13 +970,13 @@ async function advanceToCaptionEditor(page) {
             throw makeUploadFailure(uploadState.detail);
         }
     }
-    await page.screenshot({ path: '/tmp/instagram_post_caption_debug.png' });
-    throw new CommandExecutionError('Instagram caption editor did not appear', 'Instagram may have changed the publish flow; inspect /tmp/instagram_post_caption_debug.png');
+    await page.screenshot({ path: INSTAGRAM_POST_CAPTION_DEBUG_PATH });
+    throw new CommandExecutionError('Instagram caption editor did not appear', `Instagram may have changed the publish flow; inspect ${INSTAGRAM_POST_CAPTION_DEBUG_PATH}`);
 }
 async function waitForCaptionEditor(page) {
     if (!(await hasCaptionEditor(page))) {
-        await page.screenshot({ path: '/tmp/instagram_post_caption_debug.png' });
-        throw new CommandExecutionError('Instagram caption editor did not appear', 'Instagram may have changed the publish flow; inspect /tmp/instagram_post_caption_debug.png');
+        await page.screenshot({ path: INSTAGRAM_POST_CAPTION_DEBUG_PATH });
+        throw new CommandExecutionError('Instagram caption editor did not appear', `Instagram may have changed the publish flow; inspect ${INSTAGRAM_POST_CAPTION_DEBUG_PATH}`);
     }
 }
 async function rethrowUploadFailureIfPresent(page, originalError) {
@@ -1242,16 +1246,16 @@ async function ensureCaptionFilled(page, content) {
             await page.wait({ time: 0.5 });
         }
     }
-    await page.screenshot({ path: '/tmp/instagram_post_caption_fill_debug.png' });
-    throw new CommandExecutionError('Instagram caption did not stick before sharing', 'Inspect /tmp/instagram_post_caption_fill_debug.png for the caption editor state');
+    await page.screenshot({ path: INSTAGRAM_POST_CAPTION_FILL_DEBUG_PATH });
+    throw new CommandExecutionError('Instagram caption did not stick before sharing', `Inspect ${INSTAGRAM_POST_CAPTION_FILL_DEBUG_PATH} for the caption editor state`);
 }
 async function waitForPublishSuccess(page) {
     let settledStreak = 0;
     for (let attempt = 0; attempt < 90; attempt++) {
         const result = await page.evaluate(buildPublishStatusProbeJs());
         if (result?.failed) {
-            await page.screenshot({ path: '/tmp/instagram_post_share_debug.png' });
-            throw new CommandExecutionError('Instagram post share failed', 'Inspect /tmp/instagram_post_share_debug.png for the share failure state');
+            await page.screenshot({ path: INSTAGRAM_POST_SHARE_DEBUG_PATH });
+            throw new CommandExecutionError('Instagram post share failed', `Inspect ${INSTAGRAM_POST_SHARE_DEBUG_PATH} for the share failure state`);
         }
         if (result?.ok) {
             return result.url || '';
@@ -1268,8 +1272,8 @@ async function waitForPublishSuccess(page) {
             await page.wait({ time: 1 });
         }
     }
-    await page.screenshot({ path: '/tmp/instagram_post_share_debug.png' });
-    throw new CommandExecutionError('Instagram post share confirmation did not appear', 'Inspect /tmp/instagram_post_share_debug.png for the final publish state');
+    await page.screenshot({ path: INSTAGRAM_POST_SHARE_DEBUG_PATH });
+    throw new CommandExecutionError('Instagram post share confirmation did not appear', `Inspect ${INSTAGRAM_POST_SHARE_DEBUG_PATH} for the final publish state`);
 }
 async function resolveCurrentUserId(page) {
     const cookies = await page.getCookies({ domain: 'instagram.com' });
