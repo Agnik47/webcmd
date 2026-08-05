@@ -121,21 +121,8 @@ Webcmd Cloud can run supported commands and browser sessions on hosted infrastru
 
 | Plugin | Description | Author |
 | --- | --- | --- |
-| [`bmwblog`](./plugins/bmwblog/) | BMWBLOG article discovery commands for Webcmd | WebCMD Agent |
-| [`cincinnati`](./plugins/cincinnati/) | University of Cincinnati postgraduate course export adapter | WebCMD Agent |
-| [`concordia`](./plugins/concordia/) | Concordia University Montréal postgraduate course export adapter | WebCMD Agent |
-| [`goettingen`](./plugins/goettingen/) | University of Göttingen postgraduate course export adapter | WebCMD Agent |
-| [`heidelberg`](./plugins/heidelberg/) | Heidelberg University postgraduate course export adapter | WebCMD Agent |
-| [`hft`](./plugins/hft/) | HFT Stuttgart postgraduate course export adapter | WebCMD Agent |
-| [`iit`](./plugins/iit/) | Illinois Institute of Technology postgraduate course export adapter | WebCMD Agent |
-| [`jhu`](./plugins/jhu/) | Johns Hopkins University postgraduate course export adapter | WebCMD Agent |
-| [`luma`](./plugins/luma/) | Manage hosted Luma events, registration questions, and guests | WebCMD Agent |
 | [`pypi`](./plugins/pypi/) | Inspect public Python package metadata and releases from PyPI | [Kemal Kaya](https://github.com/yoldaolmak) |
 | [`skyscanner`](./plugins/skyscanner/) | Skyscanner flight search commands for Webcmd | [Rishabh](https://github.com/rishabhraj36) |
-| [`techcrunch`](./plugins/techcrunch/) | Search and read TechCrunch stories from its public API | WebCMD Agent |
-| [`ualberta`](./plugins/ualberta/) | University of Alberta postgraduate course export adapter | WebCMD Agent |
-| [`yale`](./plugins/yale/) | Yale University postgraduate course export adapter | WebCMD Agent |
-| [`ycombinator`](./plugins/ycombinator/) | Read-only Y Combinator startup directory commands for WebCMD | WebCMD Agent |
 <!-- webcmd-community-plugins:end -->
 
 ## Contributing
