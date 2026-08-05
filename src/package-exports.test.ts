@@ -9,6 +9,7 @@ import { describe, it, expect } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { builtinModules } from 'node:module';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 
@@ -64,6 +65,20 @@ describe('adapter imports use package exports', () => {
   it('has no bundled core adapter files', () => {
     expect(adapterFiles).toEqual([]);
   });
+
+  it('packs no core adapters, repository plugins, or adapter fetch lifecycle', () => {
+    const packed = spawnSync('npm', ['pack', '--ignore-scripts', '--dry-run', '--json'], {
+      cwd: ROOT,
+      encoding: 'utf8',
+    });
+    expect(packed.status, packed.stderr).toBe(0);
+    const files = (JSON.parse(packed.stdout) as Array<{ files: Array<{ path: string }> }>)[0]!.files
+      .map(file => file.path);
+
+    expect(files.some(file => file.startsWith('clis/'))).toBe(false);
+    expect(files.some(file => file.startsWith('plugins/'))).toBe(false);
+    expect(files).not.toContain('scripts/fetch-adapters.js');
+  }, 15_000);
 
   it('no adapter uses relative imports to src/, browser/, download/, or pipeline/', () => {
     const violations: string[] = [];

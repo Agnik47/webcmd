@@ -245,6 +245,8 @@ async function dispatchHosted(
     return;
   }
 
+  // The API manifest is tenant-scoped. Never merge package or local plugin
+  // commands into it: the installed package contract contains no site commands.
   const manifest = await client.getManifest();
   validateManifestContractIdentity(manifest);
 

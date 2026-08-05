@@ -3376,89 +3376,41 @@ cli({
 
   adapterCmd
     .command('status')
-    .description('Show which sites have local overrides vs using official baseline')
+    .description('List legacy local adapters in ~/.webcmd/clis/')
     .action(async () => {
-      const os = await import('node:os');
-      const userClisDir = path.join(os.homedir(), '.webcmd', 'clis');
-      const builtinClisDir = BUILTIN_CLIS;
       try {
-        const userEntries = await fs.promises.readdir(userClisDir, { withFileTypes: true });
+        const userEntries = await fs.promises.readdir(USER_CLIS, { withFileTypes: true });
         const userSites = userEntries.filter(e => e.isDirectory()).map(e => e.name).sort();
-        let builtinSites: string[] = [];
-        try {
-          const builtinEntries = await fs.promises.readdir(builtinClisDir, { withFileTypes: true });
-          builtinSites = builtinEntries.filter(e => e.isDirectory()).map(e => e.name).sort();
-        } catch { /* no builtin dir */ }
-
         if (userSites.length === 0) {
-          console.log('No local adapter overrides. All sites use the official baseline.');
+          console.log('No legacy local adapters installed.');
           return;
         }
 
-        console.log(`Local overrides in ~/.webcmd/clis/ (${userSites.length} sites):\n`);
-        for (const site of userSites) {
-          const isOfficial = builtinSites.includes(site);
-          const label = isOfficial ? 'override' : 'custom';
-          console.log(`  ${site} [${label}]`);
-        }
-        console.log(`\nOfficial baseline: ${builtinSites.length} sites in package`);
+        console.log(`Legacy local adapters in ~/.webcmd/clis/ (${userSites.length} sites):\n`);
+        for (const site of userSites) console.log(`  ${site}`);
       } catch {
-        console.log('No local adapter overrides. All sites use the official baseline.');
+        console.log('No legacy local adapters installed.');
       }
-    });
-
-  adapterCmd
-    .command('eject')
-    .description('Copy an official adapter to ~/.webcmd/clis/ for local editing')
-    .argument('<site>', 'Site name (e.g. twitter, youtube)')
-    .action(async (site: string) => {
-      const os = await import('node:os');
-      const userClisDir = path.join(os.homedir(), '.webcmd', 'clis');
-      const builtinSiteDir = path.join(BUILTIN_CLIS, site);
-      const userSiteDir = path.join(userClisDir, site);
-
-      try {
-        await fs.promises.access(builtinSiteDir);
-      } catch {
-        console.error(`Error: Site "${site}" not found in official adapters.`);
-        process.exitCode = EXIT_CODES.USAGE_ERROR;
-        return;
-      }
-
-      try {
-        await fs.promises.access(userSiteDir);
-        console.error(`Site "${site}" already exists in ~/.webcmd/clis/. Use "webcmd adapter reset ${site}" first to restore official version.`);
-        process.exitCode = EXIT_CODES.USAGE_ERROR;
-        return;
-      } catch { /* good, doesn't exist yet */ }
-
-      fs.cpSync(builtinSiteDir, userSiteDir, { recursive: true });
-      console.log(`✅ Ejected "${site}" to ~/.webcmd/clis/${site}/`);
-      console.log('You can now edit the adapter files. Changes take effect immediately.');
-      console.log('Note: Official updates to this adapter will overwrite your changes.');
     });
 
   adapterCmd
     .command('reset')
-    .description('Remove local override and restore official adapter version')
+    .description('Remove a legacy local adapter')
     .argument('[site]', 'Site name (e.g. twitter, youtube)')
     .option('--all', 'Reset all local overrides')
     .action(async (site: string | undefined, opts: { all?: boolean }) => {
-      const os = await import('node:os');
-      const userClisDir = path.join(os.homedir(), '.webcmd', 'clis');
-
       if (opts.all) {
         try {
-          const userEntries = await fs.promises.readdir(userClisDir, { withFileTypes: true });
+          const userEntries = await fs.promises.readdir(USER_CLIS, { withFileTypes: true });
           const dirs = userEntries.filter(e => e.isDirectory());
           if (dirs.length === 0) {
             console.log('No local sites to reset.');
             return;
           }
           for (const dir of dirs) {
-            fs.rmSync(path.join(userClisDir, dir.name), { recursive: true, force: true });
+            fs.rmSync(path.join(USER_CLIS, dir.name), { recursive: true, force: true });
           }
-          console.log(`✅ Reset ${dirs.length} site(s). All adapters now use official baseline.`);
+          console.log(`✅ Removed ${dirs.length} legacy local adapter(s).`);
         } catch {
           console.log('No local sites to reset.');
         }
@@ -3471,7 +3423,7 @@ cli({
         return;
       }
 
-      const userSiteDir = path.join(userClisDir, site);
+      const userSiteDir = path.join(USER_CLIS, site);
       try {
         await fs.promises.access(userSiteDir);
       } catch {
@@ -3479,11 +3431,8 @@ cli({
         return;
       }
 
-      const isOfficial = fs.existsSync(path.join(BUILTIN_CLIS, site));
       fs.rmSync(userSiteDir, { recursive: true, force: true });
-      console.log(isOfficial
-        ? `✅ Reset "${site}". Now using official baseline.`
-        : `✅ Removed custom site "${site}".`);
+      console.log(`✅ Removed legacy local adapter "${site}".`);
     });
 
   // ── Built-in: browser profile selection ──────────────────────────────────

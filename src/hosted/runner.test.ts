@@ -6,6 +6,7 @@ import { Writable, type WritableOptions } from 'node:stream';
 import type { Command } from 'commander';
 import { describe, expect, it, vi } from 'vitest';
 import { browserCommandCatalog } from '../browser/command-catalog.js';
+import { buildHostedContract } from './contract.js';
 import { rewriteBrowserArgv } from '../cli-argv-preprocess.js';
 import { createProgram } from '../cli.js';
 import { formatRootHelp } from '../command-presentation.js';
@@ -17,6 +18,15 @@ import { runHostedCli } from './runner.js';
 const [packageMajor, packageMinor] = PKG_VERSION.split('.');
 const compatiblePatchVersion = `${packageMajor}.${packageMinor}.99`;
 const incompatibleMinorVersion = `${packageMajor}.${Number(packageMinor) + 1}.0`;
+
+it('ships no default site commands while preserving the browser contract', () => {
+  const contract = buildHostedContract([], browserCommandCatalog, PKG_VERSION);
+
+  expect(contract.commands).toEqual([]);
+  expect(contract.browserCommands.map(command => command.command)).toEqual(
+    browserCommandCatalog.map(command => command.command),
+  );
+});
 
 const manifest = {
   userId: 'user_demo',

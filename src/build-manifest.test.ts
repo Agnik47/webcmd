@@ -25,6 +25,17 @@ describe('manifest helper rules', () => {
     }
   });
 
+  it('builds an empty core manifest when clis/ is absent', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'webcmd-no-clis-'));
+    tempDirs.push(root);
+
+    await expect(scanClisDir(path.join(root, 'clis'))).resolves.toEqual({
+      entries: [],
+      failures: [],
+    });
+    expect(serializeManifest([])).toBe('[]\n');
+  });
+
   it('skips TS files that do not register a cli', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'webcmd-manifest-'));
     tempDirs.push(dir);

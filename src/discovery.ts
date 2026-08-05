@@ -161,9 +161,8 @@ export async function ensureUserCliCompatShims(baseDir: string = USER_WEBCMD_DIR
 /**
  * Ensure the user adapters directory exists.
  *
- * With smart sync, ~/.webcmd/clis/ only holds files that differ from the
- * package baseline (upstream-synced cache + autofix output + user overrides).
- * Built-in adapters are loaded directly from the installed package.
+ * This legacy directory remains available for private adapters and autofix
+ * output. Official adapters are installed as plugins instead.
  */
 export async function ensureUserAdapters(): Promise<void> {
   await fs.promises.mkdir(USER_CLIS_DIR, { recursive: true });

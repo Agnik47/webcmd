@@ -58,6 +58,15 @@ Webcmd requires Node.js 20+.
 npm install -g @agentrhq/webcmd
 ```
 
+The npm package ships the Webcmd core and browser commands, but no site
+adapters. Search the plugin catalog and explicitly install the adapter you
+need:
+
+```bash
+webcmd plugin search <site> -f json
+webcmd plugin install <installSource-from-search>
+```
+
 ```bash
 webcmd skills add
 ```
@@ -101,7 +110,8 @@ Beyond website adapters, Webcmd can work through authenticated browser sessions,
 | AI tools | ChatGPT, Claude, Gemini, NotebookLM | Retrieve conversations, research outputs, notebooks, and generated materials from the tools you already use. |
 | shopping and bookings | Amazon, Blinkit, Zepto, BigBasket, District, Practo | Compare products, availability, prices, appointments, events, and delivery options. |
 
-This list is illustrative; ask your agent to use webcmd to discover what is currently available.
+This list is illustrative; availability comes from installed plugins. Ask your
+agent to search and install the relevant plugin when a site is not installed.
 
 ## Learn More
 
