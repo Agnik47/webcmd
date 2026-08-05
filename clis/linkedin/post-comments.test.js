@@ -13,6 +13,7 @@ import './post-comments.js';
 
 const {
   canonicalizePostUrl,
+  canonicalizeProfileUrl,
   parseOptionalLimit,
   buildCommentRoundScript,
   normalizeCommentRows,
@@ -32,6 +33,7 @@ const round = (rows, overrides = {}) => ({
   rows,
   authRequired: false,
   commentNodeCount: rows.length,
+  expectedCommentCount: rows.length,
   replyControlsClicked: 0,
   atEnd: true,
   url: 'https://www.linkedin.com/posts/source/',
@@ -132,8 +134,17 @@ describe('linkedin post-comments', () => {
         rawComment: 'Mentioned Person Reply comment',
         rawCommentedAt: '1d',
       },
+      {
+        rawId: 'replaceableComment_urn:li:comment:(urn:li:activity:1,103)',
+        rawName: 'Example Org',
+        rawHeadline: '5,000 followers',
+        rawProfileUrl: 'https://www.linkedin.com/company/example-org/posts/',
+        rawComment: 'Mentioned Person Organization comment',
+        rawCommentedAt: '3d',
+      },
     ]);
     expect(payload.replyControlsClicked).toBe(1);
+    expect(payload.expectedCommentCount).toBe(3);
     expect(payload.atEnd).toBe(true);
   });
 
@@ -156,6 +167,24 @@ describe('linkedin post-comments', () => {
       commented_at: '2d',
       source_post: 'https://www.linkedin.com/posts/source/',
     }]);
+  });
+
+  it('canonicalizes LinkedIn locale-suffixed person profiles', () => {
+    expect(canonicalizeProfileUrl('https://www.linkedin.com/in/brad-choi/en/'))
+      .toBe('https://www.linkedin.com/in/brad-choi/');
+  });
+
+  it('counts but excludes organization commenters from the people result', () => {
+    const rows = normalizeCommentRows([
+      rawComment(1, 'alice', 'Alice', 'First'),
+      rawComment(2, 'ignored', 'Example Org', 'Company comment', {
+        rawProfileUrl: 'https://www.linkedin.com/company/example-org/posts/',
+      }),
+    ], 'https://www.linkedin.com/posts/source/');
+
+    expect(rows.map((row) => row.profile_url)).toEqual([
+      'https://www.linkedin.com/in/alice/',
+    ]);
   });
 
   it('rejects rendered comments without a stable identity', () => {
@@ -184,6 +213,41 @@ describe('linkedin post-comments', () => {
       'https://www.linkedin.com/in/bob/',
     ]);
     expect(page.evaluate).toHaveBeenCalledTimes(5);
+  });
+
+  it('does not report a partial result while the advertised comment count is higher', async () => {
+    const command = getRegistry().get('linkedin/post-comments');
+    const alice = rawComment(1, 'alice', 'Alice', 'First');
+    const bob = rawComment(2, 'bob', 'Bob', 'Second');
+    const carol = rawComment(3, 'carol', 'Carol', 'Third');
+    const page = makePage([
+      round([alice, bob], { expectedCommentCount: 3 }),
+      round([alice, bob], { expectedCommentCount: 3 }),
+      round([alice, bob], { expectedCommentCount: 3 }),
+      round([alice, bob, carol], { expectedCommentCount: 3 }),
+      round([alice, bob, carol], { expectedCommentCount: 3 }),
+      round([alice, bob, carol], { expectedCommentCount: 3 }),
+    ]);
+
+    const rows = await command.func(page, { 'post-url': 'https://www.linkedin.com/posts/source/' });
+
+    expect(rows.map((row) => row.profile_url)).toEqual([
+      'https://www.linkedin.com/in/alice/',
+      'https://www.linkedin.com/in/bob/',
+      'https://www.linkedin.com/in/carol/',
+    ]);
+  });
+
+  it('returns visible people after a longer stable wait when the count includes an unavailable comment', async () => {
+    const command = getRegistry().get('linkedin/post-comments');
+    const alice = rawComment(1, 'alice', 'Alice', 'First');
+    const bob = rawComment(2, 'bob', 'Bob', 'Second');
+    const page = makePage([round([alice, bob], { expectedCommentCount: 3 })]);
+
+    const rows = await command.func(page, { 'post-url': 'https://www.linkedin.com/posts/source/' });
+
+    expect(rows).toHaveLength(2);
+    expect(page.evaluate).toHaveBeenCalledTimes(12);
   });
 
   it('stops as soon as the optional unique-profile limit is reached', async () => {

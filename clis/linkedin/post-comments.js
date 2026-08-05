@@ -13,6 +13,7 @@ import {
 
 const LINKEDIN_DOMAIN = 'www.linkedin.com';
 const MAX_ROUNDS = 200;
+const UNREACHED_COUNT_STABLE_ROUNDS = 10;
 const COLUMNS = [
   'rank',
   'name',
@@ -65,7 +66,7 @@ function canonicalizeProfileUrl(value) {
   try {
     const parsed = new URL(normalizeWhitespace(value), `https://${LINKEDIN_DOMAIN}`);
     const host = parsed.hostname.toLowerCase();
-    const match = parsed.pathname.match(/^\/in\/([^/?#]+)\/?$/i);
+    const match = parsed.pathname.match(/^\/in\/([^/?#]+)(?:\/[a-z]{2})?\/?$/i);
     if (
       parsed.protocol !== 'https:'
       || parsed.username
@@ -80,6 +81,20 @@ function canonicalizeProfileUrl(value) {
   }
 }
 
+function isCompanyProfileUrl(value) {
+  try {
+    const parsed = new URL(normalizeWhitespace(value), `https://${LINKEDIN_DOMAIN}`);
+    return parsed.protocol === 'https:'
+      && !parsed.username
+      && !parsed.password
+      && !parsed.port
+      && (parsed.hostname === 'linkedin.com' || parsed.hostname === LINKEDIN_DOMAIN)
+      && /^\/company\/[^/?#]+\/(?:posts\/)?$/i.test(parsed.pathname);
+  } catch {
+    return false;
+  }
+}
+
 function buildCommentRoundScript() {
   return String.raw`(() => {
     const clean = (value) => String(value || '').replace(/[\u00a0\u202f]+/g, ' ').replace(/\s+/g, ' ').trim();
@@ -88,8 +103,14 @@ function buildCommentRoundScript() {
     const authRequired = /linkedin\.com\/(?:login|checkpoint|authwall|uas)/i.test(location.href)
       || /\b(sign in|log in|join linkedin|captcha|verification required)\b/i.test(document.body?.innerText || '');
     const nodes = Array.from(document.querySelectorAll(commentSelector));
+    const expectedCommentCount = Math.max(0, ...Array.from(document.querySelectorAll('p, span, button'))
+      .map((element) => clean(element.textContent || element.getAttribute('aria-label')))
+      .map((text) => text.match(/^(\d[\d,.]*)([km]?)\s+comments?$/i))
+      .filter(Boolean)
+      .map((match) => Math.round(Number(match[1].replace(/,/g, '')) * ({ k: 1e3, m: 1e6 }[match[2].toLowerCase()] || 1))));
     const rows = nodes.map((node) => {
-      const links = Array.from(node.querySelectorAll('a[href*="/in/"]')).filter((link) => owns(node, link));
+      const links = Array.from(node.querySelectorAll('a[href]'))
+        .filter((link) => owns(node, link) && /linkedin\.com\/(?:in|company)\//i.test(link.href));
       const rawProfileUrl = links[0]?.href || '';
       const identity = links.find((link) => link.href === rawProfileUrl && clean(link.textContent)) || links[0];
       const labels = Array.from(node.querySelectorAll('[aria-label]'))
@@ -106,7 +127,8 @@ function buildCommentRoundScript() {
         .map((paragraph) => clean(paragraph.textContent))
         .filter(Boolean);
       const rawHeadline = paragraphs
-        .filter((text) => text !== rawName && !/^(author|verified profile|[•·]?\s*(?:1st|2nd|3rd))/i.test(text))
+        .filter((text) => !(rawName && text.toLowerCase().includes(rawName.toLowerCase()))
+          && !/^(author|verified profile|[•·]?\s*(?:1st|2nd|3rd))/i.test(text))
         .sort((left, right) => right.length - left.length)[0]
         || '';
       const textBox = Array.from(node.querySelectorAll('[data-testid="expandable-text-box"]'))
@@ -137,9 +159,11 @@ function buildCommentRoundScript() {
     let atEnd = true;
     if (workspace && workspace.scrollHeight > workspace.clientHeight) {
       const bottom = workspace.scrollHeight - workspace.clientHeight;
+      workspace.scrollTop = Math.max(0, bottom - 300);
       workspace.scrollTop = bottom;
       atEnd = workspace.scrollTop >= bottom - 2;
     } else {
+      window.scrollTo(0, Math.max(0, document.documentElement.scrollHeight - window.innerHeight - 300));
       window.scrollTo(0, document.documentElement.scrollHeight);
       atEnd = window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2;
     }
@@ -147,6 +171,7 @@ function buildCommentRoundScript() {
       rows,
       authRequired,
       commentNodeCount: nodes.length,
+      expectedCommentCount,
       replyControlsClicked: controls.length,
       atEnd,
       url: location.href,
@@ -166,6 +191,7 @@ function normalizeCommentRows(rows, sourcePost) {
     const rawId = normalizeWhitespace(row.rawId);
     const name = normalizeWhitespace(row.rawName);
     const profileUrl = canonicalizeProfileUrl(row.rawProfileUrl);
+    if (rawId && name && !profileUrl && isCompanyProfileUrl(row.rawProfileUrl)) continue;
     if (!rawId || !name || !profileUrl) {
       throw new CommandExecutionError(`LinkedIn post-comments returned row without stable profile identity at index ${index}`);
     }
@@ -206,6 +232,7 @@ async function collectPostComments(page, args) {
   }
 
   const commentsById = new Map();
+  let expectedCommentCount = 0;
   let stableRounds = 0;
   for (let round = 0; round < MAX_ROUNDS; round++) {
     let payload;
@@ -225,6 +252,8 @@ async function collectPostComments(page, args) {
       || !Array.isArray(payload.rows)
       || !Number.isInteger(payload.commentNodeCount)
       || payload.commentNodeCount < 0
+      || !Number.isInteger(payload.expectedCommentCount)
+      || payload.expectedCommentCount < 0
       || !Number.isInteger(payload.replyControlsClicked)
       || payload.replyControlsClicked < 0
       || typeof payload.atEnd !== 'boolean'
@@ -252,12 +281,18 @@ async function collectPostComments(page, args) {
         newComments += 1;
       }
     }
+    expectedCommentCount = Math.max(expectedCommentCount, payload.expectedCommentCount);
     const normalized = normalizeCommentRows(Array.from(commentsById.values()), sourcePost);
     if (limit && normalized.length >= limit) return normalized.slice(0, limit);
 
-    const exhausted = newComments === 0 && payload.replyControlsClicked === 0 && payload.atEnd;
+    const exhausted = newComments === 0
+      && payload.replyControlsClicked === 0
+      && payload.atEnd;
     stableRounds = exhausted ? stableRounds + 1 : 0;
-    if (stableRounds >= 2) {
+    const stableRoundLimit = expectedCommentCount === 0 || commentsById.size >= expectedCommentCount
+      ? 2
+      : UNREACHED_COUNT_STABLE_ROUNDS;
+    if (stableRounds >= stableRoundLimit) {
       if (normalized.length === 0) {
         throw new EmptyResultError(
           'linkedin post-comments',

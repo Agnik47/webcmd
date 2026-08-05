@@ -2,7 +2,7 @@
 
 ## Goal
 
-Add a read-only command that collects every visible participant in one exact LinkedIn post's comment threads, including reply authors, and deduplicates them by canonical LinkedIn profile URL.
+Add a read-only command that collects every visible person in one exact LinkedIn post's comment threads, including reply authors, and deduplicates them by canonical LinkedIn profile URL.
 
 ## Command
 
@@ -22,7 +22,8 @@ Contract: visible UI
 Evidence from the supplied post:
 
 - Rendered comments use stable `replaceableComment_urn:li:comment:...` containers.
-- Each container exposes its author's exact `/in/<handle>/` link, name, headline, relative timestamp, and comment text.
+- Person-authored containers expose an exact `/in/<handle>/` link, sometimes with a locale suffix, plus name, headline, relative timestamp, and comment text.
+- Organization-authored comments expose `/company/` identities; they count toward pagination progress but are excluded from the people result.
 - Reply pagination is exposed through visible `See previous replies` controls.
 - The observed network alternative is LinkedIn's internal `flagship-web/rsc-action/actions/pagination` action, whose private action payload is a higher-drift contract.
 
@@ -51,10 +52,10 @@ Mentioned profile links inside comment text are not identities: the first author
 2. Open it in the authenticated LinkedIn browser session and reject auth walls.
 3. Extract currently rendered comment containers.
 4. Expand every visible `See previous replies` control and advance the post workspace.
-5. Repeat while new comment containers or pagination controls appear, or until `--limit` unique profiles have been collected.
+5. Repeat while new comment containers or pagination controls appear, or until `--limit` unique profiles have been collected. Treat the visible comment count as a progress hint because it can include unavailable or moderated comments.
 6. Normalize rows, aggregate duplicate authors, and return first-seen order.
 
-The unbounded path stops only after a full iteration produces no new comment containers and no actionable reply or pagination controls.
+The unbounded path stops after two stable bottom rounds when the visible count is reached, or ten stable bottom rounds when LinkedIn's count includes a non-renderable comment.
 
 ## Errors
 

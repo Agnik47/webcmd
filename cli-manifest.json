@@ -13453,6 +13453,44 @@
   },
   {
     "site": "linkedin",
+    "name": "post-comments",
+    "description": "List unique commenters and reply authors from one exact LinkedIn post URL",
+    "access": "read",
+    "domain": "www.linkedin.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "post-url",
+        "type": "string",
+        "required": true,
+        "positional": true,
+        "help": "Exact LinkedIn post URL"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "required": false,
+        "help": "Maximum unique commenters to return; omit to fetch all"
+      }
+    ],
+    "columns": [
+      "rank",
+      "name",
+      "headline",
+      "profile_url",
+      "comment_count",
+      "sample_comment",
+      "commented_at",
+      "source_post"
+    ],
+    "type": "js",
+    "modulePath": "linkedin/post-comments.js",
+    "sourceFile": "linkedin/post-comments.js",
+    "navigateBefore": "https://www.linkedin.com"
+  },
+  {
+    "site": "linkedin",
     "name": "posts",
     "description": "Export visible posts from a LinkedIn profile activity page with engagement metrics",
     "access": "read",
