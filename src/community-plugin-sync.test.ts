@@ -51,7 +51,7 @@ describe('community plugin sync', () => {
       version: '0.1.0',
       description: 'Last plugin',
       webcmd: '>=0.2.0',
-      author: { name: 'Zed', handle: 'zed-user' },
+      author: { name: 'WebCMD Agent', handle: 'agentrhq' },
     });
     writePlugin('alpha', {
       name: 'alpha',
@@ -85,6 +85,8 @@ describe('community plugin sync', () => {
     });
     expect(result.readme).toContain('| Plugin | Description | Author |');
     expect(result.readme).toContain('| [`alpha`](./plugins/alpha/) | Forecasts \\| alerts | [Alice](https://github.com/alice) |');
+    expect(result.readme).toContain('| [`zeta`](./plugins/zeta/) | Last plugin | WebCMD Agent |');
+    expect(result.readme).not.toContain('[WebCMD Agent](https://github.com/agentrhq)');
     expect(result.readme.indexOf('`alpha`')).toBeLessThan(result.readme.indexOf('`zeta`'));
     expect(result.readme).toContain('### Plugin marketplaces');
     expect(result.readme).toContain('[other/plugins](https://github.com/other/plugins)');
