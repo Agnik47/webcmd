@@ -166,7 +166,10 @@ function contractCommand(contract: HostedContract, command: string) {
 
 describe('hosted file argument contract', () => {
   it('declares every real local path argument in generated artifacts', () => {
-    const manifest = readJson<ManifestEntry[]>('cli-manifest.json');
+    const manifest = [
+      ...readJson<ManifestEntry[]>('cli-manifest.json'),
+      ...readJson<ManifestEntry[]>('plugin-command-manifest.json'),
+    ];
     const contract = readJson<HostedContract>('hosted-contract.json');
 
     for (const [command, expected] of Object.entries(EXPECTED_FILE_ARGUMENTS)) {

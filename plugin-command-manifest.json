@@ -2958,6 +2958,625 @@
     "sourceFile": "plugins/brave/search.js"
   },
   {
+    "site": "chatgpt",
+    "name": "ask",
+    "description": "Send a prompt to ChatGPT web and wait for the response",
+    "access": "write",
+    "domain": "chatgpt.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "prompt",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Prompt to send"
+      },
+      {
+        "name": "timeout",
+        "type": "int",
+        "default": 120,
+        "required": false,
+        "help": "Max seconds to wait for response"
+      },
+      {
+        "name": "new",
+        "type": "boolean",
+        "default": false,
+        "required": false,
+        "help": "Start a new chat before sending"
+      },
+      {
+        "name": "conversation",
+        "type": "str",
+        "required": false,
+        "valueRequired": true,
+        "help": "Continue an existing ChatGPT conversation ID or /c/<id> URL"
+      },
+      {
+        "name": "project",
+        "type": "str",
+        "required": false,
+        "valueRequired": true,
+        "help": "Start a new chat inside a ChatGPT project ID or /g/g-p-<id> URL"
+      },
+      {
+        "name": "wait",
+        "type": "boolean",
+        "default": true,
+        "required": false,
+        "help": "Wait for the assistant response after sending"
+      },
+      {
+        "name": "deep-research",
+        "type": "boolean",
+        "default": false,
+        "required": false,
+        "help": "Enable ChatGPT Deep Research (Deep Research)"
+      },
+      {
+        "name": "web-search",
+        "type": "boolean",
+        "default": false,
+        "required": false,
+        "help": "Enable ChatGPT Web Search (Web Search)"
+      }
+    ],
+    "columns": [
+      "conversationId",
+      "conversationUrl",
+      "tool",
+      "response"
+    ],
+    "type": "js",
+    "modulePath": "plugins/chatgpt/ask.js",
+    "sourceFile": "plugins/chatgpt/ask.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "chatgpt",
+    "name": "deep-research-result",
+    "description": "Read a ChatGPT Deep Research report or progress from the conversation payload",
+    "access": "read",
+    "domain": "chatgpt.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "id",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Conversation ID or full /c/<id> URL"
+      },
+      {
+        "name": "wait",
+        "type": "boolean",
+        "default": false,
+        "required": false,
+        "help": "Wait until Deep Research completes or becomes extractable"
+      },
+      {
+        "name": "timeout",
+        "type": "int",
+        "default": 120,
+        "required": false,
+        "help": "Max seconds to wait when --wait is true"
+      },
+      {
+        "name": "stable",
+        "type": "int",
+        "default": 6,
+        "required": false,
+        "help": "Seconds the report text must remain unchanged when --wait is true"
+      }
+    ],
+    "columns": [
+      "conversationId",
+      "status",
+      "report",
+      "sources",
+      "progress",
+      "asyncTaskConversationId",
+      "widgetSessionId",
+      "asyncStatus",
+      "venusMessageType",
+      "venusStatus",
+      "waitingForUserUntil",
+      "planTitle",
+      "planId",
+      "url",
+      "method",
+      "diagnostics"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/chatgpt/deep-research-result.js",
+    "sourceFile": "plugins/chatgpt/deep-research-result.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "chatgpt",
+    "name": "detail",
+    "description": "Open a ChatGPT web conversation by ID and read its messages",
+    "access": "read",
+    "domain": "chatgpt.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "id",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Conversation ID or full /c/<id> URL"
+      },
+      {
+        "name": "markdown",
+        "type": "boolean",
+        "default": false,
+        "required": false,
+        "help": "Emit assistant replies as markdown"
+      },
+      {
+        "name": "wait",
+        "type": "boolean",
+        "default": false,
+        "required": false,
+        "help": "Wait until the conversation stops generating and stabilizes"
+      },
+      {
+        "name": "timeout",
+        "type": "int",
+        "default": 120,
+        "required": false,
+        "help": "Max seconds to wait when --wait is true"
+      },
+      {
+        "name": "stable",
+        "type": "int",
+        "default": 6,
+        "required": false,
+        "help": "Seconds the final messages must remain unchanged when --wait is true"
+      }
+    ],
+    "columns": [
+      "Index",
+      "Role",
+      "Text",
+      "Generating",
+      "StableSeconds"
+    ],
+    "type": "js",
+    "modulePath": "plugins/chatgpt/detail.js",
+    "sourceFile": "plugins/chatgpt/detail.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "chatgpt",
+    "name": "history",
+    "description": "List visible ChatGPT web conversation history from the sidebar",
+    "access": "read",
+    "domain": "chatgpt.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max conversations to show"
+      }
+    ],
+    "columns": [
+      "Index",
+      "Id",
+      "Title",
+      "Url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/chatgpt/history.js",
+    "sourceFile": "plugins/chatgpt/history.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "chatgpt",
+    "name": "image",
+    "description": "Generate images with ChatGPT web and save them locally",
+    "access": "write",
+    "domain": "chatgpt.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "prompt",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Image prompt to send to ChatGPT"
+      },
+      {
+        "name": "image",
+        "type": "str",
+        "required": false,
+        "help": "Local image path to attach before prompting; comma-separated paths are supported",
+        "file": {
+          "direction": "input",
+          "pathKind": "file",
+          "multiple": true,
+          "separator": ",",
+          "contentTypes": [
+            "image/jpeg",
+            "image/png",
+            "image/gif",
+            "image/webp"
+          ],
+          "maxBytes": 26214400
+        }
+      },
+      {
+        "name": "project",
+        "type": "str",
+        "required": false,
+        "valueRequired": true,
+        "help": "Start image generation inside a ChatGPT project ID or /g/g-p-<id> URL"
+      },
+      {
+        "name": "op",
+        "type": "str",
+        "required": false,
+        "help": "Output directory (default: ~/Pictures/chatgpt)",
+        "file": {
+          "direction": "output",
+          "pathKind": "directory",
+          "multiple": false,
+          "defaultPath": "~/Pictures/chatgpt"
+        }
+      },
+      {
+        "name": "sd",
+        "type": "boolean",
+        "default": false,
+        "required": false,
+        "help": "Skip download shorthand; only show ChatGPT link"
+      },
+      {
+        "name": "timeout",
+        "type": "int",
+        "default": 240,
+        "required": false,
+        "help": "Max seconds for the overall command (default: 240)"
+      }
+    ],
+    "columns": [
+      "status",
+      "file",
+      "link"
+    ],
+    "defaultFormat": "plain",
+    "type": "js",
+    "modulePath": "plugins/chatgpt/image.js",
+    "sourceFile": "plugins/chatgpt/image.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "chatgpt",
+    "name": "login",
+    "description": "Open chatgpt login",
+    "access": "write",
+    "domain": "chatgpt.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "status",
+      "logged_in",
+      "site",
+      "user_id",
+      "name",
+      "action",
+      "verify_command"
+    ],
+    "type": "js",
+    "modulePath": "plugins/chatgpt/auth.js",
+    "sourceFile": "plugins/chatgpt/auth.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "chatgpt",
+    "name": "model",
+    "description": "Switch ChatGPT web model or intelligence level (GPT-5.6 Pro, fast, balanced, advanced, very-high, pro)",
+    "access": "write",
+    "domain": "chatgpt.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "model",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "ChatGPT model or intelligence level to switch to",
+        "choices": [
+          "fast",
+          "speed",
+          "instant",
+          "balanced",
+          "balance",
+          "medium",
+          "advanced",
+          "high",
+          "thinking",
+          "very-high",
+          "ultra",
+          "xhigh",
+          "x-high",
+          "extra-high",
+          "very high",
+          "gpt-5.6-pro",
+          "gpt-5-6-pro",
+          "gpt-5.6-sol-pro",
+          "gpt-5-6-sol-pro",
+          "gpt-5.6",
+          "gpt-5-6",
+          "5.6-pro",
+          "5.6",
+          "pro",
+          "professional"
+        ]
+      },
+      {
+        "name": "project",
+        "type": "str",
+        "required": false,
+        "valueRequired": true,
+        "help": "Open a ChatGPT project ID or /g/g-p-<id> URL before switching intelligence level"
+      }
+    ],
+    "columns": [
+      "Status",
+      "Model"
+    ],
+    "type": "js",
+    "modulePath": "plugins/chatgpt/model.js",
+    "sourceFile": "plugins/chatgpt/model.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "chatgpt",
+    "name": "new",
+    "description": "Start a new ChatGPT web conversation",
+    "access": "read",
+    "domain": "chatgpt.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "project",
+        "type": "str",
+        "required": false,
+        "valueRequired": true,
+        "help": "Start a new chat inside a ChatGPT project ID or /g/g-p-<id> URL"
+      }
+    ],
+    "columns": [
+      "Status"
+    ],
+    "type": "js",
+    "modulePath": "plugins/chatgpt/new.js",
+    "sourceFile": "plugins/chatgpt/new.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "chatgpt",
+    "name": "project-file-add",
+    "description": "Upload files to a ChatGPT project as project knowledge (not just conversation attachments)",
+    "access": "write",
+    "domain": "chatgpt.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "file",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Local file path(s) to upload; comma-separated paths are supported",
+        "file": {
+          "direction": "input",
+          "pathKind": "file",
+          "multiple": true,
+          "separator": ",",
+          "contentTypes": [
+            "application/pdf",
+            "text/plain",
+            "text/markdown",
+            "text/csv",
+            "application/json",
+            "image/jpeg",
+            "image/png",
+            "image/gif",
+            "image/webp"
+          ],
+          "maxBytes": 26214400
+        }
+      },
+      {
+        "name": "id",
+        "type": "str",
+        "required": true,
+        "help": "Project ID or /g/g-p-<id> URL"
+      }
+    ],
+    "columns": [
+      "Status",
+      "File"
+    ],
+    "type": "js",
+    "modulePath": "plugins/chatgpt/project-file-add.js",
+    "sourceFile": "plugins/chatgpt/project-file-add.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "chatgpt",
+    "name": "project-list",
+    "description": "List visible ChatGPT projects from the sidebar",
+    "access": "read",
+    "domain": "chatgpt.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max projects to show"
+      }
+    ],
+    "columns": [
+      "Index",
+      "Id",
+      "Title",
+      "Url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/chatgpt/project-list.js",
+    "sourceFile": "plugins/chatgpt/project-list.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "chatgpt",
+    "name": "read",
+    "description": "Read messages in the current ChatGPT web conversation",
+    "access": "read",
+    "domain": "chatgpt.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "markdown",
+        "type": "boolean",
+        "default": false,
+        "required": false,
+        "help": "Emit assistant replies as markdown"
+      }
+    ],
+    "columns": [
+      "Index",
+      "Role",
+      "Text"
+    ],
+    "type": "js",
+    "modulePath": "plugins/chatgpt/read.js",
+    "sourceFile": "plugins/chatgpt/read.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "chatgpt",
+    "name": "send",
+    "description": "Send a prompt to ChatGPT web without waiting for the response",
+    "access": "write",
+    "domain": "chatgpt.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "prompt",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Prompt to send"
+      },
+      {
+        "name": "new",
+        "type": "boolean",
+        "default": false,
+        "required": false,
+        "help": "Start a new chat before sending"
+      },
+      {
+        "name": "conversation",
+        "type": "str",
+        "required": false,
+        "valueRequired": true,
+        "help": "Continue an existing ChatGPT conversation ID or /c/<id> URL"
+      },
+      {
+        "name": "project",
+        "type": "str",
+        "required": false,
+        "valueRequired": true,
+        "help": "Start a new chat inside a ChatGPT project ID or /g/g-p-<id> URL"
+      }
+    ],
+    "columns": [
+      "Status",
+      "InjectedText"
+    ],
+    "type": "js",
+    "modulePath": "plugins/chatgpt/send.js",
+    "sourceFile": "plugins/chatgpt/send.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "chatgpt",
+    "name": "status",
+    "description": "Check ChatGPT web page availability and login state",
+    "access": "read",
+    "domain": "chatgpt.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "Status",
+      "Login",
+      "Url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/chatgpt/status.js",
+    "sourceFile": "plugins/chatgpt/status.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "chatgpt",
+    "name": "whoami",
+    "description": "Show the current logged-in chatgpt account",
+    "access": "read",
+    "domain": "chatgpt.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "logged_in",
+      "site",
+      "user_id",
+      "name"
+    ],
+    "type": "js",
+    "modulePath": "plugins/chatgpt/auth.js",
+    "sourceFile": "plugins/chatgpt/auth.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
     "site": "chatwise",
     "name": "ask",
     "description": "Send a prompt and wait for the AI response (send + wait + read)",
@@ -3382,6 +4001,285 @@
     "type": "js",
     "modulePath": "plugins/cincinnati/export-postgraduate-courses.js",
     "sourceFile": "plugins/cincinnati/export-postgraduate-courses.js"
+  },
+  {
+    "site": "claude",
+    "name": "ask",
+    "description": "Send a prompt to Claude and get the response",
+    "access": "write",
+    "domain": "claude.ai",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "prompt",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Prompt to send"
+      },
+      {
+        "name": "timeout",
+        "type": "int",
+        "default": 120,
+        "required": false,
+        "help": "Max seconds to wait for response"
+      },
+      {
+        "name": "new",
+        "type": "boolean",
+        "default": false,
+        "required": false,
+        "help": "Start a new chat before sending"
+      },
+      {
+        "name": "model",
+        "type": "str",
+        "default": "sonnet",
+        "required": false,
+        "help": "Model to use: sonnet, opus, or haiku",
+        "choices": [
+          "sonnet",
+          "opus",
+          "haiku"
+        ]
+      },
+      {
+        "name": "think",
+        "type": "boolean",
+        "default": false,
+        "required": false,
+        "help": "Enable Adaptive thinking"
+      },
+      {
+        "name": "file",
+        "type": "str",
+        "required": false,
+        "help": "Attach a file (image, PDF, text) with the prompt",
+        "file": {
+          "direction": "input",
+          "pathKind": "file",
+          "multiple": false,
+          "contentTypes": [
+            "application/pdf",
+            "text/plain",
+            "text/markdown",
+            "text/csv",
+            "application/json",
+            "image/jpeg",
+            "image/png",
+            "image/gif",
+            "image/webp"
+          ],
+          "maxBytes": 26214400
+        }
+      }
+    ],
+    "columns": [
+      "response"
+    ],
+    "type": "js",
+    "modulePath": "plugins/claude/ask.js",
+    "sourceFile": "plugins/claude/ask.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "claude",
+    "name": "detail",
+    "description": "Open a Claude conversation by ID and read its messages",
+    "access": "read",
+    "domain": "claude.ai",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "id",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Conversation ID (UUID from /chat/<id>)"
+      }
+    ],
+    "columns": [
+      "Index",
+      "Role",
+      "Text"
+    ],
+    "type": "js",
+    "modulePath": "plugins/claude/detail.js",
+    "sourceFile": "plugins/claude/detail.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "claude",
+    "name": "history",
+    "description": "List conversation history from Claude /recents",
+    "access": "read",
+    "domain": "claude.ai",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max conversations to show"
+      }
+    ],
+    "columns": [
+      "Index",
+      "Id",
+      "Title",
+      "Url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/claude/history.js",
+    "sourceFile": "plugins/claude/history.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "claude",
+    "name": "login",
+    "description": "Open claude login",
+    "access": "write",
+    "domain": "claude.ai",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "status",
+      "logged_in",
+      "site",
+      "user_id",
+      "org_name",
+      "org_uuid",
+      "action",
+      "verify_command"
+    ],
+    "type": "js",
+    "modulePath": "plugins/claude/auth.js",
+    "sourceFile": "plugins/claude/auth.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "claude",
+    "name": "new",
+    "description": "Start a new conversation in Claude",
+    "access": "read",
+    "domain": "claude.ai",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "Status"
+    ],
+    "type": "js",
+    "modulePath": "plugins/claude/new.js",
+    "sourceFile": "plugins/claude/new.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "claude",
+    "name": "read",
+    "description": "Read the current Claude conversation",
+    "access": "read",
+    "domain": "claude.ai",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "Index",
+      "Role",
+      "Text"
+    ],
+    "type": "js",
+    "modulePath": "plugins/claude/read.js",
+    "sourceFile": "plugins/claude/read.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "claude",
+    "name": "send",
+    "description": "Send a prompt to Claude without waiting for the response",
+    "access": "write",
+    "domain": "claude.ai",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "prompt",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Prompt to send"
+      },
+      {
+        "name": "new",
+        "type": "boolean",
+        "default": false,
+        "required": false,
+        "help": "Start a new chat before sending"
+      }
+    ],
+    "columns": [
+      "Status",
+      "SubmittedBy",
+      "InjectedText"
+    ],
+    "type": "js",
+    "modulePath": "plugins/claude/send.js",
+    "sourceFile": "plugins/claude/send.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "claude",
+    "name": "status",
+    "description": "Check Claude page availability and login state",
+    "access": "read",
+    "domain": "claude.ai",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "Status",
+      "Login",
+      "Url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/claude/status.js",
+    "sourceFile": "plugins/claude/status.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "claude",
+    "name": "whoami",
+    "description": "Show the current logged-in claude account",
+    "access": "read",
+    "domain": "claude.ai",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "logged_in",
+      "site",
+      "user_id",
+      "org_name",
+      "org_uuid"
+    ],
+    "type": "js",
+    "modulePath": "plugins/claude/auth.js",
+    "sourceFile": "plugins/claude/auth.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
   },
   {
     "site": "codex",
@@ -6110,6 +7008,400 @@
     "type": "js",
     "modulePath": "plugins/flathub/search.js",
     "sourceFile": "plugins/flathub/search.js"
+  },
+  {
+    "site": "gemini",
+    "name": "ask",
+    "description": "Send a prompt to Gemini and return only the assistant response",
+    "access": "write",
+    "domain": "gemini.google.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "prompt",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Prompt to send"
+      },
+      {
+        "name": "model",
+        "type": "string",
+        "required": false,
+        "help": "Gemini model to use (e.g. \"2.5-flash\"). Use \"webcmd gemini models\" to list available values."
+      },
+      {
+        "name": "timeout",
+        "type": "int",
+        "default": 60,
+        "required": false,
+        "help": "Max seconds to wait (default: 60)"
+      },
+      {
+        "name": "new",
+        "type": "str",
+        "default": "false",
+        "required": false,
+        "help": "Start a new chat first (true/false, default: false)"
+      },
+      {
+        "name": "thinking",
+        "type": "str",
+        "default": null,
+        "required": false,
+        "help": "Thinking level: standard or extended (omitted = leave unchanged)"
+      }
+    ],
+    "columns": [
+      "response"
+    ],
+    "defaultFormat": "plain",
+    "type": "js",
+    "modulePath": "plugins/gemini/ask.js",
+    "sourceFile": "plugins/gemini/ask.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "gemini",
+    "name": "deep-research",
+    "description": "Start a Gemini Deep Research run and confirm it",
+    "access": "write",
+    "domain": "gemini.google.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "prompt",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Prompt to send"
+      },
+      {
+        "name": "timeout",
+        "type": "int",
+        "default": 180,
+        "required": false,
+        "help": "Max seconds for the overall command (default: 180; confirm-wait clamps internally to 6-20s)"
+      },
+      {
+        "name": "tool",
+        "type": "str",
+        "required": false,
+        "help": "Override tool label (default: Deep Research)"
+      },
+      {
+        "name": "confirm",
+        "type": "str",
+        "required": false,
+        "help": "Override confirm button label (default: Start research)"
+      }
+    ],
+    "columns": [
+      "status",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "defaultFormat": "plain",
+    "type": "js",
+    "modulePath": "plugins/gemini/deep-research.js",
+    "sourceFile": "plugins/gemini/deep-research.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "gemini",
+    "name": "deep-research-result",
+    "description": "Export Deep Research report URL from a Gemini conversation",
+    "access": "read",
+    "domain": "gemini.google.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": false,
+        "positional": true,
+        "help": "Conversation title or URL (optional; defaults to latest conversation)"
+      },
+      {
+        "name": "match",
+        "type": "str",
+        "default": "contains",
+        "required": false,
+        "help": "Match mode",
+        "choices": [
+          "contains",
+          "exact"
+        ]
+      },
+      {
+        "name": "timeout",
+        "type": "int",
+        "default": 120,
+        "required": false,
+        "help": "Max seconds to wait for Docs export (default: 120)"
+      }
+    ],
+    "columns": [
+      "response"
+    ],
+    "tags": [
+      "search"
+    ],
+    "defaultFormat": "plain",
+    "type": "js",
+    "modulePath": "plugins/gemini/deep-research-result.js",
+    "sourceFile": "plugins/gemini/deep-research-result.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "gemini",
+    "name": "detail",
+    "description": "Open a Gemini web conversation by id, URL, or sidebar title and read its turns",
+    "access": "read",
+    "domain": "gemini.google.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "id",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Conversation id, /app/<id> URL, or sidebar title"
+      }
+    ],
+    "columns": [
+      "Index",
+      "Role",
+      "Text"
+    ],
+    "type": "js",
+    "modulePath": "plugins/gemini/detail.js",
+    "sourceFile": "plugins/gemini/detail.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "gemini",
+    "name": "history",
+    "description": "List visible Gemini web conversation history from the sidebar",
+    "access": "read",
+    "domain": "gemini.google.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max conversations to show"
+      }
+    ],
+    "columns": [
+      "Index",
+      "Id",
+      "Title",
+      "Url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/gemini/history.js",
+    "sourceFile": "plugins/gemini/history.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "gemini",
+    "name": "image",
+    "description": "Generate images with Gemini web and save them locally",
+    "access": "write",
+    "domain": "gemini.google.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "prompt",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Image prompt to send to Gemini"
+      },
+      {
+        "name": "rt",
+        "type": "str",
+        "default": "1:1",
+        "required": false,
+        "help": "Ratio shorthand for aspect ratio (1:1, 16:9, 9:16, 4:3, 3:4, 3:2, 2:3)"
+      },
+      {
+        "name": "st",
+        "type": "str",
+        "default": "",
+        "required": false,
+        "help": "Style shorthand, e.g. anime, icon, watercolor"
+      },
+      {
+        "name": "op",
+        "type": "str",
+        "default": "~/tmp/gemini-images",
+        "required": false,
+        "help": "Output directory shorthand"
+      },
+      {
+        "name": "sd",
+        "type": "boolean",
+        "default": false,
+        "required": false,
+        "help": "Skip download shorthand; only show Gemini page link"
+      },
+      {
+        "name": "timeout",
+        "type": "int",
+        "default": 240,
+        "required": false,
+        "help": "Max seconds for the overall command (default: 240)"
+      }
+    ],
+    "columns": [
+      "status",
+      "file",
+      "link"
+    ],
+    "defaultFormat": "plain",
+    "type": "js",
+    "modulePath": "plugins/gemini/image.js",
+    "sourceFile": "plugins/gemini/image.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "gemini",
+    "name": "login",
+    "description": "Open gemini login",
+    "access": "write",
+    "domain": "gemini.google.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "status",
+      "logged_in",
+      "site",
+      "name",
+      "action",
+      "verify_command"
+    ],
+    "type": "js",
+    "modulePath": "plugins/gemini/auth.js",
+    "sourceFile": "plugins/gemini/auth.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "gemini",
+    "name": "models",
+    "description": "List available Gemini models from the web UI",
+    "access": "read",
+    "domain": "gemini.google.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "model",
+      "thinkingValues"
+    ],
+    "type": "js",
+    "modulePath": "plugins/gemini/models.js",
+    "sourceFile": "plugins/gemini/models.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "gemini",
+    "name": "new",
+    "description": "Start a new conversation in Gemini web chat",
+    "access": "read",
+    "domain": "gemini.google.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "Status",
+      "Action"
+    ],
+    "type": "js",
+    "modulePath": "plugins/gemini/new.js",
+    "sourceFile": "plugins/gemini/new.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "gemini",
+    "name": "read",
+    "description": "Read the turns visible in the current Gemini web conversation",
+    "access": "read",
+    "domain": "gemini.google.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "Index",
+      "Role",
+      "Text"
+    ],
+    "type": "js",
+    "modulePath": "plugins/gemini/read.js",
+    "sourceFile": "plugins/gemini/read.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "gemini",
+    "name": "status",
+    "description": "Check Gemini web page availability and login state",
+    "access": "read",
+    "domain": "gemini.google.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "Status",
+      "Login",
+      "Url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/gemini/status.js",
+    "sourceFile": "plugins/gemini/status.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "gemini",
+    "name": "whoami",
+    "description": "Show the current logged-in gemini account",
+    "access": "read",
+    "domain": "gemini.google.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "logged_in",
+      "site",
+      "name"
+    ],
+    "type": "js",
+    "modulePath": "plugins/gemini/auth.js",
+    "sourceFile": "plugins/gemini/auth.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
   },
   {
     "site": "github",
@@ -11869,6 +13161,740 @@
     "sourceFile": "plugins/packagist/search.js"
   },
   {
+    "site": "pixiv",
+    "name": "detail",
+    "description": "View illustration details (tags, stats, URLs)",
+    "access": "read",
+    "domain": "www.pixiv.net",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "id",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Illustration ID"
+      }
+    ],
+    "columns": [
+      "illust_id",
+      "title",
+      "author",
+      "type",
+      "pages",
+      "bookmarks",
+      "likes",
+      "views",
+      "tags",
+      "created",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/pixiv/detail.js",
+    "sourceFile": "plugins/pixiv/detail.js",
+    "navigateBefore": "https://www.pixiv.net"
+  },
+  {
+    "site": "pixiv",
+    "name": "download",
+    "description": "Download illustration images from Pixiv",
+    "access": "read",
+    "domain": "www.pixiv.net",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "illust-id",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Illustration ID"
+      },
+      {
+        "name": "output",
+        "type": "str",
+        "default": "./pixiv-downloads",
+        "required": false,
+        "help": "Output directory"
+      }
+    ],
+    "columns": [
+      "index",
+      "type",
+      "status",
+      "size"
+    ],
+    "type": "js",
+    "modulePath": "plugins/pixiv/download.js",
+    "sourceFile": "plugins/pixiv/download.js",
+    "navigateBefore": "https://www.pixiv.net"
+  },
+  {
+    "site": "pixiv",
+    "name": "illusts",
+    "description": "List a Pixiv artist's illustrations",
+    "access": "read",
+    "domain": "www.pixiv.net",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "user-id",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Pixiv user ID"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of results"
+      }
+    ],
+    "columns": [
+      "rank",
+      "title",
+      "illust_id",
+      "pages",
+      "bookmarks",
+      "tags",
+      "created",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/pixiv/illusts.js",
+    "sourceFile": "plugins/pixiv/illusts.js",
+    "navigateBefore": "https://www.pixiv.net"
+  },
+  {
+    "site": "pixiv",
+    "name": "login",
+    "description": "Open pixiv login",
+    "access": "write",
+    "domain": "pixiv.net",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "status",
+      "logged_in",
+      "site",
+      "user_id",
+      "name",
+      "action",
+      "verify_command"
+    ],
+    "type": "js",
+    "modulePath": "plugins/pixiv/auth.js",
+    "sourceFile": "plugins/pixiv/auth.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "pixiv",
+    "name": "ranking",
+    "description": "Pixiv illustration rankings (daily/weekly/monthly)",
+    "access": "read",
+    "domain": "www.pixiv.net",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "mode",
+        "type": "str",
+        "default": "daily",
+        "required": false,
+        "help": "Ranking mode",
+        "choices": [
+          "daily",
+          "weekly",
+          "monthly",
+          "rookie",
+          "original",
+          "male",
+          "female",
+          "daily_r18",
+          "weekly_r18"
+        ]
+      },
+      {
+        "name": "page",
+        "type": "int",
+        "default": 1,
+        "required": false,
+        "help": "Page number"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of results"
+      }
+    ],
+    "columns": [
+      "rank",
+      "title",
+      "author",
+      "user_id",
+      "illust_id",
+      "pages",
+      "bookmarks",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/pixiv/ranking.js",
+    "sourceFile": "plugins/pixiv/ranking.js",
+    "navigateBefore": "https://www.pixiv.net"
+  },
+  {
+    "site": "pixiv",
+    "name": "search",
+    "description": "Search Pixiv illustrations by keyword",
+    "access": "read",
+    "domain": "www.pixiv.net",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Search keyword or tag"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of results"
+      },
+      {
+        "name": "order",
+        "type": "str",
+        "default": "date_d",
+        "required": false,
+        "help": "Sort order",
+        "choices": [
+          "date_d",
+          "date",
+          "popular_d",
+          "popular_male_d",
+          "popular_female_d"
+        ]
+      },
+      {
+        "name": "mode",
+        "type": "str",
+        "default": "all",
+        "required": false,
+        "help": "Search mode",
+        "choices": [
+          "all",
+          "safe",
+          "r18"
+        ]
+      },
+      {
+        "name": "page",
+        "type": "int",
+        "default": 1,
+        "required": false,
+        "help": "Page number"
+      }
+    ],
+    "columns": [
+      "rank",
+      "title",
+      "author",
+      "user_id",
+      "illust_id",
+      "pages",
+      "bookmarks",
+      "tags",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/pixiv/search.js",
+    "sourceFile": "plugins/pixiv/search.js",
+    "navigateBefore": "https://www.pixiv.net"
+  },
+  {
+    "site": "pixiv",
+    "name": "user",
+    "description": "View Pixiv artist profile",
+    "access": "read",
+    "domain": "www.pixiv.net",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "uid",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Pixiv user ID"
+      }
+    ],
+    "columns": [
+      "user_id",
+      "name",
+      "premium",
+      "following",
+      "illusts",
+      "manga",
+      "novels",
+      "comment",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/pixiv/user.js",
+    "sourceFile": "plugins/pixiv/user.js",
+    "navigateBefore": "https://www.pixiv.net"
+  },
+  {
+    "site": "pixiv",
+    "name": "whoami",
+    "description": "Show the current logged-in pixiv account",
+    "access": "read",
+    "domain": "pixiv.net",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "logged_in",
+      "site",
+      "user_id",
+      "name"
+    ],
+    "type": "js",
+    "modulePath": "plugins/pixiv/auth.js",
+    "sourceFile": "plugins/pixiv/auth.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "practo",
+    "name": "appointment",
+    "description": "Show logged-in Practo Drive appointment details",
+    "access": "read",
+    "domain": "drive.practo.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "appointment_id",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Appointment id from `practo appointments`"
+      }
+    ],
+    "columns": [
+      "appointment_id",
+      "status",
+      "summary"
+    ],
+    "type": "js",
+    "modulePath": "plugins/practo/appointment.js",
+    "sourceFile": "plugins/practo/appointment.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "practo",
+    "name": "appointments",
+    "description": "List logged-in Practo Drive appointments",
+    "access": "read",
+    "domain": "drive.practo.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "appointment_id",
+      "doctor",
+      "practice",
+      "time",
+      "status"
+    ],
+    "type": "js",
+    "modulePath": "plugins/practo/appointments.js",
+    "sourceFile": "plugins/practo/appointments.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "practo",
+    "name": "book-confirm",
+    "description": "Confirm a Practo clinic visit booking after explicit confirmation",
+    "access": "write",
+    "domain": "www.practo.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "practice_doctor_id",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Practo practice_doctor_id"
+      },
+      {
+        "name": "time",
+        "type": "str",
+        "required": true,
+        "help": "Slot time YYYY-MM-DD HH:mm:ss"
+      },
+      {
+        "name": "profile-url",
+        "type": "str",
+        "required": false,
+        "help": "Doctor profile_url from `practo search`, used to build a canonical booking URL"
+      },
+      {
+        "name": "confirm",
+        "type": "boolean",
+        "default": false,
+        "required": false,
+        "help": "Required. Set --confirm true to create the appointment."
+      }
+    ],
+    "columns": [
+      "status",
+      "practice_doctor_id",
+      "time",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/practo/book-confirm.js",
+    "sourceFile": "plugins/practo/book-confirm.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "practo",
+    "name": "book-preview",
+    "description": "Preview Practo booking details for a selected slot without confirming",
+    "access": "read",
+    "domain": "www.practo.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "practice_doctor_id",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Practo practice_doctor_id"
+      },
+      {
+        "name": "time",
+        "type": "str",
+        "required": true,
+        "help": "Slot time YYYY-MM-DD HH:mm:ss"
+      },
+      {
+        "name": "profile-url",
+        "type": "str",
+        "required": false,
+        "help": "Doctor profile_url from `practo search`, used to build a canonical booking URL"
+      }
+    ],
+    "columns": [
+      "practice_doctor_id",
+      "time",
+      "amount",
+      "prepaid",
+      "payment_mode",
+      "requires_payment",
+      "confirm_button",
+      "booking_url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/practo/book-preview.js",
+    "sourceFile": "plugins/practo/book-preview.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "practo",
+    "name": "booking-link",
+    "description": "Build a Practo booking URL for a selected slot without confirming it",
+    "access": "read",
+    "domain": "www.practo.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "practice_doctor_id",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Practo practice_doctor_id"
+      },
+      {
+        "name": "time",
+        "type": "str",
+        "required": true,
+        "help": "Slot time YYYY-MM-DD HH:mm:ss"
+      },
+      {
+        "name": "profile-url",
+        "type": "str",
+        "required": false,
+        "help": "Doctor profile_url from `practo search`, used to build a canonical booking URL"
+      }
+    ],
+    "columns": [
+      "practice_doctor_id",
+      "time",
+      "booking_url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/practo/booking-link.js",
+    "sourceFile": "plugins/practo/booking-link.js",
+    "navigateBefore": false
+  },
+  {
+    "site": "practo",
+    "name": "cancel",
+    "description": "Cancel a logged-in Practo Drive appointment after explicit confirmation",
+    "access": "write",
+    "domain": "drive.practo.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "appointment_id",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Appointment id from `practo appointments`"
+      },
+      {
+        "name": "confirm",
+        "type": "boolean",
+        "default": false,
+        "required": false,
+        "help": "Required. Set --confirm true to cancel the appointment."
+      }
+    ],
+    "columns": [
+      "status",
+      "appointment_id"
+    ],
+    "type": "js",
+    "modulePath": "plugins/practo/cancel.js",
+    "sourceFile": "plugins/practo/cancel.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "practo",
+    "name": "contact",
+    "description": "Get Practo virtual contact number for a practice_doctor_id",
+    "access": "read",
+    "domain": "www.practo.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "practice_doctor_id",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Practo practice_doctor_id from search results"
+      }
+    ],
+    "columns": [
+      "practice_doctor_id",
+      "phone",
+      "raw"
+    ],
+    "type": "js",
+    "modulePath": "plugins/practo/contact.js",
+    "sourceFile": "plugins/practo/contact.js",
+    "navigateBefore": false
+  },
+  {
+    "site": "practo",
+    "name": "login",
+    "description": "Open practo login",
+    "access": "write",
+    "domain": "www.practo.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "status",
+      "logged_in",
+      "site",
+      "name",
+      "action",
+      "verify_command"
+    ],
+    "type": "js",
+    "modulePath": "plugins/practo/login.js",
+    "sourceFile": "plugins/practo/login.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "practo",
+    "name": "profile",
+    "description": "Read public details from a Practo doctor profile URL",
+    "access": "read",
+    "domain": "www.practo.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "url",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Practo doctor profile URL"
+      }
+    ],
+    "columns": [
+      "name",
+      "specialty",
+      "experience",
+      "fee",
+      "profile_url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/practo/profile.js",
+    "sourceFile": "plugins/practo/profile.js",
+    "navigateBefore": false
+  },
+  {
+    "site": "practo",
+    "name": "search",
+    "description": "Search Practo doctors by specialty, city, and optional locality",
+    "access": "read",
+    "domain": "www.practo.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "specialty",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Doctor specialty, e.g. orthopedist or dermatologist"
+      },
+      {
+        "name": "city",
+        "type": "str",
+        "default": "bangalore",
+        "required": false,
+        "help": "City, e.g. bangalore"
+      },
+      {
+        "name": "locality",
+        "type": "str",
+        "required": false,
+        "help": "Optional locality, e.g. indiranagar"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Max doctors to return (1-25)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "practice_doctor_id",
+      "doctor_id",
+      "practice_id",
+      "name",
+      "specialty",
+      "experience_years",
+      "locality",
+      "clinic",
+      "fee",
+      "next_available",
+      "profile_url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/practo/search.js",
+    "sourceFile": "plugins/practo/search.js",
+    "navigateBefore": false
+  },
+  {
+    "site": "practo",
+    "name": "slots",
+    "description": "List available Practo appointment slots for a practice_doctor_id",
+    "access": "read",
+    "domain": "www.practo.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "practice_doctor_id",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Practo practice_doctor_id from search results"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max slots to return (1-25)"
+      }
+    ],
+    "columns": [
+      "practice_doctor_id",
+      "time",
+      "available",
+      "amount",
+      "prepaid",
+      "appointment_token"
+    ],
+    "type": "js",
+    "modulePath": "plugins/practo/slots.js",
+    "sourceFile": "plugins/practo/slots.js",
+    "navigateBefore": false
+  },
+  {
+    "site": "practo",
+    "name": "whoami",
+    "aliases": [
+      "auth-status"
+    ],
+    "description": "Show the current logged-in practo account",
+    "access": "read",
+    "domain": "www.practo.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "logged_in",
+      "site",
+      "name"
+    ],
+    "type": "js",
+    "modulePath": "plugins/practo/login.js",
+    "sourceFile": "plugins/practo/login.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
     "site": "producthunt",
     "name": "browse",
     "description": "Best products in a Product Hunt category",
@@ -12807,6 +14833,125 @@
     "sourceFile": "plugins/rest-countries/region.js"
   },
   {
+    "site": "reuters",
+    "name": "article-detail",
+    "description": "Reuters Reuters article detail:title/author/body text",
+    "access": "read",
+    "domain": "www.reuters.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "url",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Reuters article URL (must be on reuters.com)"
+      }
+    ],
+    "columns": [
+      "title",
+      "date",
+      "section",
+      "section_path",
+      "authors",
+      "description",
+      "word_count",
+      "url",
+      "body"
+    ],
+    "type": "js",
+    "modulePath": "plugins/reuters/article-detail.js",
+    "sourceFile": "plugins/reuters/article-detail.js",
+    "navigateBefore": "https://www.reuters.com"
+  },
+  {
+    "site": "reuters",
+    "name": "login",
+    "description": "Open reuters login",
+    "access": "write",
+    "domain": "reuters.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "status",
+      "logged_in",
+      "site",
+      "user_id",
+      "subscribed",
+      "action",
+      "verify_command"
+    ],
+    "type": "js",
+    "modulePath": "plugins/reuters/auth.js",
+    "sourceFile": "plugins/reuters/auth.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "reuters",
+    "name": "search",
+    "description": "Reuters Reuters news search",
+    "access": "read",
+    "domain": "www.reuters.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Search query"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Number of results (1-40)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "title",
+      "date",
+      "section",
+      "section_path",
+      "authors",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/reuters/search.js",
+    "sourceFile": "plugins/reuters/search.js",
+    "navigateBefore": "https://www.reuters.com"
+  },
+  {
+    "site": "reuters",
+    "name": "whoami",
+    "description": "Show the current logged-in reuters account",
+    "access": "read",
+    "domain": "reuters.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "logged_in",
+      "site",
+      "user_id",
+      "subscribed"
+    ],
+    "type": "js",
+    "modulePath": "plugins/reuters/auth.js",
+    "sourceFile": "plugins/reuters/auth.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
     "site": "rfc",
     "name": "rfc",
     "description": "Single IETF RFC metadata (title, abstract, working group, authors, std level)",
@@ -13713,6 +15858,274 @@
     "type": "js",
     "modulePath": "plugins/substack/search.js",
     "sourceFile": "plugins/substack/search.js"
+  },
+  {
+    "site": "suno",
+    "name": "download",
+    "description": "Download an existing Suno clip (MP3 + optional WAV/M4A/video) by id",
+    "access": "write",
+    "domain": "suno.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "clip",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Clip UUID or https://suno.com/song/<id> URL"
+      },
+      {
+        "name": "formats",
+        "type": "str",
+        "required": false,
+        "help": "Comma-separated formats: mp3, m4a, wav, video, cover, metadata. Default: mp3,metadata"
+      },
+      {
+        "name": "op",
+        "type": "str",
+        "required": false,
+        "help": "Output directory (default: ~/Music/suno)"
+      },
+      {
+        "name": "confirm-paid",
+        "type": "boolean",
+        "default": false,
+        "required": false,
+        "help": "Required to allow paid downloads (wav). Without it, paid formats are skipped with a warning."
+      }
+    ],
+    "columns": [
+      "status",
+      "clip",
+      "title",
+      "files",
+      "link"
+    ],
+    "defaultFormat": "plain",
+    "type": "js",
+    "modulePath": "plugins/suno/download.js",
+    "sourceFile": "plugins/suno/download.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "suno",
+    "name": "generate",
+    "description": "Generate music with Suno (V5.5 chirp-fenix by default) and download clips locally",
+    "access": "write",
+    "domain": "suno.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "prompt",
+        "type": "str",
+        "required": false,
+        "positional": true,
+        "help": "Simple-mode description (ignored when --lyrics is provided)"
+      },
+      {
+        "name": "lyrics",
+        "type": "str",
+        "required": false,
+        "help": "Custom-mode lyrics (with [Verse]/[Chorus] metatags). Triggers Custom mode."
+      },
+      {
+        "name": "tags",
+        "type": "str",
+        "required": false,
+        "help": "Custom-mode style tags (genre, BPM, instruments...). Used with --lyrics."
+      },
+      {
+        "name": "negative-tags",
+        "type": "str",
+        "required": false,
+        "help": "Custom-mode style exclusions (e.g. \"no vocals, no autotune\"). Used with --lyrics."
+      },
+      {
+        "name": "title",
+        "type": "str",
+        "required": false,
+        "help": "Song title (default: auto-derived from prompt)"
+      },
+      {
+        "name": "instrumental",
+        "type": "boolean",
+        "default": false,
+        "required": false,
+        "help": "No vocals"
+      },
+      {
+        "name": "model",
+        "type": "str",
+        "required": false,
+        "help": "Model id: chirp-fenix, chirp-bluejay, chirp-v4, chirp-v3-5. Default: chirp-fenix"
+      },
+      {
+        "name": "weirdness",
+        "type": "str",
+        "required": false,
+        "help": "Creative weirdness slider (0..1). Default: 0.5"
+      },
+      {
+        "name": "style-weight",
+        "type": "str",
+        "required": false,
+        "help": "Style adherence slider (0..1). Default: 0.5"
+      },
+      {
+        "name": "formats",
+        "type": "str",
+        "required": false,
+        "help": "Comma-separated download formats: mp3, m4a, wav, video, cover, metadata. Default: mp3,metadata"
+      },
+      {
+        "name": "op",
+        "type": "str",
+        "required": false,
+        "help": "Output directory (default: ~/Music/suno)"
+      },
+      {
+        "name": "timeout",
+        "type": "int",
+        "default": 300,
+        "required": false,
+        "help": "Max seconds to wait for clips to finish (default: 300)"
+      },
+      {
+        "name": "sd",
+        "type": "boolean",
+        "default": false,
+        "required": false,
+        "help": "Skip download; only print clip ids and Suno URLs"
+      },
+      {
+        "name": "confirm-paid",
+        "type": "boolean",
+        "default": false,
+        "required": false,
+        "help": "Required to allow paid downloads (wav). Without it, paid formats are skipped with a warning."
+      }
+    ],
+    "columns": [
+      "status",
+      "clip",
+      "title",
+      "files",
+      "link"
+    ],
+    "defaultFormat": "plain",
+    "type": "js",
+    "modulePath": "plugins/suno/generate.js",
+    "sourceFile": "plugins/suno/generate.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "suno",
+    "name": "list",
+    "description": "List recent Suno clips in your library (id, title, status, created_at, link)",
+    "access": "read",
+    "domain": "suno.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max clips to list (default: 20)"
+      },
+      {
+        "name": "page",
+        "type": "int",
+        "default": 0,
+        "required": false,
+        "help": "Pagination offset, 0-based (default: 0)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "clip",
+      "title",
+      "status",
+      "created",
+      "link"
+    ],
+    "type": "js",
+    "modulePath": "plugins/suno/list.js",
+    "sourceFile": "plugins/suno/list.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "suno",
+    "name": "login",
+    "description": "Open suno login",
+    "access": "write",
+    "domain": "suno.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "status",
+      "logged_in",
+      "site",
+      "user_id",
+      "name",
+      "action",
+      "verify_command"
+    ],
+    "type": "js",
+    "modulePath": "plugins/suno/auth.js",
+    "sourceFile": "plugins/suno/auth.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "suno",
+    "name": "status",
+    "description": "Check Suno login, plan, credit balance, and captcha readiness",
+    "access": "read",
+    "domain": "suno.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "Status",
+      "Plan",
+      "Credits",
+      "Monthly",
+      "Captcha"
+    ],
+    "type": "js",
+    "modulePath": "plugins/suno/status.js",
+    "sourceFile": "plugins/suno/status.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "suno",
+    "name": "whoami",
+    "description": "Show the current logged-in suno account",
+    "access": "read",
+    "domain": "suno.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "logged_in",
+      "site",
+      "user_id",
+      "name"
+    ],
+    "type": "js",
+    "modulePath": "plugins/suno/auth.js",
+    "sourceFile": "plugins/suno/auth.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
   },
   {
     "site": "techcrunch",
@@ -14806,6 +17219,216 @@
     "navigateBefore": "https://uiverse.io"
   },
   {
+    "site": "upwork",
+    "name": "detail",
+    "aliases": [
+      "job",
+      "view"
+    ],
+    "description": "Read the full Upwork job posting by ciphertext id (e.g. ~022054964136512093518)",
+    "access": "read",
+    "domain": "www.upwork.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "id",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Job ciphertext id (~01… / ~02…) or full /jobs/~02… URL"
+      }
+    ],
+    "columns": [
+      "id",
+      "title",
+      "type",
+      "budget",
+      "experienceLevel",
+      "workload",
+      "category",
+      "skills",
+      "description",
+      "clientCountry",
+      "clientSpent",
+      "clientHires",
+      "clientRating",
+      "proposalsCount",
+      "publishedOn",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/upwork/detail.js",
+    "sourceFile": "plugins/upwork/detail.js",
+    "navigateBefore": false
+  },
+  {
+    "site": "upwork",
+    "name": "feed",
+    "aliases": [
+      "best-matches"
+    ],
+    "description": "Upwork personalized jobs feed (best-matches | most-recent) — requires login",
+    "access": "read",
+    "domain": "www.upwork.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "tab",
+        "type": "str",
+        "default": "best-matches",
+        "required": false,
+        "positional": true,
+        "help": "Feed tab: best-matches | most-recent"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max rows to return (1-50, capped at one page)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "title",
+      "type",
+      "budget",
+      "experienceLevel",
+      "proposalsTier",
+      "skills",
+      "clientCountry",
+      "clientRating",
+      "publishedOn",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/upwork/feed.js",
+    "sourceFile": "plugins/upwork/feed.js",
+    "navigateBefore": false
+  },
+  {
+    "site": "upwork",
+    "name": "login",
+    "description": "Open upwork login",
+    "access": "write",
+    "domain": "upwork.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "status",
+      "logged_in",
+      "site",
+      "user_id",
+      "ciphertext",
+      "action",
+      "verify_command"
+    ],
+    "type": "js",
+    "modulePath": "plugins/upwork/auth.js",
+    "sourceFile": "plugins/upwork/auth.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "upwork",
+    "name": "search",
+    "description": "Upwork keyword job search (logged-in browser session, US site)",
+    "access": "read",
+    "domain": "www.upwork.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Job keyword (skill / title / company)"
+      },
+      {
+        "name": "location",
+        "type": "string",
+        "default": "",
+        "required": false,
+        "help": "Country/city filter (e.g. \"United States\", \"Remote\")"
+      },
+      {
+        "name": "category",
+        "type": "string",
+        "default": "",
+        "required": false,
+        "help": "Category uid filter (advanced; from job detail `category` slug)"
+      },
+      {
+        "name": "sort",
+        "type": "string",
+        "default": "recency",
+        "required": false,
+        "help": "Sort: recency | relevance | client_total_charge | client_total_reviews"
+      },
+      {
+        "name": "page",
+        "type": "int",
+        "default": 1,
+        "required": false,
+        "help": "Page number (1-based)"
+      },
+      {
+        "name": "per_page",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Rows per page (10-50, capped at one page)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "title",
+      "type",
+      "budget",
+      "experienceLevel",
+      "proposalsTier",
+      "skills",
+      "clientCountry",
+      "clientRating",
+      "publishedOn",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/upwork/search.js",
+    "sourceFile": "plugins/upwork/search.js",
+    "navigateBefore": false
+  },
+  {
+    "site": "upwork",
+    "name": "whoami",
+    "description": "Show the current logged-in upwork account",
+    "access": "read",
+    "domain": "upwork.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "logged_in",
+      "site",
+      "user_id",
+      "ciphertext"
+    ],
+    "type": "js",
+    "modulePath": "plugins/upwork/auth.js",
+    "sourceFile": "plugins/upwork/auth.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
     "site": "web",
     "name": "fetch-browser",
     "description": "Fetch any web page and export as Markdown",
@@ -15500,6 +18123,253 @@
     "modulePath": "plugins/ycombinator/company.js",
     "sourceFile": "plugins/ycombinator/company.js",
     "navigateBefore": false
+  },
+  {
+    "site": "zepto",
+    "name": "add-to-cart",
+    "description": "Add a Zepto product to cart",
+    "access": "write",
+    "domain": "www.zepto.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "product",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Product URL from Zepto search results"
+      },
+      {
+        "name": "quantity",
+        "type": "int",
+        "default": 1,
+        "required": false,
+        "help": "Quantity to add (max 12)"
+      }
+    ],
+    "columns": [
+      "ok",
+      "product_id",
+      "quantity",
+      "item_count",
+      "message"
+    ],
+    "type": "js",
+    "modulePath": "plugins/zepto/add-to-cart.js",
+    "sourceFile": "plugins/zepto/add-to-cart.js",
+    "navigateBefore": false
+  },
+  {
+    "site": "zepto",
+    "name": "cart",
+    "description": "Read Zepto cart line items",
+    "access": "read",
+    "domain": "www.zepto.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "rank",
+      "product_id",
+      "title",
+      "pack_size",
+      "quantity",
+      "price",
+      "mrp",
+      "availability"
+    ],
+    "type": "js",
+    "modulePath": "plugins/zepto/cart.js",
+    "sourceFile": "plugins/zepto/cart.js",
+    "navigateBefore": false
+  },
+  {
+    "site": "zepto",
+    "name": "checkout",
+    "description": "Open Zepto checkout review without placing an order",
+    "access": "write",
+    "domain": "www.zepto.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "ok",
+      "stage",
+      "item_count",
+      "next_action",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/zepto/checkout.js",
+    "sourceFile": "plugins/zepto/checkout.js",
+    "navigateBefore": false
+  },
+  {
+    "site": "zepto",
+    "name": "location",
+    "description": "Show the selected Zepto delivery location",
+    "access": "read",
+    "domain": "www.zepto.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "selected",
+      "label",
+      "area",
+      "city",
+      "pincode",
+      "hasCoordinates",
+      "source"
+    ],
+    "type": "js",
+    "modulePath": "plugins/zepto/location.js",
+    "sourceFile": "plugins/zepto/location.js",
+    "navigateBefore": false
+  },
+  {
+    "site": "zepto",
+    "name": "login",
+    "description": "Open zepto login",
+    "access": "write",
+    "domain": "www.zepto.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "status",
+      "logged_in",
+      "site",
+      "action",
+      "verify_command"
+    ],
+    "type": "js",
+    "modulePath": "plugins/zepto/auth.js",
+    "sourceFile": "plugins/zepto/auth.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
+  },
+  {
+    "site": "zepto",
+    "name": "place-order",
+    "description": "Submit a real Zepto order only when --confirm true is passed",
+    "access": "write",
+    "domain": "www.zepto.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "confirm",
+        "type": "boolean",
+        "default": false,
+        "required": false,
+        "help": "Required. Set true to submit a real Zepto order/payment action."
+      }
+    ],
+    "columns": [
+      "status",
+      "confirmed",
+      "message"
+    ],
+    "type": "js",
+    "modulePath": "plugins/zepto/place-order.js",
+    "sourceFile": "plugins/zepto/place-order.js",
+    "navigateBefore": false
+  },
+  {
+    "site": "zepto",
+    "name": "product",
+    "description": "Read Zepto product details",
+    "access": "read",
+    "domain": "www.zepto.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "product",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Product URL from Zepto search results"
+      }
+    ],
+    "columns": [
+      "product_id",
+      "title",
+      "brand",
+      "pack_size",
+      "price",
+      "mrp",
+      "availability",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/zepto/product.js",
+    "sourceFile": "plugins/zepto/product.js",
+    "navigateBefore": false
+  },
+  {
+    "site": "zepto",
+    "name": "search",
+    "description": "Search Zepto products",
+    "access": "read",
+    "domain": "www.zepto.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Search query"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Maximum products to return (max 50)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "product_id",
+      "title",
+      "brand",
+      "pack_size",
+      "price",
+      "mrp",
+      "availability",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/zepto/search.js",
+    "sourceFile": "plugins/zepto/search.js",
+    "navigateBefore": false
+  },
+  {
+    "site": "zepto",
+    "name": "whoami",
+    "description": "Show the current logged-in zepto account",
+    "access": "read",
+    "domain": "www.zepto.com",
+    "strategy": "cookie",
+    "browser": true,
+    "args": [],
+    "columns": [
+      "logged_in",
+      "site"
+    ],
+    "type": "js",
+    "modulePath": "plugins/zepto/auth.js",
+    "sourceFile": "plugins/zepto/auth.js",
+    "navigateBefore": false,
+    "siteSession": "persistent"
   },
   {
     "site": "zlibrary",
