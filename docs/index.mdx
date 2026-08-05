@@ -3,7 +3,21 @@ title: Webcmd
 description: Give your agent reusable command surfaces for websites, browser sessions, apps, APIs, and local tools.
 ---
 
-# Webcmd
+import { AgentSetupButton } from "/snippets/agent-setup-button.jsx"
+
+<div className="webcmd-setup-action not-prose">
+  <p>Set up Webcmd in one click.</p>
+  <div className="webcmd-copy-stack">
+    <AgentSetupButton />
+    <div className="webcmd-native-copy-source">
+
+```text
+Fetch and execute the appropriate instructions to set me up for Webcmd from https://webcmd.dev/docs/agent-setup.md
+```
+
+    </div>
+  </div>
+</div>
 
 Webcmd helps your agent reuse a command when one already fits the job, explore an unfamiliar surface when it does not, and turn successful work into a reusable CLI.
 

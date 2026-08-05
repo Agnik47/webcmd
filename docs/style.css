@@ -88,3 +88,146 @@ pre code {
 .nav-tag-pill-text[data-nav-tag] {
   border-radius: var(--webcmd-sidebar-radius);
 }
+
+.webcmd-setup-action {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  margin: -0.5rem 0 2rem;
+}
+
+.webcmd-setup-action > p {
+  margin: 0;
+  color: #4c4c4c;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.webcmd-native-copy-source {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  pointer-events: none;
+}
+
+.webcmd-copy-stack {
+  position: relative;
+  display: inline-flex;
+}
+
+.webcmd-native-copy-source .code-block,
+.webcmd-native-copy-source [data-floating-buttons],
+.webcmd-native-copy-source [data-floating-buttons] > div {
+  position: absolute !important;
+  inset: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  pointer-events: none;
+}
+
+.webcmd-native-copy-source [data-component-part="code-block-root"],
+.webcmd-native-copy-source [data-fade-overlay] {
+  display: none !important;
+}
+
+.webcmd-native-copy-source button[aria-label] {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 999px !important;
+  opacity: 0;
+  pointer-events: auto;
+}
+
+.webcmd-copy-prompt {
+  display: inline-flex;
+  width: max-content;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  border: 1px solid #111;
+  border-radius: 999px;
+  background: #111;
+  padding: 0 1.125rem;
+  color: #fff;
+  cursor: copy;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: none;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 12%);
+  pointer-events: none;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, transform 150ms ease;
+}
+
+.webcmd-copy-stack:hover .webcmd-copy-prompt {
+  border-color: #2f2f2f;
+  background: #2f2f2f;
+}
+
+.webcmd-copy-stack:active .webcmd-copy-prompt {
+  transform: translateY(1px);
+}
+
+.webcmd-copy-stack:focus-within .webcmd-copy-prompt {
+  outline: 2px solid #56c5ff;
+  outline-offset: 3px;
+}
+
+.webcmd-agent-icons {
+  display: inline-flex;
+  height: 1.25rem;
+  align-items: center;
+  gap: 0.25rem;
+  pointer-events: none;
+}
+
+.webcmd-agent-icons img {
+  display: block;
+  width: 1.125rem;
+  height: 1.125rem;
+  object-fit: contain;
+  cursor: inherit !important;
+  pointer-events: none;
+  transform: none !important;
+  transition: none !important;
+}
+
+.webcmd-agent-icon-mono {
+  filter: invert(1);
+}
+
+.dark .webcmd-setup-action > p {
+  color: #b9b9b9;
+}
+
+.dark .webcmd-copy-prompt {
+  border-color: #ededed;
+  background: #ededed;
+  color: #151515;
+}
+
+.dark .webcmd-copy-stack:hover .webcmd-copy-prompt {
+  border-color: #fff;
+  background: #fff;
+}
+
+.dark .webcmd-agent-icon-mono {
+  filter: none;
+}
+
+@media (max-width: 640px) {
+  .webcmd-setup-action {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.625rem;
+    margin-top: -0.5rem;
+  }
+}
