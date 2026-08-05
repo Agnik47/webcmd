@@ -118,35 +118,35 @@
   },
   {
     "command": "binance/depth",
-    "file": "clis/binance/depth.js",
+    "file": "plugins/binance/depth.js",
     "missing": [
       "select"
     ]
   },
   {
     "command": "binance/gainers",
-    "file": "clis/binance/gainers.js",
+    "file": "plugins/binance/gainers.js",
     "missing": [
       "sort_change"
     ]
   },
   {
     "command": "binance/losers",
-    "file": "clis/binance/losers.js",
+    "file": "plugins/binance/losers.js",
     "missing": [
       "sort_change"
     ]
   },
   {
     "command": "binance/ticker",
-    "file": "clis/binance/ticker.js",
+    "file": "plugins/binance/ticker.js",
     "missing": [
       "sort_volume"
     ]
   },
   {
     "command": "binance/top",
-    "file": "clis/binance/top.js",
+    "file": "plugins/binance/top.js",
     "missing": [
       "sort_volume"
     ]

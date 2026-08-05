@@ -1,5 +1,1120 @@
 [
   {
+    "site": "apple-podcasts",
+    "name": "episodes",
+    "description": "List recent episodes of an Apple Podcast (use ID from search)",
+    "access": "read",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "id",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Podcast ID (collectionId from search output)"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 15,
+        "required": false,
+        "help": "Max episodes to show"
+      }
+    ],
+    "columns": [
+      "title",
+      "duration",
+      "date"
+    ],
+    "type": "js",
+    "modulePath": "plugins/apple-podcasts/episodes.js",
+    "sourceFile": "plugins/apple-podcasts/episodes.js"
+  },
+  {
+    "site": "apple-podcasts",
+    "name": "search",
+    "description": "Search Apple Podcasts",
+    "access": "read",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Search keyword"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Max results"
+      }
+    ],
+    "columns": [
+      "id",
+      "title",
+      "author",
+      "episodes",
+      "genre",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/apple-podcasts/search.js",
+    "sourceFile": "plugins/apple-podcasts/search.js"
+  },
+  {
+    "site": "apple-podcasts",
+    "name": "top",
+    "description": "Top podcasts chart on Apple Podcasts",
+    "access": "read",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of podcasts (max 100)"
+      },
+      {
+        "name": "country",
+        "type": "str",
+        "default": "us",
+        "required": false,
+        "help": "Country code (e.g. us, cn, gb, jp)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "title",
+      "author",
+      "id"
+    ],
+    "type": "js",
+    "modulePath": "plugins/apple-podcasts/top.js",
+    "sourceFile": "plugins/apple-podcasts/top.js"
+  },
+  {
+    "site": "archive",
+    "name": "item",
+    "description": "Fetch metadata for a single Internet Archive item by identifier.",
+    "access": "read",
+    "domain": "archive.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "identifier",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Archive item identifier (e.g. \"open-syllabus\", \"FinalFantasy2_356\")."
+      }
+    ],
+    "columns": [
+      "identifier",
+      "title",
+      "creator",
+      "date",
+      "mediatype",
+      "collection",
+      "description",
+      "file_count",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/archive/item.js",
+    "sourceFile": "plugins/archive/item.js"
+  },
+  {
+    "site": "archive",
+    "name": "search",
+    "description": "Search Internet Archive items across books, movies, audio, software, and web.",
+    "access": "read",
+    "domain": "archive.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Full-text query (matches title, description, creator, subject)."
+      },
+      {
+        "name": "mediatype",
+        "type": "string",
+        "required": false,
+        "help": "Restrict to mediatype: texts, movies, audio, software, image, web, data, collection"
+      },
+      {
+        "name": "sort",
+        "type": "string",
+        "default": "downloads",
+        "required": false,
+        "help": "Sort key: downloads, date, addeddate, week, title"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max items (max 100; one API page)."
+      }
+    ],
+    "columns": [
+      "rank",
+      "identifier",
+      "title",
+      "creator",
+      "date",
+      "mediatype",
+      "downloads",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/archive/search.js",
+    "sourceFile": "plugins/archive/search.js"
+  },
+  {
+    "site": "archive",
+    "name": "snapshots",
+    "description": "List Wayback Machine snapshots over time for a URL via the CDX API.",
+    "access": "read",
+    "domain": "archive.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "url",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "URL to look up (with or without scheme)."
+      },
+      {
+        "name": "from",
+        "type": "string",
+        "required": false,
+        "help": "Earliest year/timestamp (YYYY[MM[DD[hh[mm[ss]]]]])"
+      },
+      {
+        "name": "to",
+        "type": "string",
+        "required": false,
+        "help": "Latest year/timestamp (YYYY[MM[DD[hh[mm[ss]]]]])"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max snapshots to return (max 1000)."
+      }
+    ],
+    "columns": [
+      "timestamp",
+      "snapshot_url",
+      "status",
+      "mimetype",
+      "original_url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/archive/snapshots.js",
+    "sourceFile": "plugins/archive/snapshots.js"
+  },
+  {
+    "site": "archive",
+    "name": "wayback",
+    "description": "Look up the closest Wayback Machine snapshot for a URL.",
+    "access": "read",
+    "domain": "archive.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "url",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "URL to look up (with or without scheme)."
+      },
+      {
+        "name": "timestamp",
+        "type": "string",
+        "required": false,
+        "help": "Target timestamp (YYYY[MM[DD[hh[mm[ss]]]]] or ISO date). Defaults to most recent snapshot."
+      }
+    ],
+    "columns": [
+      "original_url",
+      "requested_timestamp",
+      "snapshot_timestamp",
+      "snapshot_url",
+      "status"
+    ],
+    "type": "js",
+    "modulePath": "plugins/archive/wayback.js",
+    "sourceFile": "plugins/archive/wayback.js"
+  },
+  {
+    "site": "arxiv",
+    "name": "author",
+    "description": "List arXiv papers by a given author (newest first)",
+    "access": "read",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "author",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Author name (e.g. \"Yoshua Bengio\" or \"Y Bengio\")"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max papers to return (max 50)"
+      }
+    ],
+    "columns": [
+      "id",
+      "title",
+      "authors",
+      "published",
+      "primary_category",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/arxiv/author.js",
+    "sourceFile": "plugins/arxiv/author.js"
+  },
+  {
+    "site": "arxiv",
+    "name": "paper",
+    "description": "Get arXiv paper details by ID",
+    "access": "read",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "id",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "arXiv paper ID (e.g. 1706.03762)"
+      }
+    ],
+    "columns": [
+      "id",
+      "title",
+      "authors",
+      "published",
+      "updated",
+      "primary_category",
+      "categories",
+      "abstract",
+      "comment",
+      "pdf",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/arxiv/paper.js",
+    "sourceFile": "plugins/arxiv/paper.js"
+  },
+  {
+    "site": "arxiv",
+    "name": "recent",
+    "description": "List recent arXiv submissions in a category",
+    "access": "read",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "category",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "arXiv category (e.g. cs.CL, cs.LG, math.PR, q-bio.NC)"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Max results (max 50)"
+      }
+    ],
+    "columns": [
+      "id",
+      "title",
+      "authors",
+      "published",
+      "primary_category",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/arxiv/recent.js",
+    "sourceFile": "plugins/arxiv/recent.js"
+  },
+  {
+    "site": "arxiv",
+    "name": "search",
+    "description": "Search arXiv papers",
+    "access": "read",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Search keyword (e.g. \"attention is all you need\")"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Max results (max 25)"
+      }
+    ],
+    "columns": [
+      "id",
+      "title",
+      "authors",
+      "published",
+      "primary_category",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/arxiv/search.js",
+    "sourceFile": "plugins/arxiv/search.js"
+  },
+  {
+    "site": "bbc",
+    "name": "news",
+    "description": "BBC News headlines (RSS)",
+    "access": "read",
+    "domain": "www.bbc.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of headlines (max 50)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "title",
+      "description",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/bbc/news.js",
+    "sourceFile": "plugins/bbc/news.js"
+  },
+  {
+    "site": "bbc",
+    "name": "topic",
+    "description": "BBC News headlines for a specific section (RSS feed)",
+    "access": "read",
+    "domain": "www.bbc.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "topic",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Section name (world / business / politics / health / education / science_and_environment / technology / entertainment_and_arts)"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max headlines (1-50)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "title",
+      "description",
+      "pubDate",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/bbc/topic.js",
+    "sourceFile": "plugins/bbc/topic.js"
+  },
+  {
+    "site": "binance",
+    "name": "asks",
+    "description": "Order book ask prices for a trading pair",
+    "access": "read",
+    "domain": "data-api.binance.vision",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "symbol",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Trading pair symbol (e.g. BTCUSDT, ETHUSDT)"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Number of price levels (5, 10, 20, 50, 100)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "ask_price",
+      "ask_qty"
+    ],
+    "type": "js",
+    "modulePath": "plugins/binance/asks.js",
+    "sourceFile": "plugins/binance/asks.js"
+  },
+  {
+    "site": "binance",
+    "name": "depth",
+    "description": "Order book bid and ask prices for a trading pair",
+    "access": "read",
+    "domain": "data-api.binance.vision",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "symbol",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Trading pair symbol (e.g. BTCUSDT, ETHUSDT)"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Number of price levels (5, 10, 20, 50, 100)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "bid_price",
+      "bid_qty",
+      "ask_price",
+      "ask_qty"
+    ],
+    "type": "js",
+    "modulePath": "plugins/binance/depth.js",
+    "sourceFile": "plugins/binance/depth.js"
+  },
+  {
+    "site": "binance",
+    "name": "gainers",
+    "description": "Top gaining trading pairs by 24h price change",
+    "access": "read",
+    "domain": "data-api.binance.vision",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Number of trading pairs"
+      }
+    ],
+    "columns": [
+      "rank",
+      "symbol",
+      "price",
+      "change_24h",
+      "volume"
+    ],
+    "type": "js",
+    "modulePath": "plugins/binance/gainers.js",
+    "sourceFile": "plugins/binance/gainers.js"
+  },
+  {
+    "site": "binance",
+    "name": "klines",
+    "description": "Candlestick/kline data for a trading pair",
+    "access": "read",
+    "domain": "data-api.binance.vision",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "symbol",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Trading pair symbol (e.g. BTCUSDT, ETHUSDT)"
+      },
+      {
+        "name": "interval",
+        "type": "str",
+        "default": "1d",
+        "required": false,
+        "help": "Kline interval (1m, 5m, 15m, 1h, 4h, 1d, 1w, 1M)"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Number of klines (max 1000)"
+      }
+    ],
+    "columns": [
+      "open",
+      "high",
+      "low",
+      "close",
+      "volume"
+    ],
+    "type": "js",
+    "modulePath": "plugins/binance/klines.js",
+    "sourceFile": "plugins/binance/klines.js"
+  },
+  {
+    "site": "binance",
+    "name": "losers",
+    "description": "Top losing trading pairs by 24h price change",
+    "access": "read",
+    "domain": "data-api.binance.vision",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Number of trading pairs"
+      }
+    ],
+    "columns": [
+      "rank",
+      "symbol",
+      "price",
+      "change_24h",
+      "volume"
+    ],
+    "type": "js",
+    "modulePath": "plugins/binance/losers.js",
+    "sourceFile": "plugins/binance/losers.js"
+  },
+  {
+    "site": "binance",
+    "name": "pairs",
+    "description": "List active trading pairs on Binance",
+    "access": "read",
+    "domain": "data-api.binance.vision",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of trading pairs"
+      }
+    ],
+    "columns": [
+      "symbol",
+      "base",
+      "quote",
+      "status"
+    ],
+    "type": "js",
+    "modulePath": "plugins/binance/pairs.js",
+    "sourceFile": "plugins/binance/pairs.js"
+  },
+  {
+    "site": "binance",
+    "name": "price",
+    "description": "Quick price check for a trading pair",
+    "access": "read",
+    "domain": "data-api.binance.vision",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "symbol",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Trading pair symbol (e.g. BTCUSDT, ETHUSDT)"
+      }
+    ],
+    "columns": [
+      "symbol",
+      "price",
+      "change",
+      "change_pct",
+      "high",
+      "low",
+      "volume",
+      "quote_volume",
+      "trades"
+    ],
+    "type": "js",
+    "modulePath": "plugins/binance/price.js",
+    "sourceFile": "plugins/binance/price.js"
+  },
+  {
+    "site": "binance",
+    "name": "prices",
+    "description": "Latest prices for all trading pairs",
+    "access": "read",
+    "domain": "data-api.binance.vision",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of prices"
+      }
+    ],
+    "columns": [
+      "rank",
+      "symbol",
+      "price"
+    ],
+    "type": "js",
+    "modulePath": "plugins/binance/prices.js",
+    "sourceFile": "plugins/binance/prices.js"
+  },
+  {
+    "site": "binance",
+    "name": "ticker",
+    "description": "24h ticker statistics for top trading pairs by volume",
+    "access": "read",
+    "domain": "data-api.binance.vision",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of tickers"
+      }
+    ],
+    "columns": [
+      "symbol",
+      "price",
+      "change_pct",
+      "high",
+      "low",
+      "volume",
+      "quote_vol",
+      "trades"
+    ],
+    "type": "js",
+    "modulePath": "plugins/binance/ticker.js",
+    "sourceFile": "plugins/binance/ticker.js"
+  },
+  {
+    "site": "binance",
+    "name": "top",
+    "description": "Top trading pairs by 24h volume on Binance",
+    "access": "read",
+    "domain": "data-api.binance.vision",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of trading pairs"
+      }
+    ],
+    "columns": [
+      "rank",
+      "symbol",
+      "price",
+      "change_24h",
+      "high",
+      "low",
+      "volume"
+    ],
+    "type": "js",
+    "modulePath": "plugins/binance/top.js",
+    "sourceFile": "plugins/binance/top.js"
+  },
+  {
+    "site": "binance",
+    "name": "trades",
+    "description": "Recent trades for a trading pair",
+    "access": "read",
+    "domain": "data-api.binance.vision",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "symbol",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Trading pair symbol (e.g. BTCUSDT, ETHUSDT)"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of trades (max 1000)"
+      }
+    ],
+    "columns": [
+      "id",
+      "price",
+      "qty",
+      "quote_qty",
+      "buyer_maker"
+    ],
+    "type": "js",
+    "modulePath": "plugins/binance/trades.js",
+    "sourceFile": "plugins/binance/trades.js"
+  },
+  {
+    "site": "bluesky",
+    "name": "feeds",
+    "description": "Popular Bluesky feed generators",
+    "access": "read",
+    "domain": "public.api.bsky.app",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of feeds"
+      }
+    ],
+    "columns": [
+      "rank",
+      "name",
+      "likes",
+      "creator",
+      "description"
+    ],
+    "type": "js",
+    "modulePath": "plugins/bluesky/feeds.js",
+    "sourceFile": "plugins/bluesky/feeds.js"
+  },
+  {
+    "site": "bluesky",
+    "name": "followers",
+    "description": "List followers of a Bluesky user",
+    "access": "read",
+    "domain": "public.api.bsky.app",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "handle",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Bluesky handle"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of followers"
+      }
+    ],
+    "columns": [
+      "rank",
+      "handle",
+      "name",
+      "description"
+    ],
+    "type": "js",
+    "modulePath": "plugins/bluesky/followers.js",
+    "sourceFile": "plugins/bluesky/followers.js"
+  },
+  {
+    "site": "bluesky",
+    "name": "following",
+    "description": "List accounts a Bluesky user is following",
+    "access": "read",
+    "domain": "public.api.bsky.app",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "handle",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Bluesky handle"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of accounts"
+      }
+    ],
+    "columns": [
+      "rank",
+      "handle",
+      "name",
+      "description"
+    ],
+    "type": "js",
+    "modulePath": "plugins/bluesky/following.js",
+    "sourceFile": "plugins/bluesky/following.js"
+  },
+  {
+    "site": "bluesky",
+    "name": "profile",
+    "description": "Get Bluesky user profile info",
+    "access": "read",
+    "domain": "public.api.bsky.app",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "handle",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Bluesky handle (e.g. bsky.app, jay.bsky.team)"
+      }
+    ],
+    "columns": [
+      "handle",
+      "name",
+      "followers",
+      "following",
+      "posts",
+      "description"
+    ],
+    "type": "js",
+    "modulePath": "plugins/bluesky/profile.js",
+    "sourceFile": "plugins/bluesky/profile.js"
+  },
+  {
+    "site": "bluesky",
+    "name": "search",
+    "description": "Search Bluesky users",
+    "access": "read",
+    "domain": "public.api.bsky.app",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Search query"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Number of results"
+      }
+    ],
+    "columns": [
+      "rank",
+      "handle",
+      "name",
+      "followers",
+      "description"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/bluesky/search.js",
+    "sourceFile": "plugins/bluesky/search.js"
+  },
+  {
+    "site": "bluesky",
+    "name": "starter-packs",
+    "description": "Get starter packs created by a Bluesky user",
+    "access": "read",
+    "domain": "public.api.bsky.app",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "handle",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Bluesky handle"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Number of starter packs"
+      }
+    ],
+    "columns": [
+      "rank",
+      "name",
+      "description",
+      "members",
+      "joins"
+    ],
+    "type": "js",
+    "modulePath": "plugins/bluesky/starter-packs.js",
+    "sourceFile": "plugins/bluesky/starter-packs.js"
+  },
+  {
+    "site": "bluesky",
+    "name": "thread",
+    "description": "Get a Bluesky post thread with replies",
+    "access": "read",
+    "domain": "public.api.bsky.app",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "uri",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Post AT URI (at://did:.../app.bsky.feed.post/...) or bsky.app URL"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of replies"
+      }
+    ],
+    "columns": [
+      "author",
+      "text",
+      "likes",
+      "reposts",
+      "replies_count"
+    ],
+    "type": "js",
+    "modulePath": "plugins/bluesky/thread.js",
+    "sourceFile": "plugins/bluesky/thread.js"
+  },
+  {
+    "site": "bluesky",
+    "name": "trending",
+    "description": "Trending topics on Bluesky",
+    "access": "read",
+    "domain": "public.api.bsky.app",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of topics"
+      }
+    ],
+    "columns": [
+      "rank",
+      "topic",
+      "link"
+    ],
+    "type": "js",
+    "modulePath": "plugins/bluesky/trending.js",
+    "sourceFile": "plugins/bluesky/trending.js"
+  },
+  {
+    "site": "bluesky",
+    "name": "user",
+    "description": "Get recent posts from a Bluesky user",
+    "access": "read",
+    "domain": "public.api.bsky.app",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "handle",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Bluesky handle (e.g. bsky.app)"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of posts"
+      }
+    ],
+    "columns": [
+      "rank",
+      "uri",
+      "text",
+      "likes",
+      "reposts",
+      "replies"
+    ],
+    "type": "js",
+    "modulePath": "plugins/bluesky/user.js",
+    "sourceFile": "plugins/bluesky/user.js"
+  },
+  {
     "site": "bmwblog",
     "name": "article",
     "description": "Read a BMWBLOG article by URL or slug",
@@ -92,6 +1207,9 @@
       "excerpt",
       "url"
     ],
+    "tags": [
+      "search"
+    ],
     "type": "js",
     "modulePath": "plugins/bmwblog/search.js",
     "sourceFile": "plugins/bmwblog/search.js"
@@ -179,6 +1297,264 @@
     "sourceFile": "plugins/cincinnati/export-postgraduate-courses.js"
   },
   {
+    "site": "coingecko",
+    "name": "categories",
+    "description": "Crypto categories ranked by aggregated market cap",
+    "access": "read",
+    "domain": "api.coingecko.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "sort",
+        "type": "str",
+        "default": "market_cap_desc",
+        "required": false,
+        "help": "Sort order (market_cap_desc / market_cap_asc / name_desc / name_asc / market_cap_change_24h_desc / market_cap_change_24h_asc)"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of categories (1-100; CoinGecko returns ~120 max)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "name",
+      "marketCap",
+      "volume24h",
+      "marketCapChange24hPct",
+      "top3Coins"
+    ],
+    "type": "js",
+    "modulePath": "plugins/coingecko/categories.js",
+    "sourceFile": "plugins/coingecko/categories.js"
+  },
+  {
+    "site": "coingecko",
+    "name": "coin",
+    "description": "Fetch a single cryptocurrency's market data by CoinGecko id (e.g. bitcoin, ethereum).",
+    "access": "read",
+    "domain": "api.coingecko.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "id",
+        "type": "string",
+        "required": true,
+        "positional": true,
+        "help": "CoinGecko coin id (lowercase, e.g. bitcoin / ethereum / solana)."
+      },
+      {
+        "name": "currency",
+        "type": "string",
+        "default": "usd",
+        "required": false,
+        "help": "Quote currency (usd, cny, eur, jpy, ...)."
+      }
+    ],
+    "columns": [
+      "id",
+      "symbol",
+      "name",
+      "rank",
+      "price",
+      "marketCap",
+      "volume24h",
+      "change24hPct",
+      "change7dPct",
+      "change30dPct",
+      "ath",
+      "athDate",
+      "atl",
+      "atlDate",
+      "circulatingSupply",
+      "totalSupply",
+      "maxSupply",
+      "genesisDate",
+      "homepage"
+    ],
+    "type": "js",
+    "modulePath": "plugins/coingecko/coin.js",
+    "sourceFile": "plugins/coingecko/coin.js"
+  },
+  {
+    "site": "coingecko",
+    "name": "derivatives",
+    "description": "Top crypto derivative (perpetual / futures) markets by 24h volume",
+    "access": "read",
+    "domain": "api.coingecko.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max rows to return (1-500; CoinGecko returns one large page)."
+      },
+      {
+        "name": "symbol",
+        "type": "string",
+        "required": false,
+        "help": "Optional symbol substring filter (e.g. \"BTC\", \"ETHUSDT\")."
+      }
+    ],
+    "columns": [
+      "rank",
+      "market",
+      "symbol",
+      "indexId",
+      "contractType",
+      "price",
+      "change24hPct",
+      "fundingRate",
+      "openInterestUsd",
+      "volume24hUsd",
+      "expired"
+    ],
+    "type": "js",
+    "modulePath": "plugins/coingecko/derivatives.js",
+    "sourceFile": "plugins/coingecko/derivatives.js"
+  },
+  {
+    "site": "coingecko",
+    "name": "exchanges",
+    "description": "Top crypto exchanges by 24h BTC trading volume",
+    "access": "read",
+    "domain": "api.coingecko.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of exchanges (1-250, CoinGecko per_page upper bound)"
+      },
+      {
+        "name": "page",
+        "type": "int",
+        "default": 1,
+        "required": false,
+        "help": "Page number (1-based)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "name",
+      "trustScore",
+      "volume24hBtc",
+      "country",
+      "yearEstablished",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/coingecko/exchanges.js",
+    "sourceFile": "plugins/coingecko/exchanges.js"
+  },
+  {
+    "site": "coingecko",
+    "name": "global",
+    "description": "Aggregate crypto market stats: total market cap, volume, dominance",
+    "access": "read",
+    "domain": "api.coingecko.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "currency",
+        "type": "string",
+        "default": "usd",
+        "required": false,
+        "help": "Quote currency for total market cap / volume (usd, cny, eur, jpy, ...)"
+      }
+    ],
+    "columns": [
+      "currency",
+      "totalMarketCap",
+      "totalVolume24h",
+      "marketCapChange24hPct",
+      "btcDominancePct",
+      "ethDominancePct",
+      "activeCryptocurrencies",
+      "markets",
+      "ongoingIcos",
+      "updatedAt"
+    ],
+    "type": "js",
+    "modulePath": "plugins/coingecko/global.js",
+    "sourceFile": "plugins/coingecko/global.js"
+  },
+  {
+    "site": "coingecko",
+    "name": "top",
+    "description": "Cryptocurrency quotes by market cap (default USD)",
+    "access": "read",
+    "domain": "api.coingecko.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "currency",
+        "type": "string",
+        "default": "usd",
+        "required": false,
+        "help": "quote currency (usd / cny / eur / jpy ...)"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Number to return (default 10, maximum 250)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "symbol",
+      "name",
+      "price",
+      "change24hPct",
+      "marketCap",
+      "volume24h",
+      "high24h",
+      "low24h"
+    ],
+    "type": "js",
+    "modulePath": "plugins/coingecko/top.js",
+    "sourceFile": "plugins/coingecko/top.js"
+  },
+  {
+    "site": "coingecko",
+    "name": "trending",
+    "description": "Top trending cryptocurrencies on CoinGecko in the last 24h (search-volume based).",
+    "access": "read",
+    "domain": "api.coingecko.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [],
+    "columns": [
+      "rank",
+      "id",
+      "symbol",
+      "name",
+      "marketCapRank",
+      "priceBtc",
+      "thumb"
+    ],
+    "type": "js",
+    "modulePath": "plugins/coingecko/trending.js",
+    "sourceFile": "plugins/coingecko/trending.js"
+  },
+  {
     "site": "concordia",
     "name": "export-postgraduate-courses",
     "description": "Export Concordia University Montreal postgraduate programs using official public sources.",
@@ -261,6 +1637,822 @@
     "sourceFile": "plugins/concordia/export-postgraduate-courses.js"
   },
   {
+    "site": "crates",
+    "name": "crate",
+    "description": "Single crates.io crate metadata (latest version, downloads, license, repo)",
+    "access": "read",
+    "domain": "crates.io",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "name",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "crates.io crate name (e.g. \"serde\", \"tokio\")"
+      }
+    ],
+    "columns": [
+      "name",
+      "latestVersion",
+      "description",
+      "downloads",
+      "recentDownloads",
+      "versions",
+      "license",
+      "homepage",
+      "documentation",
+      "repository",
+      "keywords",
+      "categories",
+      "created",
+      "updated",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/crates/crate.js",
+    "sourceFile": "plugins/crates/crate.js"
+  },
+  {
+    "site": "crates",
+    "name": "search",
+    "description": "Search the public crates.io registry by keyword",
+    "access": "read",
+    "domain": "crates.io",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Search keyword (e.g. \"serde\", \"async runtime\")"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max results (1-100)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "name",
+      "latestVersion",
+      "description",
+      "downloads",
+      "recentDownloads",
+      "repository",
+      "updated",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/crates/search.js",
+    "sourceFile": "plugins/crates/search.js"
+  },
+  {
+    "site": "dblp",
+    "name": "author",
+    "description": "List dblp publications by a given author (newest first; resolves to top PID match)",
+    "access": "read",
+    "domain": "dblp.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "author",
+        "type": "str",
+        "required": false,
+        "positional": true,
+        "help": "Author name (e.g. \"Yoshua Bengio\"). Optional when --pid is given."
+      },
+      {
+        "name": "pid",
+        "type": "str",
+        "required": false,
+        "help": "Canonical dblp PID (e.g. \"56/953\"). Bypasses author search."
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max publications (1-200)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "key",
+      "title",
+      "authors",
+      "venue",
+      "year",
+      "type",
+      "doi",
+      "pid",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/dblp/author.js",
+    "sourceFile": "plugins/dblp/author.js"
+  },
+  {
+    "site": "dblp",
+    "name": "paper",
+    "aliases": [
+      "detail",
+      "view"
+    ],
+    "description": "Fetch a dblp record by canonical key (e.g. conf/nips/VaswaniSPUJGKP17)",
+    "access": "read",
+    "domain": "dblp.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "key",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "dblp record key (round-tripped from the `key` column of `dblp search`)"
+      }
+    ],
+    "columns": [
+      "key",
+      "type",
+      "title",
+      "authors",
+      "venue",
+      "year",
+      "pages",
+      "doi",
+      "open_access_url",
+      "dblp_url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/dblp/paper.js",
+    "sourceFile": "plugins/dblp/paper.js"
+  },
+  {
+    "site": "dblp",
+    "name": "search",
+    "description": "Search dblp computer-science bibliography by free-text query",
+    "access": "read",
+    "domain": "dblp.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Search keyword (title / author / venue, e.g. \"attention is all you need\")"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max results (1-100, single dblp page)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "key",
+      "title",
+      "authors",
+      "venue",
+      "year",
+      "type",
+      "doi",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/dblp/search.js",
+    "sourceFile": "plugins/dblp/search.js"
+  },
+  {
+    "site": "dblp",
+    "name": "venue",
+    "description": "Search dblp venue registry (conferences / journals) by name or acronym",
+    "access": "read",
+    "domain": "dblp.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Venue name or acronym (e.g. \"ICLR\", \"neural networks\")"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max venues (1-100, single dblp page)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "acronym",
+      "venue",
+      "type",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/dblp/venue.js",
+    "sourceFile": "plugins/dblp/venue.js"
+  },
+  {
+    "site": "defillama",
+    "name": "protocol",
+    "description": "Single DefiLlama protocol details (current TVL, mcap, chains, twitter, github, description)",
+    "access": "read",
+    "domain": "defillama.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "slug",
+        "type": "string",
+        "required": true,
+        "positional": true,
+        "help": "DefiLlama protocol slug (e.g. \"aave\", \"lido\")"
+      }
+    ],
+    "columns": [
+      "slug",
+      "name",
+      "category",
+      "isParent",
+      "tvl",
+      "tvlAt",
+      "mcap",
+      "chains",
+      "twitter",
+      "github",
+      "audits",
+      "listedAt",
+      "description",
+      "website",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/defillama/protocol.js",
+    "sourceFile": "plugins/defillama/protocol.js"
+  },
+  {
+    "site": "defillama",
+    "name": "protocols",
+    "description": "Top DeFi protocols on DefiLlama by current TVL (slug, name, category, TVL, mcap, change_1d/7d, chains)",
+    "access": "read",
+    "domain": "defillama.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 30,
+        "required": false,
+        "help": "Number of rows to return (1-500)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "slug",
+      "name",
+      "category",
+      "tvl",
+      "mcap",
+      "change_1d",
+      "change_7d",
+      "chains",
+      "listedAt",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/defillama/protocols.js",
+    "sourceFile": "plugins/defillama/protocols.js"
+  },
+  {
+    "site": "devto",
+    "name": "latest",
+    "description": "Newest dev.to articles (firehose, all tags)",
+    "access": "read",
+    "domain": "dev.to",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Articles per page (1-100)"
+      },
+      {
+        "name": "page",
+        "type": "int",
+        "default": 1,
+        "required": false,
+        "help": "Page number (1-based)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "title",
+      "author",
+      "tags",
+      "reactions",
+      "comments",
+      "published",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/devto/latest.js",
+    "sourceFile": "plugins/devto/latest.js"
+  },
+  {
+    "site": "devto",
+    "name": "read",
+    "description": "Read a DEV.to article body by id",
+    "access": "read",
+    "domain": "dev.to",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "id",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "DEV.to article id (numeric, e.g. 3605688)"
+      },
+      {
+        "name": "max-length",
+        "type": "int",
+        "default": 20000,
+        "required": false,
+        "help": "Max characters of body to return (min 100)"
+      }
+    ],
+    "columns": [
+      "id",
+      "title",
+      "author",
+      "reactions",
+      "reading_time",
+      "tags",
+      "published_at",
+      "body",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/devto/read.js",
+    "sourceFile": "plugins/devto/read.js"
+  },
+  {
+    "site": "devto",
+    "name": "tag",
+    "description": "Latest DEV.to articles for a specific tag",
+    "access": "read",
+    "domain": "dev.to",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "tag",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Tag name (e.g. javascript, python, webdev)"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of articles"
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "title",
+      "author",
+      "reactions",
+      "comments",
+      "reading_time",
+      "published_at",
+      "tags",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/devto/tag.js",
+    "sourceFile": "plugins/devto/tag.js"
+  },
+  {
+    "site": "devto",
+    "name": "top",
+    "description": "Top DEV.to articles of the day",
+    "access": "read",
+    "domain": "dev.to",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of articles"
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "title",
+      "author",
+      "reactions",
+      "comments",
+      "reading_time",
+      "published_at",
+      "tags",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/devto/top.js",
+    "sourceFile": "plugins/devto/top.js"
+  },
+  {
+    "site": "devto",
+    "name": "user",
+    "description": "Recent DEV.to articles from a specific user",
+    "access": "read",
+    "domain": "dev.to",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "username",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "DEV.to username (e.g. ben, thepracticaldev)"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of articles"
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "title",
+      "reactions",
+      "comments",
+      "reading_time",
+      "published_at",
+      "tags",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/devto/user.js",
+    "sourceFile": "plugins/devto/user.js"
+  },
+  {
+    "site": "dictionary",
+    "name": "examples",
+    "description": "Read real-world example sentences utilizing the word",
+    "access": "read",
+    "domain": "api.dictionaryapi.dev",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "word",
+        "type": "string",
+        "required": true,
+        "positional": true,
+        "help": "Word to get example sentences for"
+      }
+    ],
+    "columns": [
+      "word",
+      "example"
+    ],
+    "type": "js",
+    "modulePath": "plugins/dictionary/examples.js",
+    "sourceFile": "plugins/dictionary/examples.js"
+  },
+  {
+    "site": "dictionary",
+    "name": "search",
+    "description": "Search the Free Dictionary API for definitions, parts of speech, and pronunciations.",
+    "access": "read",
+    "domain": "api.dictionaryapi.dev",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "word",
+        "type": "string",
+        "required": true,
+        "positional": true,
+        "help": "Word to define (e.g., serendipity)"
+      }
+    ],
+    "columns": [
+      "word",
+      "phonetic",
+      "type",
+      "definition"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/dictionary/search.js",
+    "sourceFile": "plugins/dictionary/search.js"
+  },
+  {
+    "site": "dictionary",
+    "name": "synonyms",
+    "description": "Find synonyms for a specific word",
+    "access": "read",
+    "domain": "api.dictionaryapi.dev",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "word",
+        "type": "string",
+        "required": true,
+        "positional": true,
+        "help": "Word to find synonyms for (e.g., serendipity)"
+      }
+    ],
+    "columns": [
+      "word",
+      "synonyms"
+    ],
+    "type": "js",
+    "modulePath": "plugins/dictionary/synonyms.js",
+    "sourceFile": "plugins/dictionary/synonyms.js"
+  },
+  {
+    "site": "dockerhub",
+    "name": "image",
+    "description": "Fetch a Docker Hub repository's public metadata (stars, pulls, last updated, status)",
+    "access": "read",
+    "domain": "hub.docker.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "image",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Image name (e.g. \"nginx\", \"library/nginx\", \"bitnami/redis\")"
+      }
+    ],
+    "columns": [
+      "image",
+      "official",
+      "stars",
+      "pulls",
+      "description",
+      "lastUpdated",
+      "lastModified",
+      "registered",
+      "status",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/dockerhub/image.js",
+    "sourceFile": "plugins/dockerhub/image.js"
+  },
+  {
+    "site": "dockerhub",
+    "name": "search",
+    "description": "Search Docker Hub repositories by keyword",
+    "access": "read",
+    "domain": "hub.docker.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Search keyword (e.g. \"nginx\", \"bitnami redis\")"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 25,
+        "required": false,
+        "help": "Max repositories (1-100, single Docker Hub page)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "image",
+      "official",
+      "stars",
+      "pulls",
+      "description",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/dockerhub/search.js",
+    "sourceFile": "plugins/dockerhub/search.js"
+  },
+  {
+    "site": "endoflife",
+    "name": "product",
+    "description": "Release cycles + EOL / LTS / support dates for one product on endoflife.date",
+    "access": "read",
+    "domain": "endoflife.date",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "product",
+        "type": "string",
+        "required": true,
+        "positional": true,
+        "help": "endoflife.date product slug (e.g. \"nodejs\", \"python\", \"ubuntu\")"
+      }
+    ],
+    "columns": [
+      "product",
+      "cycle",
+      "releaseDate",
+      "latest",
+      "latestReleaseDate",
+      "lts",
+      "support",
+      "eol",
+      "extendedSupport",
+      "eolStatus",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/endoflife/product.js",
+    "sourceFile": "plugins/endoflife/product.js"
+  },
+  {
+    "site": "flathub",
+    "name": "app",
+    "description": "Full Flathub appstream metadata for an app id (license, categories, latest release)",
+    "access": "read",
+    "domain": "flathub.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "appId",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "AppStream id (e.g. \"org.mozilla.firefox\", \"org.gnome.Calculator\")"
+      }
+    ],
+    "columns": [
+      "appId",
+      "name",
+      "summary",
+      "developer",
+      "license",
+      "isFreeLicense",
+      "isEol",
+      "categories",
+      "keywords",
+      "latestVersion",
+      "latestReleaseDate",
+      "homepage",
+      "bugtracker",
+      "donation",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/flathub/app.js",
+    "sourceFile": "plugins/flathub/app.js"
+  },
+  {
+    "site": "flathub",
+    "name": "search",
+    "description": "Search Flathub apps by keyword",
+    "access": "read",
+    "domain": "flathub.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Search keyword"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 25,
+        "required": false,
+        "help": "Max apps (1-100)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "appId",
+      "name",
+      "summary",
+      "developer",
+      "license",
+      "isFreeLicense",
+      "mainCategories",
+      "installsLastMonth",
+      "updatedAt",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/flathub/search.js",
+    "sourceFile": "plugins/flathub/search.js"
+  },
+  {
+    "site": "github-trending",
+    "name": "repos",
+    "description": "GitHub Trending repositories (public, no login). Filter by --language and --since.",
+    "access": "read",
+    "domain": "github.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "since",
+        "type": "string",
+        "default": "daily",
+        "required": false,
+        "help": "Time range: daily / weekly / monthly"
+      },
+      {
+        "name": "language",
+        "type": "string",
+        "default": "",
+        "required": false,
+        "help": "Filter by programming language slug, e.g. python, rust, \"c++\""
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 25,
+        "required": false,
+        "help": "Number of repositories to return (max 25)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "repo",
+      "description",
+      "language",
+      "stars",
+      "forks",
+      "starsSince",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/github-trending/repos.js",
+    "sourceFile": "plugins/github-trending/repos.js"
+  },
+  {
     "site": "goettingen",
     "name": "export-postgraduate-courses",
     "description": "Export University of Göttingen postgraduate programmes from the official A-Z API.",
@@ -341,6 +2533,391 @@
     "type": "js",
     "modulePath": "plugins/goettingen/export-postgraduate-courses.js",
     "sourceFile": "plugins/goettingen/export-postgraduate-courses.js"
+  },
+  {
+    "site": "goproxy",
+    "name": "module",
+    "description": "Latest version + VCS origin metadata for a Go module on proxy.golang.org",
+    "access": "read",
+    "domain": "proxy.golang.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "module",
+        "type": "string",
+        "required": true,
+        "positional": true,
+        "help": "Go module path (e.g. \"github.com/gin-gonic/gin\", \"golang.org/x/net\")"
+      }
+    ],
+    "columns": [
+      "module",
+      "version",
+      "publishedAt",
+      "vcs",
+      "repository",
+      "commit",
+      "ref",
+      "pkgGoDevUrl",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/goproxy/module.js",
+    "sourceFile": "plugins/goproxy/module.js"
+  },
+  {
+    "site": "goproxy",
+    "name": "versions",
+    "description": "Published version tags for a Go module (newest first), optionally with publish times",
+    "access": "read",
+    "domain": "proxy.golang.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "module",
+        "type": "string",
+        "required": true,
+        "positional": true,
+        "help": "Go module path (e.g. \"github.com/gin-gonic/gin\")"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 30,
+        "required": false,
+        "help": "Max rows to return (1-200)"
+      },
+      {
+        "name": "with-time",
+        "type": "boolean",
+        "default": false,
+        "required": false,
+        "help": "Fetch each version's publish time (one extra request per row)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "module",
+      "version",
+      "publishedAt",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/goproxy/versions.js",
+    "sourceFile": "plugins/goproxy/versions.js"
+  },
+  {
+    "site": "hackernews",
+    "name": "ask",
+    "description": "Hacker News Ask HN posts",
+    "access": "read",
+    "domain": "news.ycombinator.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of stories"
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "title",
+      "score",
+      "author",
+      "comments",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/hackernews/ask.js",
+    "sourceFile": "plugins/hackernews/ask.js"
+  },
+  {
+    "site": "hackernews",
+    "name": "best",
+    "description": "Hacker News best stories",
+    "access": "read",
+    "domain": "news.ycombinator.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of stories"
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "title",
+      "score",
+      "author",
+      "comments",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/hackernews/best.js",
+    "sourceFile": "plugins/hackernews/best.js"
+  },
+  {
+    "site": "hackernews",
+    "name": "jobs",
+    "description": "Hacker News job postings",
+    "access": "read",
+    "domain": "news.ycombinator.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of job postings"
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "title",
+      "author",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/hackernews/jobs.js",
+    "sourceFile": "plugins/hackernews/jobs.js"
+  },
+  {
+    "site": "hackernews",
+    "name": "new",
+    "description": "Hacker News newest stories",
+    "access": "read",
+    "domain": "news.ycombinator.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of stories"
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "title",
+      "score",
+      "author",
+      "comments",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/hackernews/new.js",
+    "sourceFile": "plugins/hackernews/new.js"
+  },
+  {
+    "site": "hackernews",
+    "name": "read",
+    "description": "Read a Hacker News story and its comment tree",
+    "access": "read",
+    "domain": "news.ycombinator.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "id",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "HN item ID (e.g. 39847301)"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 25,
+        "required": false,
+        "help": "Max top-level comments"
+      },
+      {
+        "name": "depth",
+        "type": "int",
+        "default": 2,
+        "required": false,
+        "help": "Max reply depth (1=no replies, 2=one level of replies, etc.)"
+      },
+      {
+        "name": "replies",
+        "type": "int",
+        "default": 5,
+        "required": false,
+        "help": "Max replies shown per comment at each level"
+      },
+      {
+        "name": "max-length",
+        "type": "int",
+        "default": 2000,
+        "required": false,
+        "help": "Max characters per comment body (min 100)"
+      }
+    ],
+    "columns": [
+      "type",
+      "author",
+      "score",
+      "text"
+    ],
+    "type": "js",
+    "modulePath": "plugins/hackernews/read.js",
+    "sourceFile": "plugins/hackernews/read.js"
+  },
+  {
+    "site": "hackernews",
+    "name": "search",
+    "description": "Search Hacker News stories",
+    "access": "read",
+    "domain": "news.ycombinator.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Search query"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of results"
+      },
+      {
+        "name": "sort",
+        "type": "str",
+        "default": "relevance",
+        "required": false,
+        "help": "Sort by relevance or date",
+        "choices": [
+          "relevance",
+          "date"
+        ]
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "title",
+      "score",
+      "author",
+      "comments",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/hackernews/search.js",
+    "sourceFile": "plugins/hackernews/search.js"
+  },
+  {
+    "site": "hackernews",
+    "name": "show",
+    "description": "Hacker News Show HN posts",
+    "access": "read",
+    "domain": "news.ycombinator.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of stories"
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "title",
+      "score",
+      "author",
+      "comments",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/hackernews/show.js",
+    "sourceFile": "plugins/hackernews/show.js"
+  },
+  {
+    "site": "hackernews",
+    "name": "top",
+    "description": "Hacker News top stories",
+    "access": "read",
+    "domain": "news.ycombinator.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of stories"
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "title",
+      "score",
+      "author",
+      "comments",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/hackernews/top.js",
+    "sourceFile": "plugins/hackernews/top.js"
+  },
+  {
+    "site": "hackernews",
+    "name": "user",
+    "description": "Hacker News user profile",
+    "access": "read",
+    "domain": "news.ycombinator.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "username",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "HN username"
+      }
+    ],
+    "columns": [
+      "username",
+      "karma",
+      "created",
+      "about"
+    ],
+    "type": "js",
+    "modulePath": "plugins/hackernews/user.js",
+    "sourceFile": "plugins/hackernews/user.js"
   },
   {
     "site": "heidelberg",
@@ -2326,6 +4903,9 @@
       "publishedAt",
       "description",
       "url"
+    ],
+    "tags": [
+      "search"
     ],
     "type": "js",
     "modulePath": "plugins/techcrunch/search.js",

@@ -2,7 +2,7 @@
   {
     "rule": "silent-clamp",
     "command": "apple-podcasts/episodes",
-    "file": "clis/apple-podcasts/episodes.js",
+    "file": "plugins/apple-podcasts/episodes.js",
     "line": 17,
     "text": "const limit = Math.max(1, Math.min(Number(args.limit), 200));",
     "occurrence": 0
@@ -10,7 +10,7 @@
   {
     "rule": "silent-clamp",
     "command": "apple-podcasts/search",
-    "file": "clis/apple-podcasts/search.js",
+    "file": "plugins/apple-podcasts/search.js",
     "line": 19,
     "text": "const limit = Math.max(1, Math.min(Number(args.limit), 25));",
     "occurrence": 0
@@ -18,7 +18,7 @@
   {
     "rule": "silent-clamp",
     "command": "apple-podcasts/top",
-    "file": "clis/apple-podcasts/top.js",
+    "file": "plugins/apple-podcasts/top.js",
     "line": 19,
     "text": "const limit = Math.max(1, Math.min(Number(args.limit), 100));",
     "occurrence": 0
@@ -26,7 +26,7 @@
   {
     "rule": "silent-clamp",
     "command": "bbc/news",
-    "file": "clis/bbc/news.js",
+    "file": "plugins/bbc/news.js",
     "line": 17,
     "text": "const count = Math.min(kwargs.limit || 20, 50);",
     "occurrence": 0
@@ -74,7 +74,7 @@
   {
     "rule": "silent-clamp",
     "command": "hackernews/ask",
-    "file": "clis/hackernews/ask.js",
+    "file": "plugins/hackernews/ask.js",
     "line": 16,
     "text": "{ limit: '${{ Math.min((args.limit ? args.limit : 20) + 10, 50) }}' },",
     "occurrence": 0
@@ -82,7 +82,7 @@
   {
     "rule": "silent-clamp",
     "command": "hackernews/best",
-    "file": "clis/hackernews/best.js",
+    "file": "plugins/hackernews/best.js",
     "line": 16,
     "text": "{ limit: '${{ Math.min((args.limit ? args.limit : 20) + 10, 50) }}' },",
     "occurrence": 0
@@ -90,7 +90,7 @@
   {
     "rule": "silent-clamp",
     "command": "hackernews/jobs",
-    "file": "clis/hackernews/jobs.js",
+    "file": "plugins/hackernews/jobs.js",
     "line": 16,
     "text": "{ limit: '${{ Math.min((args.limit ? args.limit : 20) + 10, 50) }}' },",
     "occurrence": 0
@@ -98,7 +98,7 @@
   {
     "rule": "silent-clamp",
     "command": "hackernews/new",
-    "file": "clis/hackernews/new.js",
+    "file": "plugins/hackernews/new.js",
     "line": 16,
     "text": "{ limit: '${{ Math.min((args.limit ? args.limit : 20) + 10, 50) }}' },",
     "occurrence": 0
@@ -106,7 +106,7 @@
   {
     "rule": "silent-clamp",
     "command": "hackernews/show",
-    "file": "clis/hackernews/show.js",
+    "file": "plugins/hackernews/show.js",
     "line": 16,
     "text": "{ limit: '${{ Math.min((args.limit ? args.limit : 20) + 10, 50) }}' },",
     "occurrence": 0
@@ -114,7 +114,7 @@
   {
     "rule": "silent-clamp",
     "command": "hackernews/top",
-    "file": "clis/hackernews/top.js",
+    "file": "plugins/hackernews/top.js",
     "line": 16,
     "text": "{ limit: '${{ Math.min((args.limit ? args.limit : 20) + 10, 50) }}' },",
     "occurrence": 0

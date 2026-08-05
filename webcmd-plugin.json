@@ -4,6 +4,66 @@
   "description": "Webcmd plugin collection",
   "webcmd": ">=0.2.0",
   "plugins": {
+    "apple-podcasts": {
+      "path": "plugins/apple-podcasts",
+      "version": "0.1.0",
+      "description": "Webcmd commands for apple-podcasts",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "archive": {
+      "path": "plugins/archive",
+      "version": "0.1.0",
+      "description": "Webcmd commands for archive",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "arxiv": {
+      "path": "plugins/arxiv",
+      "version": "0.1.0",
+      "description": "Webcmd commands for arxiv",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "bbc": {
+      "path": "plugins/bbc",
+      "version": "0.1.0",
+      "description": "Webcmd commands for bbc",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "binance": {
+      "path": "plugins/binance",
+      "version": "0.1.0",
+      "description": "Webcmd commands for binance",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "bluesky": {
+      "path": "plugins/bluesky",
+      "version": "0.1.0",
+      "description": "Webcmd commands for bluesky",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
     "bmwblog": {
       "path": "plugins/bmwblog",
       "version": "0.1.0",
@@ -24,6 +84,16 @@
         "handle": "agentrhq"
       }
     },
+    "coingecko": {
+      "path": "plugins/coingecko",
+      "version": "0.1.0",
+      "description": "Webcmd commands for coingecko",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
     "concordia": {
       "path": "plugins/concordia",
       "version": "0.1.0",
@@ -34,11 +104,121 @@
         "handle": "agentrhq"
       }
     },
+    "crates": {
+      "path": "plugins/crates",
+      "version": "0.1.0",
+      "description": "Webcmd commands for crates",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "dblp": {
+      "path": "plugins/dblp",
+      "version": "0.1.0",
+      "description": "Webcmd commands for dblp",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "defillama": {
+      "path": "plugins/defillama",
+      "version": "0.1.0",
+      "description": "Webcmd commands for defillama",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "devto": {
+      "path": "plugins/devto",
+      "version": "0.1.0",
+      "description": "Webcmd commands for devto",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "dictionary": {
+      "path": "plugins/dictionary",
+      "version": "0.1.0",
+      "description": "Webcmd commands for dictionary",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "dockerhub": {
+      "path": "plugins/dockerhub",
+      "version": "0.1.0",
+      "description": "Webcmd commands for dockerhub",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "endoflife": {
+      "path": "plugins/endoflife",
+      "version": "0.1.0",
+      "description": "Webcmd commands for endoflife",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "flathub": {
+      "path": "plugins/flathub",
+      "version": "0.1.0",
+      "description": "Webcmd commands for flathub",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "github-trending": {
+      "path": "plugins/github-trending",
+      "version": "0.1.0",
+      "description": "Webcmd commands for github-trending",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
     "goettingen": {
       "path": "plugins/goettingen",
       "version": "0.1.0",
       "description": "University of Göttingen postgraduate course export adapter",
       "webcmd": ">=0.5.2",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "goproxy": {
+      "path": "plugins/goproxy",
+      "version": "0.1.0",
+      "description": "Webcmd commands for goproxy",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "hackernews": {
+      "path": "plugins/hackernews",
+      "version": "0.1.0",
+      "description": "Webcmd commands for hackernews",
+      "webcmd": ">=0.6.0",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
