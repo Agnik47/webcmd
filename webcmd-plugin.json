@@ -84,6 +84,16 @@
         "handle": "agentrhq"
       }
     },
+    "bigbasket": {
+      "path": "plugins/bigbasket",
+      "version": "0.1.0",
+      "description": "Webcmd commands for bigbasket",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
     "binance": {
       "path": "plugins/binance",
       "version": "0.1.0",
@@ -164,6 +174,16 @@
         "handle": "agentrhq"
       }
     },
+    "chatgpt-app": {
+      "path": "plugins/chatgpt-app",
+      "version": "0.1.0",
+      "description": "Webcmd commands for chatgpt-app",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
     "chatwise": {
       "path": "plugins/chatwise",
       "version": "0.1.0",
@@ -229,6 +249,16 @@
       "version": "0.1.0",
       "description": "Concordia University Montréal postgraduate course export adapter",
       "webcmd": ">=0.5.2",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "confluence": {
+      "path": "plugins/confluence",
+      "version": "0.1.0",
+      "description": "Webcmd commands for confluence",
+      "webcmd": ">=0.6.0",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -304,6 +334,16 @@
         "handle": "agentrhq"
       }
     },
+    "discord-app": {
+      "path": "plugins/discord-app",
+      "version": "0.1.0",
+      "description": "Webcmd commands for discord-app",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
     "district": {
       "path": "plugins/district",
       "version": "0.1.0",
@@ -358,6 +398,16 @@
       "path": "plugins/gemini",
       "version": "0.1.0",
       "description": "Webcmd commands for gemini",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "geogebra": {
+      "path": "plugins/geogebra",
+      "version": "0.1.0",
+      "description": "Webcmd commands for geogebra",
       "webcmd": ">=0.6.0",
       "author": {
         "name": "WebCMD Agent",
@@ -624,6 +674,16 @@
         "handle": "agentrhq"
       }
     },
+    "mercury": {
+      "path": "plugins/mercury",
+      "version": "0.1.0",
+      "description": "Webcmd commands for mercury",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
     "npm": {
       "path": "plugins/npm",
       "version": "0.1.0",
@@ -708,6 +768,16 @@
       "path": "plugins/packagist",
       "version": "0.1.0",
       "description": "Webcmd commands for packagist",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "paperreview": {
+      "path": "plugins/paperreview",
+      "version": "0.1.0",
+      "description": "Webcmd commands for paperreview",
       "webcmd": ">=0.6.0",
       "author": {
         "name": "WebCMD Agent",
@@ -822,6 +892,16 @@
       "author": {
         "name": "Rishabh",
         "handle": "rishabhraj36"
+      }
+    },
+    "spotify": {
+      "path": "plugins/spotify",
+      "version": "0.1.0",
+      "description": "Webcmd commands for spotify",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
       }
     },
     "stackoverflow": {
@@ -999,6 +1079,16 @@
       "version": "0.1.0",
       "description": "Read-only Y Combinator startup directory commands for WebCMD",
       "webcmd": ">=0.2.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "yollomi": {
+      "path": "plugins/yollomi",
+      "version": "0.1.0",
+      "description": "Webcmd commands for yollomi",
+      "webcmd": ">=0.6.0",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"

@@ -309,7 +309,7 @@
   },
   {
     "command": "paperreview/review",
-    "file": "clis/paperreview/review.js",
+    "file": "plugins/paperreview/review.js",
     "missing": [
       "message",
       "token"
@@ -425,7 +425,7 @@
   },
   {
     "command": "yollomi/upload",
-    "file": "clis/yollomi/upload.js",
+    "file": "plugins/yollomi/upload.js",
     "missing": [
       "data"
     ]

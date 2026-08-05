@@ -218,7 +218,7 @@
   {
     "rule": "silent-clamp",
     "command": "spotify/auth",
-    "file": "clis/spotify/spotify.js",
+    "file": "plugins/spotify/spotify.js",
     "line": 278,
     "text": "const limit = Math.min(50, Math.max(1, Math.round(kwargs.limit)));",
     "occurrence": 0
@@ -226,7 +226,7 @@
   {
     "rule": "silent-clamp",
     "command": "spotify/next",
-    "file": "clis/spotify/spotify.js",
+    "file": "plugins/spotify/spotify.js",
     "line": 278,
     "text": "const limit = Math.min(50, Math.max(1, Math.round(kwargs.limit)));",
     "occurrence": 0
@@ -234,7 +234,7 @@
   {
     "rule": "silent-clamp",
     "command": "spotify/pause",
-    "file": "clis/spotify/spotify.js",
+    "file": "plugins/spotify/spotify.js",
     "line": 278,
     "text": "const limit = Math.min(50, Math.max(1, Math.round(kwargs.limit)));",
     "occurrence": 0
@@ -242,7 +242,7 @@
   {
     "rule": "silent-clamp",
     "command": "spotify/play",
-    "file": "clis/spotify/spotify.js",
+    "file": "plugins/spotify/spotify.js",
     "line": 278,
     "text": "const limit = Math.min(50, Math.max(1, Math.round(kwargs.limit)));",
     "occurrence": 0
@@ -250,7 +250,7 @@
   {
     "rule": "silent-clamp",
     "command": "spotify/prev",
-    "file": "clis/spotify/spotify.js",
+    "file": "plugins/spotify/spotify.js",
     "line": 278,
     "text": "const limit = Math.min(50, Math.max(1, Math.round(kwargs.limit)));",
     "occurrence": 0
@@ -258,7 +258,7 @@
   {
     "rule": "silent-clamp",
     "command": "spotify/queue",
-    "file": "clis/spotify/spotify.js",
+    "file": "plugins/spotify/spotify.js",
     "line": 278,
     "text": "const limit = Math.min(50, Math.max(1, Math.round(kwargs.limit)));",
     "occurrence": 0
@@ -266,7 +266,7 @@
   {
     "rule": "silent-clamp",
     "command": "spotify/repeat",
-    "file": "clis/spotify/spotify.js",
+    "file": "plugins/spotify/spotify.js",
     "line": 278,
     "text": "const limit = Math.min(50, Math.max(1, Math.round(kwargs.limit)));",
     "occurrence": 0
@@ -274,7 +274,7 @@
   {
     "rule": "silent-clamp",
     "command": "spotify/search",
-    "file": "clis/spotify/spotify.js",
+    "file": "plugins/spotify/spotify.js",
     "line": 278,
     "text": "const limit = Math.min(50, Math.max(1, Math.round(kwargs.limit)));",
     "occurrence": 0
@@ -282,7 +282,7 @@
   {
     "rule": "silent-clamp",
     "command": "spotify/shuffle",
-    "file": "clis/spotify/spotify.js",
+    "file": "plugins/spotify/spotify.js",
     "line": 278,
     "text": "const limit = Math.min(50, Math.max(1, Math.round(kwargs.limit)));",
     "occurrence": 0
@@ -290,7 +290,7 @@
   {
     "rule": "silent-clamp",
     "command": "spotify/status",
-    "file": "clis/spotify/spotify.js",
+    "file": "plugins/spotify/spotify.js",
     "line": 278,
     "text": "const limit = Math.min(50, Math.max(1, Math.round(kwargs.limit)));",
     "occurrence": 0
@@ -298,7 +298,7 @@
   {
     "rule": "silent-clamp",
     "command": "spotify/volume",
-    "file": "clis/spotify/spotify.js",
+    "file": "plugins/spotify/spotify.js",
     "line": 278,
     "text": "const limit = Math.min(50, Math.max(1, Math.round(kwargs.limit)));",
     "occurrence": 0
@@ -578,7 +578,7 @@
   {
     "rule": "silent-sentinel",
     "command": "yollomi/edit",
-    "file": "clis/yollomi/edit.js",
+    "file": "plugins/yollomi/edit.js",
     "line": 54,
     "text": "return [{ status: 'download-failed', file: '-', size: '-', credits: credits ?? '-', url }];",
     "occurrence": 0
@@ -586,7 +586,7 @@
   {
     "rule": "silent-sentinel",
     "command": "yollomi/edit",
-    "file": "clis/yollomi/edit.js",
+    "file": "plugins/yollomi/edit.js",
     "line": 45,
     "text": "return [{ status: 'edited', file: '-', size: '-', credits: credits ?? '-', url }];",
     "occurrence": 0
@@ -594,7 +594,7 @@
   {
     "rule": "silent-sentinel",
     "command": "yollomi/edit",
-    "file": "clis/yollomi/edit.js",
+    "file": "plugins/yollomi/edit.js",
     "line": 51,
     "text": "return [{ status: 'saved', file: path.relative('.', fp), size: fmtBytes(size), credits: credits ?? '-', url }];",
     "occurrence": 0
@@ -602,7 +602,7 @@
   {
     "rule": "silent-sentinel",
     "command": "yollomi/video",
-    "file": "clis/yollomi/video.js",
+    "file": "plugins/yollomi/video.js",
     "line": 54,
     "text": "return [{ status: 'download-failed', file: '-', size: '-', credits: credits ?? '-', url: videoUrl }];",
     "occurrence": 0
@@ -610,7 +610,7 @@
   {
     "rule": "silent-sentinel",
     "command": "yollomi/video",
-    "file": "clis/yollomi/video.js",
+    "file": "plugins/yollomi/video.js",
     "line": 44,
     "text": "return [{ status: 'generated', file: '-', size: '-', credits: credits ?? '-', url: videoUrl }];",
     "occurrence": 0
@@ -618,7 +618,7 @@
   {
     "rule": "silent-sentinel",
     "command": "yollomi/video",
-    "file": "clis/yollomi/video.js",
+    "file": "plugins/yollomi/video.js",
     "line": 51,
     "text": "return [{ status: 'saved', file: path.relative('.', fp), size: fmtBytes(size), credits: credits ?? '-', url: videoUrl }];",
     "occurrence": 0
