@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.3](https://github.com/agentrhq/webcmd/compare/webcmd-v0.5.2...webcmd-v0.5.3) (2026-08-03)
+
+### Fixes
+- Keep the local Cloak wrapper on `0.4.5`, which targets the latest free stealth Chromium release (`146.0.7680.177.5`) on supported platforms.
+
+### Contributors
+[@beubax](https://github.com/beubax)
+
 ## [0.5.2](https://github.com/agentrhq/webcmd/compare/webcmd-v0.5.1...webcmd-v0.5.2) (2026-07-31)
 
 ### Improvements

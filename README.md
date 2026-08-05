@@ -5,9 +5,6 @@
   <a href="https://www.npmjs.com/package/@agentrhq/webcmd">
     <img alt="NPM version" src="https://img.shields.io/npm/v/@agentrhq/webcmd.svg?style=for-the-badge&color=1E88E5&labelColor=000000">
   </a>
-  <a href="https://www.npmjs.com/package/@agentrhq/webcmd">
-    <img alt="NPM downloads" src="https://img.shields.io/npm/dt/@agentrhq/webcmd.svg?style=for-the-badge&color=1E88E5&labelColor=000000">
-  </a>
   <a href="https://webcmd.dev/docs">
     <img alt="Documentation" src="https://img.shields.io/badge/docs-webcmd.dev-7C3AED.svg?style=for-the-badge&labelColor=000000">
   </a>
@@ -124,12 +121,8 @@ Webcmd Cloud can run supported commands and browser sessions on hosted infrastru
 
 | Plugin | Description | Author |
 | --- | --- | --- |
-| [`bmwblog`](./plugins/bmwblog/) | BMWBLOG article discovery commands for Webcmd | [WebCMD Agent](https://github.com/agentrhq) |
-| [`linkedin`](./plugins/linkedin/) | LinkedIn profile, network, messaging, job, and Sales Navigator commands for WebCMD | [WebCMD Agent](https://github.com/agentrhq) |
 | [`pypi`](./plugins/pypi/) | Inspect public Python package metadata and releases from PyPI | [Kemal Kaya](https://github.com/yoldaolmak) |
 | [`skyscanner`](./plugins/skyscanner/) | Skyscanner flight search commands for Webcmd | [Rishabh](https://github.com/rishabhraj36) |
-| [`techcrunch`](./plugins/techcrunch/) | Search and read TechCrunch stories from its public API | [WebCMD Agent](https://github.com/agentrhq) |
-| [`ycombinator`](./plugins/ycombinator/) | Read-only Y Combinator startup directory commands for WebCMD | [WebCMD Agent](https://github.com/agentrhq) |
 <!-- webcmd-community-plugins:end -->
 
 ## Contributing
