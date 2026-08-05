@@ -179,9 +179,9 @@ describe('hosted availability', () => {
 
   it('matches the reviewed local-only adapter exception sets exactly', () => {
     const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-    const entries = JSON.parse(
-      fs.readFileSync(path.join(root, 'cli-manifest.json'), 'utf8'),
-    ) as ManifestEntry[];
+    const entries = ['cli-manifest.json', 'plugin-command-manifest.json'].flatMap(file => JSON.parse(
+      fs.readFileSync(path.join(root, file), 'utf8'),
+    ) as ManifestEntry[]);
     const byReason = new Map<string, string[]>([
       ['local-tool', []],
       ['desktop-app', []],

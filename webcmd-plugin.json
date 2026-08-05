@@ -74,11 +74,41 @@
         "handle": "agentrhq"
       }
     },
+    "brave": {
+      "path": "plugins/brave",
+      "version": "0.1.0",
+      "description": "Webcmd commands for brave",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "chatwise": {
+      "path": "plugins/chatwise",
+      "version": "0.1.0",
+      "description": "Webcmd commands for chatwise",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
     "cincinnati": {
       "path": "plugins/cincinnati",
       "version": "0.1.0",
       "description": "University of Cincinnati postgraduate course export adapter",
       "webcmd": ">=0.5.2",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "codex": {
+      "path": "plugins/codex",
+      "version": "0.1.0",
+      "description": "Webcmd commands for codex",
+      "webcmd": ">=0.6.0",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -108,6 +138,16 @@
       "path": "plugins/crates",
       "version": "0.1.0",
       "description": "Webcmd commands for crates",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "cursor": {
+      "path": "plugins/cursor",
+      "version": "0.1.0",
+      "description": "Webcmd commands for cursor",
       "webcmd": ">=0.6.0",
       "author": {
         "name": "WebCMD Agent",
@@ -164,6 +204,16 @@
         "handle": "agentrhq"
       }
     },
+    "duckduckgo": {
+      "path": "plugins/duckduckgo",
+      "version": "0.1.0",
+      "description": "Webcmd commands for duckduckgo",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
     "endoflife": {
       "path": "plugins/endoflife",
       "version": "0.1.0",
@@ -199,6 +249,26 @@
       "version": "0.1.0",
       "description": "University of Göttingen postgraduate course export adapter",
       "webcmd": ">=0.5.2",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "google": {
+      "path": "plugins/google",
+      "version": "0.1.0",
+      "description": "Webcmd commands for google",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "google-scholar": {
+      "path": "plugins/google-scholar",
+      "version": "0.1.0",
+      "description": "Webcmd commands for google-scholar",
+      "webcmd": ">=0.6.0",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -544,6 +614,16 @@
         "handle": "agentrhq"
       }
     },
+    "trae-solo": {
+      "path": "plugins/trae-solo",
+      "version": "0.1.0",
+      "description": "Webcmd commands for trae-solo",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
     "tvmaze": {
       "path": "plugins/tvmaze",
       "version": "0.1.0",
@@ -588,6 +668,16 @@
       "path": "plugins/wttr",
       "version": "0.1.0",
       "description": "Webcmd commands for wttr",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "yahoo": {
+      "path": "plugins/yahoo",
+      "version": "0.1.0",
+      "description": "Webcmd commands for yahoo",
       "webcmd": ">=0.6.0",
       "author": {
         "name": "WebCMD Agent",
