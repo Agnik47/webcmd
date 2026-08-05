@@ -5,9 +5,6 @@
   <a href="https://www.npmjs.com/package/@agentrhq/webcmd">
     <img alt="NPM version" src="https://img.shields.io/npm/v/@agentrhq/webcmd.svg?style=for-the-badge&color=1E88E5&labelColor=000000">
   </a>
-  <a href="https://www.npmjs.com/package/@agentrhq/webcmd">
-    <img alt="NPM downloads" src="https://img.shields.io/npm/dt/@agentrhq/webcmd.svg?style=for-the-badge&color=1E88E5&labelColor=000000">
-  </a>
   <a href="https://webcmd.dev/docs">
     <img alt="Documentation" src="https://img.shields.io/badge/docs-webcmd.dev-7C3AED.svg?style=for-the-badge&labelColor=000000">
   </a>

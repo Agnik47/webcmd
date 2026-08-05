@@ -51,7 +51,14 @@ describe('community plugin sync', () => {
       version: '0.1.0',
       description: 'Last plugin',
       webcmd: '>=0.2.0',
-      author: { name: 'WebCMD Agent', handle: 'agentrhq' },
+      author: { name: 'WebCMD Agent', handle: 'zed-user' },
+    });
+    writePlugin('omega', {
+      name: 'omega',
+      version: '0.1.0',
+      description: 'Internal plugin',
+      webcmd: '>=0.2.0',
+      author: { name: 'Internal Author', handle: 'agentrhq' },
     });
     writePlugin('alpha', {
       name: 'alpha',
@@ -69,7 +76,7 @@ describe('community plugin sync', () => {
   it('builds a sorted root manifest and three-column README catalog', () => {
     const result = buildCommunityPluginOutputs(repoRoot);
 
-    expect(Object.keys(result.rootManifest.plugins ?? {})).toEqual(['alpha', 'zeta']);
+    expect(Object.keys(result.rootManifest.plugins ?? {})).toEqual(['alpha', 'omega', 'zeta']);
     expect(result.rootManifest).toMatchObject({
       name: 'webcmd',
       version: '0.2.0',
@@ -85,9 +92,9 @@ describe('community plugin sync', () => {
     });
     expect(result.readme).toContain('| Plugin | Description | Author |');
     expect(result.readme).toContain('| [`alpha`](./plugins/alpha/) | Forecasts \\| alerts | [Alice](https://github.com/alice) |');
-    expect(result.readme).toContain('| [`zeta`](./plugins/zeta/) | Last plugin | WebCMD Agent |');
-    expect(result.readme).not.toContain('[WebCMD Agent](https://github.com/agentrhq)');
-    expect(result.readme.indexOf('`alpha`')).toBeLessThan(result.readme.indexOf('`zeta`'));
+    expect(result.readme).not.toContain('`omega`');
+    expect(result.readme).not.toContain('`zeta`');
+    expect(result.readme).not.toContain('WebCMD Agent');
     expect(result.readme).toContain('### Plugin marketplaces');
     expect(result.readme).toContain('[other/plugins](https://github.com/other/plugins)');
     expect(result.readme).not.toContain('[agentrhq/webcmd](https://github.com/agentrhq/webcmd)');
