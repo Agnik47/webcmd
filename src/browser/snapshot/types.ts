@@ -18,6 +18,7 @@ export type AiSnapshotFrame = AiSnapshotAvailableFrame | AiSnapshotUnavailableFr
 
 export interface AiSnapshotAvailableFrame {
   status: 'ok';
+  scope: 'document' | 'modal';
   id: string;
   index: number;
   url: string;

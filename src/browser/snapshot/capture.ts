@@ -7,8 +7,8 @@ import type { CDPSession, Page } from 'playwright-core';
 import type { AiSnapshot, AiSnapshotNode, SnapshotPrimitive } from './types.js';
 
 const MAX_ATTRIBUTE_NODE_LOOKUPS = 300;
-const REFS_BY_ROLE = new Set(['RootWebArea', 'main', 'navigation', 'banner', 'contentinfo', 'form', 'search', 'article', 'section', 'region', 'heading', 'button', 'link', 'textbox', 'textField', 'checkbox', 'radio', 'switch', 'combobox', 'listbox', 'menuitem', 'tab', 'slider']);
-const INTERESTING_ATTRIBUTES = new Set(['data-testid', 'data-test', 'data-qa', 'data-cy', 'id', 'name', 'type', 'placeholder', 'href', 'src', 'aria-label', 'aria-expanded', 'aria-pressed', 'aria-selected', 'aria-checked', 'role', 'title', 'alt', 'onclick', 'tabindex']);
+const REFS_BY_ROLE = new Set(['RootWebArea', 'main', 'navigation', 'banner', 'contentinfo', 'form', 'search', 'article', 'section', 'region', 'heading', 'button', 'link', 'textbox', 'textField', 'checkbox', 'radio', 'switch', 'combobox', 'listbox', 'menuitem', 'tab', 'slider', 'dialog', 'alertdialog', 'list', 'table', 'grid', 'tree', 'feed', 'group', 'listitem', 'row', 'treeitem']);
+const INTERESTING_ATTRIBUTES = new Set(['data-testid', 'data-test', 'data-qa', 'data-cy', 'id', 'name', 'type', 'placeholder', 'href', 'src', 'aria-label', 'aria-modal', 'aria-expanded', 'aria-pressed', 'aria-selected', 'aria-checked', 'role', 'title', 'alt', 'onclick', 'tabindex']);
 const STATE_PROPERTY_NAMES = ['level', 'disabled', 'checked', 'expanded', 'selected', 'pressed', 'focused', 'required', 'invalid', 'readonly', 'multiline', 'autocomplete', 'haspopup', 'value'];
 
 type RawAxProperty = { name: string; value: SnapshotPrimitive };
@@ -29,7 +29,7 @@ export async function captureSnapshot(page: Page): Promise<AiSnapshot> {
       const frameSnapshot = await captureFrameSnapshot(cdp, frame, index);
       if (frameSnapshot.ok) {
         nextRef = assignRefs(frameSnapshot.roots, nextRef);
-        snapshotFrames.push({ status: 'ok', id: frame.id, index, url: frame.url, name: frame.name, parentId: frame.parentId, roots: frameSnapshot.roots.map(toSnapshotNode) });
+        snapshotFrames.push({ status: 'ok', scope: frameSnapshot.scope, id: frame.id, index, url: frame.url, name: frame.name, parentId: frame.parentId, roots: frameSnapshot.roots.map(toSnapshotNode) });
       } else {
         snapshotFrames.push({ status: 'unavailable', id: frame.id, index, url: frame.url, name: frame.name, parentId: frame.parentId, error: frameSnapshot.error });
       }
@@ -67,7 +67,7 @@ function findNodeInTree(node: AiSnapshotNode, predicate: (node: AiSnapshotNode) 
 function frameContainsNode(roots: AiSnapshotNode[], target: AiSnapshotNode): boolean { return roots.some((root) => findNodeInTree(root, (node) => node === target)); }
 
 async function enableIfSupported(cdp: CDPSession, method: 'DOM.enable' | 'Accessibility.enable' | 'Runtime.enable'): Promise<void> { try { await cdp.send(method); } catch {} }
-async function captureFrameSnapshot(cdp: CDPSession, frame: FrameInfo, frameIndex: number): Promise<{ ok: true; roots: MutableSnapshotNode[] } | { ok: false; error: string }> {
+async function captureFrameSnapshot(cdp: CDPSession, frame: FrameInfo, frameIndex: number): Promise<{ ok: true; roots: MutableSnapshotNode[]; scope: 'document' | 'modal' } | { ok: false; error: string }> {
   try { return await readFrameSnapshot(cdp, { frameId: frame.id }); }
   catch (error) {
     if (frameIndex !== 0) return { ok: false, error: error instanceof Error ? error.message : String(error) };
@@ -75,9 +75,9 @@ async function captureFrameSnapshot(cdp: CDPSession, frame: FrameInfo, frameInde
     catch (fallbackError) { return { ok: false, error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError) }; }
   }
 }
-async function readFrameSnapshot(cdp: CDPSession, params?: { frameId: string }): Promise<{ ok: true; roots: MutableSnapshotNode[] }> {
+async function readFrameSnapshot(cdp: CDPSession, params?: { frameId: string }): Promise<{ ok: true; roots: MutableSnapshotNode[]; scope: 'document' | 'modal' }> {
   const rawNodes = parseAxNodes(await cdp.send('Accessibility.getFullAXTree', params) as unknown);
-  return { ok: true, roots: buildSnapshotTree(rawNodes, await readAttributesByBackendNodeId(cdp, rawNodes)) };
+  return { ok: true, ...buildSnapshotTree(rawNodes, await readAttributesByBackendNodeId(cdp, rawNodes)) };
 }
 async function getFrameInfos(cdp: CDPSession): Promise<FrameInfo[]> { try { const frames = parseFrameTree(await cdp.send('Page.getFrameTree') as unknown); return frames.length ? frames : [{ id: 'main', url: '', name: null, parentId: null }]; } catch { return [{ id: 'main', url: '', name: null, parentId: null }]; } }
 function parseFrameTree(response: unknown): FrameInfo[] {
@@ -101,12 +101,29 @@ async function readAttributesForBackendNodeId(cdp: CDPSession, backendNodeId: nu
 }
 async function readComputedCursorForBackendNodeId(cdp: CDPSession, backendDOMNodeId: number): Promise<string | null> { let objectId: string | null = null; try { objectId = readString(readRecord(readRecord(await cdp.send('DOM.resolveNode', { backendNodeId: backendDOMNodeId }) as unknown).object).objectId); if (!objectId) return null; return readString(readRecord(readRecord(await cdp.send('Runtime.callFunctionOn', { objectId, functionDeclaration: 'function() { return getComputedStyle(this).cursor; }', returnByValue: true, silent: true }) as unknown).result).value); } catch { return null; } finally { if (objectId) await cdp.send('Runtime.releaseObject', { objectId }).catch(() => {}); } }
 
-function buildSnapshotTree(rawNodes: RawAxNode[], attributesByBackendNodeId: Map<number, Record<string, string>>): MutableSnapshotNode[] {
+function buildSnapshotTree(rawNodes: RawAxNode[], attributesByBackendNodeId: Map<number, Record<string, string>>): { roots: MutableSnapshotNode[]; scope: 'document' | 'modal' } {
   const byId = new Map<string, MutableSnapshotNode>(); const childIds = new Set<string>();
   for (const raw of rawNodes) if (raw.nodeId) byId.set(raw.nodeId, { nodeId: raw.nodeId, ignored: raw.ignored, role: raw.role, name: raw.name, value: raw.value, description: raw.description, properties: Object.fromEntries(raw.properties.map((property) => [property.name, property.value])), attributes: raw.backendDOMNodeId === null ? {} : attributesByBackendNodeId.get(raw.backendDOMNodeId) ?? {}, childIds: raw.childIds, children: [], parent: null, ref: null, subtreeSize: 1 });
   for (const node of byId.values()) for (const childId of node.childIds) { const child = byId.get(childId); if (child) { child.parent = node; node.children.push(child); childIds.add(childId); } }
   for (const raw of rawNodes) { if (!raw.parentId || childIds.has(raw.nodeId)) continue; const node = byId.get(raw.nodeId); const parent = byId.get(raw.parentId); if (node && parent) { node.parent = parent; parent.children.push(node); childIds.add(raw.nodeId); } }
-  const roots = [...byId.values()].filter((node) => !childIds.has(node.nodeId)); for (const root of roots) annotateSubtreeSize(root); return roots;
+  const scoped = scopeRootsToOpenModal([...byId.values()].filter((node) => !childIds.has(node.nodeId)));
+  for (const root of scoped.roots) annotateSubtreeSize(root);
+  return scoped;
+}
+export function scopeRootsToOpenModal(roots: MutableSnapshotNode[]): { roots: MutableSnapshotNode[]; scope: 'document' | 'modal' } {
+  let active: MutableSnapshotNode | null = null;
+  const visit = (node: MutableSnapshotNode): void => {
+    if (!node.ignored && (
+      node.properties.modal === true ||
+      ((node.role === 'dialog' || node.role === 'alertdialog') &&
+        node.attributes['aria-modal'] === 'true')
+    )) active = node;
+    for (const child of node.children) visit(child);
+  };
+  for (const root of roots) visit(root);
+  return active
+    ? { roots: [active], scope: 'modal' }
+    : { roots, scope: 'document' };
 }
 function annotateSubtreeSize(node: MutableSnapshotNode): number { node.subtreeSize = 1; for (const child of node.children) node.subtreeSize += annotateSubtreeSize(child); return node.subtreeSize; }
 function assignRefs(nodes: MutableSnapshotNode[], nextRef: number): number { for (const node of nodes) { if (shouldAssignRef(node)) node.ref = `l${nextRef++}`; nextRef = assignRefs(node.children, nextRef); } return nextRef; }

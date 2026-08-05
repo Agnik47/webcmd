@@ -27,6 +27,7 @@ function snap(roots: AiSnapshotNode[]): AiSnapshot {
     frames: [
       {
         status: "ok",
+        scope: "document",
         id: "main",
         index: 0,
         url: "https://example.test/path",

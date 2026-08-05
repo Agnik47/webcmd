@@ -24,6 +24,7 @@ function snap(children: AiSnapshotNode[], url = 'https://example.test/docs?utm=o
     url,
     frames: [{
       status: 'ok',
+      scope: 'document',
       id: 'main',
       index: 0,
       url,
