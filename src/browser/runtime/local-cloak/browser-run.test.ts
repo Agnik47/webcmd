@@ -9,7 +9,7 @@ let initialPage: Page;
 let manager: CloakSessionManager;
 let launchPersistentContext: ReturnType<typeof vi.fn<LaunchPersistentContext>>;
 
-const command = (id: string, action: 'run' | 'tabs' | 'bind' | 'close-window', extra: Record<string, unknown> = {}) => ({
+const command = (id: string, action: 'run' | 'snapshot' | 'tabs' | 'bind' | 'close-window', extra: Record<string, unknown> = {}) => ({
   id,
   action,
   profileId: 'default',
@@ -41,6 +41,21 @@ afterAll(async () => {
 });
 
 describe('local Cloak browser run', () => {
+  it('returns a bounded redacted snapshot for the current page', async () => {
+    const result = await dispatchCloakAction(manager, command('snapshot-1', 'snapshot'));
+
+    expect(result).toMatchObject({
+      ok: true,
+      data: {
+        ok: true,
+        tree: expect.any(String),
+        page: { id: expect.any(String), url: 'about:blank', title: '' },
+        warnings: [],
+        limits: { snapshotTruncated: false },
+      },
+    });
+  });
+
   it('reuses the lease and keeps page state without keeping sandbox variables', async () => {
     const first = await dispatchCloakAction(manager, command('run-1', 'run', {
       source: `

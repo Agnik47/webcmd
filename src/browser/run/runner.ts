@@ -12,7 +12,13 @@ import {
 import { LocalBrowserRunArtifactSink } from './artifacts.js';
 import { PlaywrightTransport } from './playwright-transport.js';
 import { QuickJSHost } from './quickjs-host.js';
-import { boundSnapshotDiff } from './snapshot.js';
+import {
+  captureSnapshot,
+  diffSnapshots,
+  MemorySnapshotBaselineStore,
+  renderSnapshotDiff,
+  waitForPageStable,
+} from '../snapshot/index.js';
 import {
   BROWSER_RUN_DEFAULT_MAX_OUTPUT_CHARS,
   BROWSER_RUN_DEFAULT_MEMORY_LIMIT_BYTES,
@@ -230,6 +236,9 @@ export async function runBrowserProgram(
   } catch (error) {
     throw await failure(error);
   }
+  const snapshotMode = options.snapshotMode ?? 'act';
+  const snapshotDiffEnabled = options.snapshotDiff !== false;
+  const baselineStore = options.snapshotBaselineStore ?? new MemorySnapshotBaselineStore();
   let host!: QuickJSHost;
   const artifactSink = input.artifactSink ?? new LocalBrowserRunArtifactSink();
   const transport = new PlaywrightTransport(input, message => (
@@ -245,11 +254,6 @@ export async function runBrowserProgram(
         __webcmdMaxLogChars: maxOutputChars,
       },
       onHostCall: async (name, args) => {
-        if (name === 'snapshotForAI' && typeof args[0] === 'string') {
-          return redactText(await transport.snapshotForAI(args[0]), {
-            maxStringLength: maxOutputChars * 2,
-          });
-        }
         if (
           name !== 'writeArtifact'
           || typeof args[0] !== 'string'
@@ -421,9 +425,6 @@ export async function runBrowserProgram(
             return bytes;
           };
           globalThis.page = selectedPage;
-          Object.getPrototypeOf(selectedPage).snapshotForAI = function snapshotForAI() {
-            return __webcmdHostCall('snapshotForAI', JSON.stringify([this._guid]));
-          };
           globalThis.context = selectedContext;
           globalThis.browser = selectedBrowser;
         };
@@ -465,28 +466,9 @@ export async function runBrowserProgram(
       `Browser-run execution exceeded ${timeoutMs}ms.`,
       'Split the task into a smaller run or increase --timeout.',
     );
-    const snapshot = async () => {
-      const snapshotStartedAt = Date.now();
-      const remaining = deadlineAt - Date.now();
-      try {
-        if (remaining <= 0) throw timeoutError();
-        let snapshotTimeout: ReturnType<typeof setTimeout> | undefined;
-        try {
-          const value = await Promise.race([
-            transport.snapshotForAI(transport.pageGuid),
-            new Promise<never>((_resolve, reject) => {
-              snapshotTimeout = setTimeout(() => reject(timeoutError()), remaining);
-            }),
-          ]);
-          return redactText(value, { maxStringLength: maxOutputChars * 2 });
-        } finally {
-          if (snapshotTimeout) clearTimeout(snapshotTimeout);
-        }
-      } finally {
-        timings.snapshot_ms = (timings.snapshot_ms ?? 0) + Math.max(0, Date.now() - snapshotStartedAt);
-      }
-    };
-    const beforeSnapshot = options.snapshotDiff ? await snapshot() : undefined;
+    const beforeSnapshot = snapshotDiffEnabled
+      ? baselineStore.get(input.pageId) ?? await captureSnapshot(input.page)
+      : undefined;
     const programStartedAt = Date.now();
     execution = host.executeScript(`
       __webcmdRun(${javascriptStringLiteral(source)})
@@ -541,16 +523,26 @@ export async function runBrowserProgram(
       );
     }
     const bounded = boundedLogs(logs, Math.max(0, maxOutputChars - resultChars));
-    if (beforeSnapshot !== undefined) {
+    if (snapshotDiffEnabled && beforeSnapshot) {
+      const snapshotStartedAt = Date.now();
       try {
-        const diff = boundSnapshotDiff(beforeSnapshot, await snapshot(), maxOutputChars);
-        savedSnapshotDiff = diff.value;
-        snapshotTruncated = diff.truncated;
+        await waitForPageStable(input.page, deadlineAt - Date.now());
+        const afterSnapshot = await captureSnapshot(input.page);
+        baselineStore.set(input.pageId, afterSnapshot);
+        const bounded = renderSnapshotDiff(
+          diffSnapshots(beforeSnapshot, afterSnapshot, snapshotMode),
+          maxOutputChars,
+        );
+        savedSnapshotDiff = redactText(bounded.value, { maxStringLength: maxOutputChars * 2 });
+        snapshotTruncated ||= bounded.truncated;
       } catch (snapshotError) {
+        baselineStore.clear(input.pageId);
         warnings.push({
           code: 'BROWSER_RUN_SNAPSHOT_FAILED',
-          message: `Failed to capture post-run snapshot: ${normalizeExecutionError(snapshotError).message}`,
+          message: normalizeExecutionError(snapshotError).message,
         });
+      } finally {
+        timings.snapshot_ms = (timings.snapshot_ms ?? 0) + Math.max(0, Date.now() - snapshotStartedAt);
       }
     }
     return {

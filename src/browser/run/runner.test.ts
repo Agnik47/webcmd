@@ -66,11 +66,22 @@ afterAll(async () => {
 });
 
 describe('runBrowserProgram', () => {
-  it('omits snapshots unless snapshot diff is requested', async () => {
-    const output = await run('return null;');
+  it('returns snapshotDiff by default after successful runs', async () => {
+    const output = await run(`
+      await page.setContent('<main><button>Saved</button></main>');
+      return 'ok';
+    `);
+
+    expect(output.result).toBe('ok');
+    expect(output).toHaveProperty('snapshotDiff');
+    expect(typeof output.snapshotDiff).toBe('string');
+    expect(output.limits.snapshotTruncated).toBe(false);
+  });
+
+  it('omits snapshotDiff when disabled', async () => {
+    const output = await run('return null;', { snapshotDiff: false });
 
     expect(output).not.toHaveProperty('snapshotDiff');
-    expect(output.limits.snapshotTruncated).toBe(false);
   });
 
   it('captures a fresh before and after snapshot in the same run', async () => {
@@ -84,13 +95,7 @@ describe('runBrowserProgram', () => {
   });
 
   it('does not execute the program when the pre-snapshot fails', async () => {
-    const evaluate = page.evaluate.bind(page);
-    let calls = 0;
-    page.evaluate = ((...args: Parameters<Page['evaluate']>) => {
-      calls += 1;
-      if (calls === 1) return Promise.reject(new Error('pre snapshot failed'));
-      return evaluate(...args);
-    }) as Page['evaluate'];
+    context.newCDPSession = (() => Promise.reject(new Error('pre snapshot failed'))) as BrowserContext['newCDPSession'];
 
     await expect(run(`
       await page.getByRole('button', { name: 'Save' }).click();
@@ -112,13 +117,13 @@ describe('runBrowserProgram', () => {
   });
 
   it('keeps program success and warns when the post-snapshot fails', async () => {
-    const evaluate = page.evaluate.bind(page);
+    const newCDPSession = context.newCDPSession.bind(context);
     let calls = 0;
-    page.evaluate = ((...args: Parameters<Page['evaluate']>) => {
+    context.newCDPSession = ((...args: Parameters<BrowserContext['newCDPSession']>) => {
       calls += 1;
       if (calls === 2) return Promise.reject(new Error('post snapshot failed'));
-      return evaluate(...args);
-    }) as Page['evaluate'];
+      return newCDPSession(...args);
+    }) as BrowserContext['newCDPSession'];
 
     const output = await run('return 7;', { snapshotDiff: true });
 
@@ -129,21 +134,10 @@ describe('runBrowserProgram', () => {
     }));
   });
 
-  it('exposes page.snapshotForAI without exposing host page objects', async () => {
-    const output = await run('return await page.snapshotForAI();');
+  it('does not expose page.snapshotForAI inside browser-run code', async () => {
+    const output = await run('return typeof page.snapshotForAI;');
 
-    expect(output.result).toContain('<button');
-    expect(output.result).toContain('Save');
-  });
-
-  it('exposes snapshotForAI on popup pages in the supplied context', async () => {
-    const output = await run(`
-      const popupPromise = page.waitForEvent('popup');
-      await page.getByRole('link', { name: 'Popup' }).click();
-      return await (await popupPromise).snapshotForAI();
-    `);
-
-    expect(output.result).toContain('url: about:blank');
+    expect(output.result).toBe('undefined');
   });
   it('publishes the browser-run package subpath', () => {
     const packageJson = JSON.parse(

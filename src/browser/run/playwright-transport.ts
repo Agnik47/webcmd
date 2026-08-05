@@ -1,6 +1,5 @@
 import { createRequire } from 'node:module';
 import type { Browser, BrowserContext, Page } from 'playwright-core';
-import { generateSnapshotJs } from '../dom-snapshot.js';
 import {
   BROWSER_RUN_PLAYWRIGHT_VERSION,
   BrowserRunError,
@@ -30,16 +29,6 @@ interface PlaywrightServer {
   ) => unknown;
   createPlaywright(options: Record<string, unknown>): unknown;
   nullProgress: unknown;
-}
-
-interface PlaywrightPageImplementation {
-  mainFrame(): {
-    evaluateExpression(
-      progress: unknown,
-      expression: string,
-      options: Record<string, unknown>,
-    ): Promise<unknown>;
-  };
 }
 
 interface PlaywrightClientObject {
@@ -204,32 +193,6 @@ export class PlaywrightTransport {
 
   get browserWaitMs(): number {
     return this.#browserWaitMs;
-  }
-
-  async snapshotForAI(guid: string): Promise<string> {
-    const dispatcher = this.#connection._dispatcherByGuid.get(guid);
-    const page = [...this.#hostPages, ...this.#pages()].find(candidate => (
-      pageGuid(candidate) === guid || dispatcher?._object === implementation(candidate)
-    ));
-    if (!page && (!dispatcher || dispatcher._type !== 'Page')) {
-      throw new BrowserRunError(
-        'BROWSER_RUN_API_UNSUPPORTED',
-        'The requested page is unavailable in this browser-run context.',
-      );
-    }
-    const script = generateSnapshotJs({
-      viewportExpand: 0,
-      maxDepth: 40,
-      maxTextLength: 120,
-      includeScrollInfo: true,
-      bboxDedup: true,
-    });
-    const value = page
-      ? await page.evaluate(script as never)
-      : await (dispatcher!._object as PlaywrightPageImplementation)
-        .mainFrame()
-        .evaluateExpression(server.nullProgress, script, {});
-    return typeof value === 'string' ? value : String(value ?? '');
   }
 
   #pages: () => Page[];

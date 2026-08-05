@@ -1,9 +1,28 @@
 import type { BrowserRuntimeCommand, BrowserRuntimeResult } from '../../protocol.js';
+import {
+  captureSnapshot,
+  boundSnapshotText,
+  MemorySnapshotBaselineStore,
+  renderSnapshot,
+  type SnapshotBaselineStore,
+} from '../../snapshot/index.js';
+import { redactText, redactUrl } from '../../../observation/redaction.js';
 import { waitForDownload } from './downloads.js';
 import type { CloakSessionManager } from './session-manager.js';
 import type { BrowserContext, Frame, Page as PlaywrightPage } from 'playwright-core';
 import { runBrowserProgram } from '../../run/runner.js';
 import { BROWSER_RUN_MAX_SOURCE_BYTES } from '../../run/types.js';
+
+const snapshotBaselines = new WeakMap<CloakSessionManager, SnapshotBaselineStore>();
+
+function snapshotBaselineStore(manager: CloakSessionManager): SnapshotBaselineStore {
+  let baselineStore = snapshotBaselines.get(manager);
+  if (!baselineStore) {
+    baselineStore = new MemorySnapshotBaselineStore();
+    snapshotBaselines.set(manager, baselineStore);
+  }
+  return baselineStore;
+}
 
 class CloakActionError extends Error {
   constructor(
@@ -162,11 +181,41 @@ export async function dispatchCloakAction(manager: CloakSessionManager, command:
           maxOutputChars: command.maxOutputChars,
           memoryLimitBytes: command.memoryLimitBytes,
           snapshotDiff: command.snapshotDiff,
+          snapshotMode: command.snapshotMode,
+          snapshotBaselineStore: snapshotBaselineStore(manager),
         });
         return {
           id: command.id,
           ok: true,
           data,
+          page: lease.pageId,
+        };
+      }
+      case 'snapshot': {
+        const lease = await resolveLease(manager, command);
+        const snapshot = await captureSnapshot(lease.page);
+        const tree = renderSnapshot(snapshot, {
+          mode: command.snapshotMode ?? 'act',
+          ref: command.ref,
+        });
+        const bounded = Number.isFinite(command.maxOutputChars)
+          ? boundSnapshotText(tree, command.maxOutputChars!)
+          : { value: tree, truncated: false };
+        snapshotBaselineStore(manager).set(lease.pageId, snapshot);
+        return {
+          id: command.id,
+          ok: true,
+          data: {
+            ok: true,
+            tree: redactText(bounded.value),
+            page: {
+              id: lease.pageId,
+              url: redactUrl(lease.page.url()),
+              title: redactText(await lease.page.title().catch(() => '')),
+            },
+            warnings: [],
+            limits: { snapshotTruncated: bounded.truncated },
+          },
           page: lease.pageId,
         };
       }

@@ -17,3 +17,4 @@ export {
 } from "./render.js";
 export { diffSnapshots, renderSnapshotDiff } from './diff.js';
 export type { SnapshotDiff } from './diff.js';
+export { waitForPageStable } from './wait-for-page-stable.js';
