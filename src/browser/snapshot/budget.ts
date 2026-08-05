@@ -44,6 +44,10 @@ const representationCosts = new WeakMap<
   RenderedSnapshotNode,
   Record<SnapshotRepresentation, number>
 >();
+const representationSummaries = new WeakMap<
+  RenderedSnapshotNode,
+  Record<SnapshotRepresentation, SnapshotSubtreeSummary>
+>();
 const STATE_ATTRS = new Set([
   "ref",
   "checked",
@@ -110,6 +114,10 @@ function collectCandidates(
       identity: cost(node, "identity", depth),
       full: cost(node, "full", depth),
     });
+    representationSummaries.set(node, {
+      identity: ownSummary(node, "identity"),
+      full: ownSummary(node, "full"),
+    });
     buckets[node.priority]!.push(candidate);
     for (const child of node.children)
       if (child.kind === "node") visit(child, candidate, depth + 1);
@@ -154,7 +162,7 @@ function reserveEnvelopeAndMarkers(
     depth: number,
   ): void => {
     scopeByNode.set(node, scope);
-    addSummary(omittedByScope, scope, ownSummary(node, "full"));
+    addSummary(omittedByScope, scope, representationSummaryFor(node, "full"));
     const childScope = node.scopeRef ?? scope;
     if (node.scopeRef) markerDepthByScope.set(node.scopeRef, depth + 1);
     for (const child of node.children)
@@ -306,7 +314,7 @@ function select(
   state: AllocationState,
 ): void {
   allocation.selected.set(node, representation);
-  subtractOmitted(node, ownSummary(node, representation), allocation, state);
+  subtractOmitted(node, representationSummaryFor(node, representation), allocation, state);
 }
 
 function subtractOmitted(
@@ -337,7 +345,7 @@ function trySelectComplete(
     contentChars += representationCostFor(candidate.node, representation, candidate.depth);
     const scope = state.scopeByNode.get(candidate.node);
     const summary = scope ? projected.get(scope) : undefined;
-    if (summary) subtractSummary(summary, ownSummary(candidate.node, representation));
+    if (summary) subtractSummary(summary, representationSummaryFor(candidate.node, representation));
   }
   const markerChars = [...projected].reduce(
     (total, [scope, summary]) => total + markerCostForScope(scope, summary, state),
@@ -380,7 +388,7 @@ function projectedMarkerChars(
           textChars: directTextChars(candidate.node.children) -
             representedTextChars(candidate.node, "identity"),
         }
-      : ownSummary(candidate.node, representation);
+      : representationSummaryFor(candidate.node, representation);
     subtractSummary(summary, represented);
     projected.set(scope, summary);
   }
@@ -408,6 +416,13 @@ function ownSummary(
     changed: Math.max(0, node.summary.changed - childSummary.changed),
     critical: node.priority === 0 ? 1 : 0,
   };
+}
+
+function representationSummaryFor(
+  node: RenderedSnapshotNode,
+  representation: SnapshotRepresentation,
+): SnapshotSubtreeSummary {
+  return representationSummaries.get(node)?.[representation] ?? ownSummary(node, representation);
 }
 
 function representedTextChars(
@@ -495,9 +510,18 @@ function markerCost(
   summary: SnapshotSubtreeSummary,
   depth: number,
 ): number {
-  return hasOmittedSummary(summary)
-    ? `${"\t".repeat(depth)}${renderSnapshotMarker(ref, summary)}\n`.length
-    : 0;
+  if (!hasOmittedSummary(summary)) return 0;
+  return depth + "[more ref=".length + ref.length + "]\n".length +
+    markerFieldChars("nodes".length, summary.nodes) +
+    markerFieldChars("actions".length, summary.actions) +
+    markerFieldChars("records".length, summary.records) +
+    markerFieldChars("textChars".length, summary.textChars) +
+    markerFieldChars("changed".length, summary.changed) +
+    markerFieldChars("criticalOmitted".length, summary.critical);
+}
+
+function markerFieldChars(nameChars: number, value: number): number {
+  return value > 0 ? nameChars + 3 + Math.floor(Math.log10(value)) : 0;
 }
 
 function markerCostForScope(
