@@ -57,12 +57,32 @@ export interface SnapshotTextNode {
   block?: boolean;
 }
 
+export interface SnapshotSubtreeSummary {
+  nodes: number;
+  actions: number;
+  records: number;
+  textChars: number;
+  changed: number;
+  critical: number;
+}
+
+export type SnapshotPriority = 0 | 1 | 2 | 3 | 4;
+
+export interface SnapshotRenderResult extends BoundedSnapshotText {
+  criticalOmitted: number;
+  warnings: string[];
+}
+
 export interface RenderedSnapshotNode {
   kind: 'node';
   key: string;
   role: string;
   attrs: Array<[string, string]>;
   children: RenderedSnapshotChild[];
+  summary: SnapshotSubtreeSummary;
+  priority: SnapshotPriority;
+  scopeRef: string | null;
+  record: boolean;
 }
 
 export type RenderedSnapshotChild = RenderedSnapshotNode | SnapshotTextNode;

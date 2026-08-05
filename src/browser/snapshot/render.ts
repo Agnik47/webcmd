@@ -12,6 +12,8 @@ import type {
   RenderedSnapshotChild,
   RenderedSnapshotFrame,
   RenderedSnapshotNode,
+  SnapshotPriority,
+  SnapshotSubtreeSummary,
   SnapshotTreeMode,
   SnapshotPrimitive,
   SnapshotTextNode,
@@ -59,6 +61,9 @@ const ACTION_ROLES = new Set([
   "tab",
   "slider",
 ]);
+const CRITICAL_ROLES = new Set(["alert", "alertdialog", "dialog", "status"]);
+const RECORD_ROLES = new Set(["listitem", "row", "treeitem", "article"]);
+const RECORD_PARENT_ROLES = new Set(["list", "table", "grid", "tree", "feed"]);
 const ACTION_STATE_ATTRS = new Set([
   "checked",
   "disabled",
@@ -320,6 +325,8 @@ function toRenderedChildren(
     !renderedChildren.some(hasVisibleTextOrInteractive)
   )
     return [];
+  const record = isRecord(node, parent, compactRole);
+  const priority = ownPriority(node, compactRole, record);
   return [
     {
       kind: "node",
@@ -330,6 +337,10 @@ function toRenderedChildren(
       role: compactRole,
       attrs: content.attrs,
       children: renderedChildren,
+      summary: summarizeSubtree(renderedChildren, compactRole, record, priority),
+      priority,
+      scopeRef: node.ref,
+      record,
     },
   ];
 }
@@ -338,9 +349,70 @@ function renderableChildren(
   node: AiSnapshotNode,
   mode: SnapshotTreeMode,
 ): RenderedSnapshotChild[] {
-  return mergeAdjacentText(
+  const children = mergeAdjacentText(
     node.children.flatMap((child) => toRenderedChildren(child, node, mode)),
   ).filter(hasVisibleTextOrInteractive);
+  markRepeatedRecords(children);
+  return children;
+}
+function ownPriority(
+  node: AiSnapshotNode,
+  renderedRole: string,
+  record: boolean,
+): SnapshotPriority {
+  const invalid = node.properties.invalid === true || node.properties.invalid === "true";
+  if (node.properties.focused === true || invalid || CRITICAL_ROLES.has(renderedRole)) return 0;
+  if (ACTION_ROLES.has(renderedRole)) return 1;
+  if (record) return 2;
+  if (node.name || renderedRole === "heading") return 3;
+  return 4;
+}
+function isRecord(
+  node: AiSnapshotNode,
+  parent: AiSnapshotNode | null,
+  role: string,
+): boolean {
+  return RECORD_ROLES.has(role) && parent !== null && RECORD_PARENT_ROLES.has(tagNameForRole(parent.role));
+}
+function markRepeatedRecords(children: RenderedSnapshotChild[]): void {
+  const groups = new Map<string, RenderedSnapshotNode[]>();
+  for (const child of children)
+    if (child.kind === "node" && child.summary.actions > 0)
+      groups.set(child.role, [...(groups.get(child.role) ?? []), child]);
+  for (const records of groups.values())
+    if (records.length >= 3)
+      for (const record of records)
+        if (!record.record) {
+          record.record = true;
+          record.priority = Math.min(record.priority, 2) as SnapshotPriority;
+          record.summary.records += 1;
+        }
+}
+function summarizeSubtree(
+  children: RenderedSnapshotChild[],
+  role: string,
+  record: boolean,
+  priority: SnapshotPriority,
+): SnapshotSubtreeSummary {
+  const summary: SnapshotSubtreeSummary = {
+    nodes: 1,
+    actions: ACTION_ROLES.has(role) ? 1 : 0,
+    records: record ? 1 : 0,
+    textChars: 0,
+    changed: 0,
+    critical: priority === 0 ? 1 : 0,
+  };
+  for (const child of children)
+    if (child.kind === "text") summary.textChars += child.text.length;
+    else {
+      summary.nodes += child.summary.nodes;
+      summary.actions += child.summary.actions;
+      summary.records += child.summary.records;
+      summary.textChars += child.summary.textChars;
+      summary.changed += child.summary.changed;
+      summary.critical += child.summary.critical;
+    }
+  return summary;
 }
 function renderHeading(
   node: AiSnapshotNode,

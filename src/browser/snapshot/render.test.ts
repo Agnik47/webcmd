@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { boundSnapshotText, renderSnapshot } from "./render.js";
+import {
+  boundSnapshotText,
+  renderSnapshot,
+  renderSnapshotFrames,
+} from "./render.js";
 import type { AiSnapshot, AiSnapshotNode } from "./types.js";
 
 function node(
@@ -40,6 +44,19 @@ function snap(roots: AiSnapshotNode[]): AiSnapshot {
 }
 
 describe("renderSnapshot", () => {
+  it("summarizes critical state, actions, records, and text during rendering", () => {
+    const frames = renderSnapshotFrames(snap([node({
+      role: "list", ref: "l10", children: [
+        node({ role: "listitem", name: "Alpha", children: [
+          node({ role: "button", name: "Open", ref: "l11", properties: { focused: true } }),
+        ] }),
+      ],
+    })]), "tree");
+    const list = frames[0]!.status === "ok" ? frames[0]!.roots[0]! : null;
+    expect(list?.summary).toMatchObject({ actions: 1, records: 1, critical: 1 });
+    expect(list?.scopeRef).toBe("l10");
+  });
+
   it("renders compact action structure in act mode", () => {
     const text = renderSnapshot(
       snap([
