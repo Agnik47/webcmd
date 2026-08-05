@@ -1587,7 +1587,7 @@ describe('runHostedCli', () => {
     await writeFile(sourcePath, 'return 42;');
     const requests: Array<{ url: string; body?: Record<string, unknown> }> = [];
     try {
-      const result = await runHostedCli(['browser', 'work', 'run', '--file', sourcePath, '--snapshot-mode', 'read', '--no-snapshot-diff'], {
+      const result = await runHostedCli(['browser', 'work', 'run', '--file', sourcePath, '--snapshot-mode', 'tree', '--no-snapshot-diff'], {
         config: makeHostedConfig({ apiBaseUrl: 'https://api.example.com', apiKey: 'key' }),
         stdout: sink().stream,
         stderr: sink().stream,
@@ -1610,7 +1610,7 @@ describe('runHostedCli', () => {
       expect(requests[1]?.body).toMatchObject({
         command: 'browser/run',
         action: 'run',
-        args: { source: 'return 42;', snapshotMode: 'read', noSnapshotDiff: true },
+        args: { source: 'return 42;', snapshotMode: 'tree', noSnapshotDiff: true },
       });
       expect(JSON.stringify(requests[1]?.body)).not.toContain(sourcePath);
     } finally {

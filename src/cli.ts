@@ -1016,7 +1016,7 @@ cli({
     .option('--file <path>', 'Read the program from a file')
     .addOption(new Option('--timeout <seconds>', 'Execution timeout in seconds').argParser(browserOptionValueParser('run', 'timeout')!))
     .addOption(new Option('--max-output <characters>', 'Maximum returned characters').argParser(browserOptionValueParser('run', 'maxOutput')!))
-    .addOption(new Option('--snapshot-mode <mode>', 'Snapshot mode for automatic diff: act or read').default('act').argParser(browserOptionValueParser('run', 'snapshotMode')!))
+    .addOption(new Option('--snapshot-mode <mode>', 'Snapshot mode for automatic diff: act or tree').default('act').argParser(browserOptionValueParser('run', 'snapshotMode')!))
     .option('--no-snapshot-diff', 'Skip the automatic before/after snapshot diff');
   runCommand.action(rawBrowserAction(async (session, routing, opts) => {
     let source: string;
@@ -1035,7 +1035,7 @@ cli({
       source,
       ...(timeout !== undefined ? { timeoutMs: timeout * 1000, timeout: timeout + 5 } : {}),
       ...(maxOutput !== undefined ? { maxOutputChars: maxOutput } : {}),
-      snapshotMode: opts.snapshotMode === 'read' ? 'read' : 'act',
+      snapshotMode: opts.snapshotMode === 'tree' ? 'tree' : 'act',
       ...(opts.snapshotDiff === false ? { noSnapshotDiff: true } : {}),
     });
   }));
@@ -1043,14 +1043,14 @@ cli({
 
   browser.addCommand(new Command('snapshot')
     .description('Inspect the current page with a compact accessibility snapshot')
-    .addOption(new Option('--snapshot-mode <mode>', 'Snapshot mode: act or read').default('act').argParser(browserOptionValueParser('snapshot', 'snapshotMode')!))
+    .addOption(new Option('--snapshot-mode <mode>', 'Snapshot mode: act, tree, or read').default('act').argParser(browserOptionValueParser('snapshot', 'snapshotMode')!))
     .option('--ref <ref>', 'Render only the subtree rooted at this snapshot ref')
     .addOption(new Option('--max-output <characters>', 'Maximum returned characters').argParser(browserOptionValueParser('snapshot', 'maxOutput')!))
     .action(rawBrowserAction((session, routing, opts) => sendCommand('snapshot', {
       session,
       surface: 'browser',
       ...routing,
-      snapshotMode: opts.snapshotMode === 'read' ? 'read' : 'act',
+      snapshotMode: opts.snapshotMode === 'tree' || opts.snapshotMode === 'read' ? opts.snapshotMode : 'act',
       ...(typeof opts.ref === 'string' ? { ref: opts.ref } : {}),
       ...(typeof opts.maxOutput === 'number' ? { maxOutputChars: opts.maxOutput } : {}),
     }))));

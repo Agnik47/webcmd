@@ -3,7 +3,8 @@
  * MIT License, Copyright (c) 2026 Libretto contributors.
  */
 
-export type SnapshotMode = 'act' | 'read';
+export type SnapshotTreeMode = 'act' | 'tree';
+export type SnapshotMode = SnapshotTreeMode | 'read';
 
 export type SnapshotPrimitive = string | number | boolean | null;
 

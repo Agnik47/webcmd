@@ -223,7 +223,7 @@ export interface HostedBrowserActionRequest {
 }
 
 export interface HostedBrowserActionArgs extends Record<string, unknown> {
-  snapshotMode?: 'act' | 'read';
+  snapshotMode?: 'act' | 'tree' | 'read';
   ref?: string;
   noSnapshotDiff?: boolean;
 }

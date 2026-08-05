@@ -41,9 +41,14 @@ function command(
   return { command: commandPath, aliases: [], description, action, positionals, options, sessionPolicy };
 }
 
-function snapshotModeParser(value: string): 'act' | 'read' {
-  if (value === 'act' || value === 'read') return value;
-  throw new InvalidArgumentError(`--snapshot-mode must be act or read (got "${value}")`);
+function runSnapshotModeParser(value: string): 'act' | 'tree' {
+  if (value === 'act' || value === 'tree') return value;
+  throw new InvalidArgumentError(`--snapshot-mode for run must be act or tree (got "${value}")`);
+}
+
+function snapshotModeParser(value: string): 'act' | 'tree' | 'read' {
+  if (value === 'act' || value === 'tree' || value === 'read') return value;
+  throw new InvalidArgumentError(`--snapshot-mode for snapshot must be act, tree, or read (got "${value}")`);
 }
 
 function positiveIntegerParser(optionName: string): (value: string) => number {
@@ -80,7 +85,8 @@ export function browserOptionValueParser(
       return page;
     };
   }
-  if (optionName === 'snapshotMode' && (commandPath === 'run' || commandPath === 'snapshot')) return snapshotModeParser;
+  if (optionName === 'snapshotMode' && commandPath === 'run') return runSnapshotModeParser;
+  if (optionName === 'snapshotMode' && commandPath === 'snapshot') return snapshotModeParser;
   if ((commandPath === 'run' && ['timeout', 'maxOutput'].includes(optionName))
     || (commandPath === 'snapshot' && optionName === 'maxOutput')) {
     return positiveIntegerParser(optionName === 'maxOutput' ? 'max-output' : optionName);
@@ -98,11 +104,11 @@ export const browserCommandCatalog: readonly HostedBrowserCommandContract[] = [
     option('file', 'Read the program from a file'),
     option('timeout', 'Execution timeout in seconds'),
     option('maxOutput', 'Maximum returned characters'),
-    option('snapshotMode', 'Snapshot mode for automatic diff: act or read', { default: 'act' }),
+    option('snapshotMode', 'Snapshot mode for automatic diff: act or tree', { default: 'act' }),
     flag('noSnapshotDiff', 'Skip the automatic before/after snapshot diff'),
   ], 'create-or-reuse'),
   command('snapshot', 'Inspect the current page with a compact accessibility snapshot', 'snapshot', [], [
-    option('snapshotMode', 'Snapshot mode: act or read', { default: 'act' }),
+    option('snapshotMode', 'Snapshot mode: act, tree, or read', { default: 'act' }),
     option('ref', 'Render only the subtree rooted at this snapshot ref'),
     option('maxOutput', 'Maximum returned characters'),
   ], 'require-existing'),

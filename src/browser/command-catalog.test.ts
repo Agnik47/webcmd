@@ -53,10 +53,17 @@ describe('browserCommandCatalog', () => {
     expect(snapshot?.options.map(option => option.name)).toEqual(['snapshotMode', 'ref', 'maxOutput']);
   });
 
-  it('parses snapshot mode as act or read only', () => {
-    const parse = browserOptionValueParser('run', 'snapshotMode');
+  it('parses run snapshot mode as act or tree only', () => {
+    expect(browserOptionValueParser('run', 'snapshotMode')?.('act')).toBe('act');
+    expect(browserOptionValueParser('run', 'snapshotMode')?.('tree')).toBe('tree');
+    expect(() => browserOptionValueParser('run', 'snapshotMode')?.('read')).toThrow(/act or tree/);
+  });
+
+  it('parses snapshot mode as act, tree, or read only', () => {
+    const parse = browserOptionValueParser('snapshot', 'snapshotMode');
     expect(parse?.('act')).toBe('act');
-    expect(parse?.('read')).toBe('read');
-    expect(() => parse?.('full')).toThrow('--snapshot-mode must be act or read');
+    expect(parse?.('tree')).toBe('tree');
+    expect(browserOptionValueParser('snapshot', 'snapshotMode')?.('read')).toBe('read');
+    expect(() => parse?.('full')).toThrow('--snapshot-mode for snapshot must be act, tree, or read');
   });
 });

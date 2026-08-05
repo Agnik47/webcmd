@@ -35863,9 +35863,18 @@
           "variadic": false
         },
         {
-          "name": "snapshotDiff",
+          "name": "snapshotMode",
+          "type": "string",
+          "description": "Snapshot mode for automatic diff: act or tree",
+          "positional": false,
+          "required": false,
+          "variadic": false,
+          "default": "act"
+        },
+        {
+          "name": "noSnapshotDiff",
           "type": "boolean",
-          "description": "Return the before/after semantic diff",
+          "description": "Skip the automatic before/after snapshot diff",
           "positional": false,
           "required": false,
           "variadic": false
@@ -35873,6 +35882,41 @@
       ],
       "sessionPolicy": "create-or-reuse",
       "action": "run"
+    },
+    {
+      "command": "snapshot",
+      "aliases": [],
+      "description": "Inspect the current page with a compact accessibility snapshot",
+      "positionals": [],
+      "options": [
+        {
+          "name": "snapshotMode",
+          "type": "string",
+          "description": "Snapshot mode: act, tree, or read",
+          "positional": false,
+          "required": false,
+          "variadic": false,
+          "default": "act"
+        },
+        {
+          "name": "ref",
+          "type": "string",
+          "description": "Render only the subtree rooted at this snapshot ref",
+          "positional": false,
+          "required": false,
+          "variadic": false
+        },
+        {
+          "name": "maxOutput",
+          "type": "string",
+          "description": "Maximum returned characters",
+          "positional": false,
+          "required": false,
+          "variadic": false
+        }
+      ],
+      "sessionPolicy": "require-existing",
+      "action": "snapshot"
     },
     {
       "command": "tabs",

@@ -82,7 +82,7 @@ describe("renderSnapshot", () => {
     );
   });
 
-  it("keeps paragraph text in read mode but not act mode", () => {
+  it("keeps paragraph text in tree mode but not act mode", () => {
     const page = snap([
       node({
         role: "RootWebArea",
@@ -105,10 +105,10 @@ describe("renderSnapshot", () => {
     expect(renderSnapshot(page, { mode: "act" })).not.toContain(
       "Long useful paragraph",
     );
-    expect(renderSnapshot(page, { mode: "read" })).toContain(
+    expect(renderSnapshot(page, { mode: "tree" })).toContain(
       "Long useful paragraph",
     );
-    expect(renderSnapshot(page, { mode: "read" })).toContain(
+    expect(renderSnapshot(page, { mode: "tree" })).toContain(
       '<button ref="l2">Continue</button>',
     );
   });

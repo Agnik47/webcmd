@@ -12,7 +12,7 @@ import type {
   RenderedSnapshotChild,
   RenderedSnapshotFrame,
   RenderedSnapshotNode,
-  SnapshotMode,
+  SnapshotTreeMode,
   SnapshotPrimitive,
   SnapshotTextNode,
 } from "./types.js";
@@ -23,8 +23,8 @@ const MAX_SUMMARY_TEXT_CHARS = 80;
 const MAX_HREF_CHARS = 96;
 const MAX_ACTIONS_IN_SUMMARY = 3;
 const MAX_ACTION_LABEL_CHARS = 80;
-const READ_MAX_SUMMARY_TEXT_CHARS = 240;
-const READ_EXTRA_ROLES = new Set(["paragraph", "article", "section", "region"]);
+const TREE_MAX_SUMMARY_TEXT_CHARS = 240;
+const TREE_EXTRA_ROLES = new Set(["paragraph", "article", "section", "region"]);
 
 const PRESERVE_CHILDREN_BY_ROLE = new Set([
   "document",
@@ -118,7 +118,7 @@ const RENDERED_STATE_PROPERTIES = [
 ];
 
 export interface RenderSnapshotOptions {
-  mode?: SnapshotMode;
+  mode?: SnapshotTreeMode;
   ref?: string;
   maxChars?: number;
 }
@@ -143,7 +143,7 @@ export function renderSnapshot(
 
 export function renderSnapshotFrames(
   snapshot: AiSnapshot,
-  mode: SnapshotMode = "act",
+  mode: SnapshotTreeMode = "act",
 ): RenderedSnapshotFrame[] {
   return snapshot.frames
     .map((frame) => toRenderedFrame(frame, mode))
@@ -220,14 +220,14 @@ function formatTag(
 
 export function renderChildrenTruncationNotice(
   children: RenderedSnapshotChild[],
-  mode: SnapshotMode = "act",
+  mode: SnapshotTreeMode = "act",
 ): string {
   const count = children.length;
   const summaryActions = actionSummariesForChildren(children);
   const textSnippet = previewForChildren(
     children,
     summaryActions.labels,
-    mode === "read" ? READ_MAX_SUMMARY_TEXT_CHARS : MAX_SUMMARY_TEXT_CHARS,
+    mode === "tree" ? TREE_MAX_SUMMARY_TEXT_CHARS : MAX_SUMMARY_TEXT_CHARS,
   );
   const elementLabel = count === 1 ? "element" : "elements";
   const textSnippetPart = textSnippet
@@ -241,7 +241,7 @@ export function renderChildrenTruncationNotice(
 
 function toRenderedFrame(
   frame: AiSnapshotFrame,
-  mode: SnapshotMode,
+  mode: SnapshotTreeMode,
 ): RenderedSnapshotFrame {
   if (frame.status === "unavailable") return frame;
   return {
@@ -255,7 +255,7 @@ function hasRenderedFrameContent(frame: RenderedSnapshotFrame): boolean {
 function toRenderedNodes(
   node: AiSnapshotNode,
   parent: AiSnapshotNode | null,
-  mode: SnapshotMode,
+  mode: SnapshotTreeMode,
 ): RenderedSnapshotNode[] {
   return toRenderedChildren(node, parent, mode).filter(isRenderedNode);
 }
@@ -263,7 +263,7 @@ function toRenderedNodes(
 function toRenderedChildren(
   node: AiSnapshotNode,
   parent: AiSnapshotNode | null,
-  mode: SnapshotMode,
+  mode: SnapshotTreeMode,
 ): RenderedSnapshotChild[] {
   if (shouldSkipNode(node, parent)) return [];
   if (isTextRole(node.role)) {
@@ -285,7 +285,7 @@ function toRenderedChildren(
     return flattenedChildren(node, children, mode).filter(
       hasVisibleTextOrInteractive,
     );
-  if (mode === "act" && READ_EXTRA_ROLES.has(compactRole)) {
+  if (mode === "act" && TREE_EXTRA_ROLES.has(compactRole)) {
     return children.some(hasInteractiveNode)
       ? flattenedChildren(node, children, mode).filter(
           hasVisibleTextOrInteractive,
@@ -296,7 +296,7 @@ function toRenderedChildren(
     node.ignored ||
     FLATTEN_ROLES.has(node.role) ||
     (!KEEP_ROLES.has(compactRole) &&
-      !(mode === "read" && READ_EXTRA_ROLES.has(compactRole)))
+      !(mode === "tree" && TREE_EXTRA_ROLES.has(compactRole)))
   ) {
     return flattenedChildren(node, children, mode).filter(
       hasVisibleTextOrInteractive,
@@ -336,7 +336,7 @@ function toRenderedChildren(
 
 function renderableChildren(
   node: AiSnapshotNode,
-  mode: SnapshotMode,
+  mode: SnapshotTreeMode,
 ): RenderedSnapshotChild[] {
   return mergeAdjacentText(
     node.children.flatMap((child) => toRenderedChildren(child, node, mode)),
@@ -402,7 +402,7 @@ function hasInteractiveNode(child: RenderedSnapshotChild): boolean {
 function flattenedChildren(
   node: AiSnapshotNode,
   children: RenderedSnapshotChild[],
-  mode: SnapshotMode,
+  mode: SnapshotTreeMode,
 ): RenderedSnapshotChild[] {
   const fallbackText = fallbackTextForFlattenedNode(node);
   const flattened =
@@ -410,7 +410,7 @@ function flattenedChildren(
       ? children
       : [{ kind: "text" as const, text: fallbackText }];
   return BLOCK_FLATTEN_ROLES.has(tagNameForRole(node.role)) ||
-    (mode === "read" && READ_EXTRA_ROLES.has(tagNameForRole(node.role)))
+    (mode === "tree" && TREE_EXTRA_ROLES.has(tagNameForRole(node.role)))
     ? flattened.map((child) =>
         child.kind === "text" ? { ...child, block: true } : child,
       )

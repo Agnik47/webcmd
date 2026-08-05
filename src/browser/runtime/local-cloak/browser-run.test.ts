@@ -76,6 +76,30 @@ describe('local Cloak browser run', () => {
     expect(tree).toContain('>Next</link>');
   });
 
+  it('returns readable markdown for read snapshots', async () => {
+    await initialPage.setContent(`
+      <main>
+        <article>
+          <h1>Readable Benchmark Notes</h1>
+          <p>This paragraph is deliberately long enough to be treated as content, with benchmark evidence and enough words for extraction.</p>
+          <button>Ignore chrome</button>
+        </article>
+      </main>
+    `);
+    await manager.getPage({ profileId: 'default', session: 'work', surface: 'browser' });
+
+    const result = await dispatchCloakAction(manager, command('snapshot-readable', 'snapshot', {
+      snapshotMode: 'read',
+    }));
+    const data = result.data as { tree: string; article: { source: string } | null };
+
+    expect(result.ok).toBe(true);
+    expect(data.tree).toContain('Readable Benchmark Notes');
+    expect(data.tree).toContain('benchmark evidence');
+    expect(data.tree).not.toContain('Ignore chrome');
+    expect(data.article?.source).toMatch(/readability|fallback/);
+  });
+
   it('does not create a browser session for snapshot inspection', async () => {
     const launch = vi.fn<LaunchPersistentContext>().mockResolvedValue(context);
     const unstarted = new CloakSessionManager({

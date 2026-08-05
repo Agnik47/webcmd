@@ -1,4 +1,4 @@
-import type { SnapshotBaselineStore, SnapshotMode } from '../snapshot/index.js';
+import type { SnapshotBaselineStore, SnapshotTreeMode } from '../snapshot/index.js';
 
 export const BROWSER_RUN_PLAYWRIGHT_VERSION = '1.61.1' as const;
 
@@ -80,7 +80,7 @@ export interface BrowserRunOptions {
   maxOutputChars?: number;
   memoryLimitBytes?: number;
   snapshotDiff?: boolean;
-  snapshotMode?: SnapshotMode;
+  snapshotMode?: SnapshotTreeMode;
   snapshotBaselineStore?: SnapshotBaselineStore;
 }
 

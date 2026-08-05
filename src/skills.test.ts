@@ -189,6 +189,8 @@ describe('webcmd skills content', () => {
     expect(browser).toContain("await page.getByRole('link', { name: 'More information' }).click()");
     expect(browser).toContain('webcmd browser work snapshot');
     expect(browser).toContain('--snapshot-mode act');
+    expect(browser).toContain('--snapshot-mode tree');
+    expect(browser).toContain('--snapshot-mode read');
     expect(browser).toContain('--no-snapshot-diff');
     expect(browser).not.toContain('page.snapshotForAI()');
     expect(browser).not.toContain('--snapshot-diff');
@@ -196,6 +198,7 @@ describe('webcmd skills content', () => {
     expect(browserRunReference).toMatch(/artifact paths/i);
     expect(browserRunReference).toMatch(/errors/i);
     expect(browserRunReference).toMatch(/snapshot behavior/i);
+    expect(browserRunReference).toContain('--snapshot-mode act|tree');
     expect(browserRunReference).toMatch(/timing/i);
     expect(author).toContain('webcmd browser init');
     expect(author).toContain('webcmd browser verify');

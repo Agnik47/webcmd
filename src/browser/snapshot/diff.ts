@@ -16,7 +16,7 @@ import type {
   RenderedSnapshotChild,
   RenderedSnapshotFrame,
   RenderedSnapshotNode,
-  SnapshotMode,
+  SnapshotTreeMode,
 } from './types.js';
 
 const MAX_DIFF_CHILDREN_PER_PARENT = 4;
@@ -55,7 +55,7 @@ type TextNode = Extract<RenderedSnapshotChild, { kind: 'text' }>;
 export function diffSnapshots(
   before: AiSnapshot,
   after: AiSnapshot,
-  mode: SnapshotMode = 'act',
+  mode: SnapshotTreeMode = 'act',
 ): SnapshotDiff {
   const beforeFrames = renderSnapshotFrames(before, mode);
   const afterFrames = renderSnapshotFrames(after, mode);

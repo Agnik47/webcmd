@@ -1,4 +1,5 @@
 import type { BrowserRuntimeCommand, BrowserRuntimeResult } from '../../protocol.js';
+import { extractArticle, type ExtractedArticle } from '../../article-extract.js';
 import {
   captureSnapshot,
   boundSnapshotText,
@@ -7,6 +8,7 @@ import {
   type SnapshotBaselineStore,
 } from '../../snapshot/index.js';
 import { redactText, redactUrl } from '../../../observation/redaction.js';
+import { articleHtmlToMarkdown } from '../../../download/article-download.js';
 import { waitForDownload } from './downloads.js';
 import type { CloakSessionManager } from './session-manager.js';
 import type { BrowserContext, Frame, Page as PlaywrightPage } from 'playwright-core';
@@ -103,6 +105,34 @@ function execTarget(page: PlaywrightPage, frameIndex: number | undefined, pageId
   const frame = page.frames().slice(1)[frameIndex];
   if (!frame) throw new CloakActionError('frame_not_found', `Frame not found: ${frameIndex}`, pageId);
   return frame;
+}
+
+function readableSnapshotText(article: ExtractedArticle | null): { text: string; warnings: string[]; article: unknown } {
+  if (!article) {
+    return {
+      text: 'No readable article content found. Use --snapshot-mode tree to inspect the page structure.',
+      warnings: ['No readable article content found.'],
+      article: null,
+    };
+  }
+  const meta = [
+    article.title ? `# ${article.title}` : '',
+    article.byline ? `> Author: ${article.byline}` : '',
+    article.publishedTime ? `> Published: ${article.publishedTime}` : '',
+    article.siteName ? `> Site: ${article.siteName}` : '',
+    `> Source: ${article.source}`,
+  ].filter(Boolean);
+  return {
+    text: `${meta.join('\n')}\n\n${articleHtmlToMarkdown(article.html)}`.trim(),
+    warnings: [],
+    article: {
+      title: article.title,
+      byline: article.byline,
+      publishedTime: article.publishedTime,
+      siteName: article.siteName,
+      source: article.source,
+    },
+  };
 }
 
 async function captureScreenshot(page: PlaywrightPage, context: BrowserContext, command: BrowserRuntimeCommand): Promise<Buffer> {
@@ -202,7 +232,7 @@ export async function dispatchCloakAction(manager: CloakSessionManager, command:
           maxOutputChars: command.maxOutputChars,
           memoryLimitBytes: command.memoryLimitBytes,
           snapshotDiff: command.noSnapshotDiff ? false : command.snapshotDiff,
-          snapshotMode: command.snapshotMode,
+          snapshotMode: command.snapshotMode === 'tree' ? 'tree' : 'act',
           snapshotBaselineStore: snapshotBaselineStore(manager),
         });
         return {
@@ -214,9 +244,33 @@ export async function dispatchCloakAction(manager: CloakSessionManager, command:
       }
       case 'snapshot': {
         const lease = resolveExistingLease(manager, command);
+        if (command.snapshotMode === 'read') {
+          const readable = readableSnapshotText(await extractArticle(lease.page, { force: true }));
+          const redacted = redactUrl(redactText(readable.text, { maxStringLength: Number.MAX_SAFE_INTEGER }));
+          const bounded = Number.isFinite(command.maxOutputChars)
+            ? boundSnapshotText(redacted, command.maxOutputChars!)
+            : { value: redacted, truncated: false };
+          return {
+            id: command.id,
+            ok: true,
+            data: {
+              ok: true,
+              tree: bounded.value,
+              article: readable.article,
+              page: {
+                id: lease.pageId,
+                url: redactUrl(lease.page.url()),
+                title: redactText(await lease.page.title().catch(() => '')),
+              },
+              warnings: readable.warnings,
+              limits: { snapshotTruncated: bounded.truncated },
+            },
+            page: lease.pageId,
+          };
+        }
         const snapshot = await captureSnapshot(lease.page);
         const tree = renderSnapshot(snapshot, {
-          mode: command.snapshotMode ?? 'act',
+          mode: command.snapshotMode === 'tree' ? 'tree' : 'act',
           ref: command.ref,
         });
         const redacted = redactUrl(redactText(tree, { maxStringLength: Number.MAX_SAFE_INTEGER }));
