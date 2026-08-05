@@ -122,7 +122,7 @@ if (getCompIdx !== -1) {
 
 // ── Full startup path ───────────────────────────────────────────────────
 // Dynamic imports: these are deferred so the fast path above never pays the cost.
-const { discoverClis, discoverPlugins, ensureUserCliCompatShims, ensureUserAdapters } = await import('./discovery.js');
+const { discoverClis, discoverPlugins, ensureUserCliCompatShims, ensureUserAdapters, PLUGINS_DIR } = await import('./discovery.js');
 const { getCompletions } = await import('./completion.js');
 const { runCli } = await import('./cli.js');
 const { emitHook } = await import('./hooks.js');
@@ -149,7 +149,7 @@ if (skipUserDiscovery) {
     discoverClis(BUILTIN_CLIS),
   ]);
   await discoverClis(USER_CLIS);
-  await discoverPlugins();
+  await discoverPlugins(PLUGINS_DIR);
 }
 
 // Register exit hook: notice appears after command output (same as npm/gh/yarn)

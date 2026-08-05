@@ -138,6 +138,35 @@ describe('createProgram root help descriptions', () => {
     expect(program.helpInformation()).toBe(formatRootHelp(presentation!));
   });
 
+  it('guides an absent site to explicit plugin search and install without side effects', async () => {
+    const plugin = await import('./plugin.js');
+    const catalog = await import('./plugin-catalog.js');
+    const install = vi.spyOn(plugin, 'installPlugin');
+    const search = vi.spyOn(catalog, 'searchCatalogPlugins');
+    const stderr = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const previousExitCode = process.exitCode;
+    const program = createProgram('', '');
+    program.outputHelp = vi.fn();
+
+    try {
+      await program.parseAsync(['example', 'missing-command'], { from: 'user' });
+
+      expect(stderr.mock.calls.map(([line]) => line).join('\n')).toContain([
+        'Site "example" is not installed.',
+        'Search: webcmd plugin search example',
+        'Install using the installSource returned by search.',
+      ].join('\n'));
+      expect(install).not.toHaveBeenCalled();
+      expect(search).not.toHaveBeenCalled();
+      expect(process.exitCode).toBe(2);
+    } finally {
+      process.exitCode = previousExitCode;
+      stderr.mockRestore();
+      install.mockRestore();
+      search.mockRestore();
+    }
+  });
+
   it('keeps site adapters out of root commands and lists sites in the root help tail', () => {
     const registry = getRegistry();
     const snapshot = new Map(registry);

@@ -20,6 +20,7 @@ import { PKG_VERSION } from '../version.js';
 import { getCompletionScriptFast } from '../completion-fast.js';
 import { browserCommandCatalog } from '../browser/command-catalog.js';
 import { CLI_COMMAND } from '../brand.js';
+import { missingPluginGuidance } from '../discovery.js';
 import { HostedClient, HostedClientError, resolveWorkspace } from './client.js';
 import { parseHostedInvocation } from './args.js';
 import { HostedBrowserHelp, parseHostedBrowserStructure } from './browser-args.js';
@@ -261,7 +262,7 @@ async function dispatchHosted(
       return;
     }
     throw new CommanderCompatibleError(
-      `error: unknown command '${site}'\n`,
+      `${missingPluginGuidance(site)}\n`,
       EXIT_CODES.USAGE_ERROR,
       formatRootHelp(HOSTED_ROOT_HELP),
     );

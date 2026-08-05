@@ -47,6 +47,7 @@ import { CLI_COMMAND } from './brand.js';
 import type { BrowserDownloadWaitResult, IPage, ScreenshotOptions } from './types.js';
 import type { BrowserWindowMode } from './runtime.js';
 import { configureRootCommandSurface } from './root-command-surface.js';
+import { missingPluginGuidance } from './discovery.js';
 
 const CLI_FILE = fileURLToPath(import.meta.url);
 const BROWSER_TAB_OPTION_DESCRIPTION = 'Target tab/page identity returned by "browser open", "browser tab new", or "browser tab list"';
@@ -3751,11 +3752,8 @@ cli({
   // Only explicitly registered external CLIs are allowed.
 
   program.on('command:*', (operands: string[]) => {
-    const binary = operands[0];
-    console.error(`error: unknown command '${binary}'`);
-    if (isBinaryInstalled(binary)) {
-      console.error(`  Tip: '${binary}' exists on your PATH. Use 'webcmd external register ${binary}' to add it as an external CLI.`);
-    }
+    const binary = operands[0]!;
+    console.error(missingPluginGuidance(binary));
     program.outputHelp();
     process.exitCode = EXIT_CODES.USAGE_ERROR;
   });

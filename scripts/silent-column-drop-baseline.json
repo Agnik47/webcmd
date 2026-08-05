@@ -248,6 +248,66 @@
     ]
   },
   {
+    "command": "linkedin/timeline",
+    "file": "plugins/linkedin/timeline.js",
+    "missing": [
+      "authorUrl",
+      "postedAt"
+    ]
+  },
+  {
+    "command": "linkedin/timeline",
+    "file": "plugins/linkedin/timeline.js",
+    "missing": [
+      "id"
+    ]
+  },
+  {
+    "command": "linkedin/timeline",
+    "file": "plugins/linkedin/timeline.js",
+    "missing": [
+      "postedAt"
+    ]
+  },
+  {
+    "command": "luma/guests",
+    "file": "plugins/luma/guests.js",
+    "missing": [
+      "kind"
+    ]
+  },
+  {
+    "command": "luma/login",
+    "file": "plugins/luma/auth.js",
+    "missing": [
+      "pageUrl",
+      "title"
+    ]
+  },
+  {
+    "command": "luma/update-guest-status",
+    "file": "plugins/luma/update-guest-status.js",
+    "missing": [
+      "detail",
+      "kind"
+    ]
+  },
+  {
+    "command": "luma/update-guest-status",
+    "file": "plugins/luma/update-guest-status.js",
+    "missing": [
+      "kind"
+    ]
+  },
+  {
+    "command": "luma/whoami",
+    "file": "plugins/luma/auth.js",
+    "missing": [
+      "pageUrl",
+      "title"
+    ]
+  },
+  {
     "command": "paperreview/review",
     "file": "clis/paperreview/review.js",
     "missing": [

@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import { test } from 'vitest';
 import { JSDOM } from 'jsdom';
 
 test('normalizes YC company slugs and URLs', async () => {
-    const { __test__ } = await import('./company.js');
+    const { __test__ } = await import('../company.js');
     assert.equal(
         __test__.normalizeCompanyUrl('fenrock-ai'),
         'https://www.ycombinator.com/companies/fenrock-ai',
@@ -16,7 +16,7 @@ test('normalizes YC company slugs and URLs', async () => {
 });
 
 test('extracts one company row from YC page state', async () => {
-    const { __test__ } = await import('./company.js');
+    const { __test__ } = await import('../company.js');
     const dom = new JSDOM('<div id="ycdc_new/pages/Companies/ShowPage-react-component-test"></div>');
     dom.window.document.querySelector('div').setAttribute('data-page', JSON.stringify({
         props: {

@@ -466,7 +466,7 @@ describe('runHostedCli', () => {
     ['missing-site', 'child', 'grandchild'],
     ['missing-site', '--format', 'json'],
     ['missing-site', '--trace=on'],
-  ])('matches local unknown-site bytes when argv is %j', async (...argv) => {
+  ])('guides an unknown site without searching, installing, or retrying when argv is %j', async (...argv) => {
     const stdout = sink();
     const stderr = sink();
     const fetchImpl = vi.fn<typeof fetch>(async () => manifestResponse());
@@ -479,10 +479,15 @@ describe('runHostedCli', () => {
     });
 
     expect(result).toEqual({ handled: true, exitCode: 2 });
-    expect(stderr.text()).toBe("error: unknown command 'missing-site'\n");
+    expect(stderr.text()).toContain([
+      'Site "missing-site" is not installed.',
+      'Search: webcmd plugin search missing-site',
+      'Install using the installSource returned by search.',
+    ].join('\n'));
     expect(stdout.text()).toBe(formatRootHelp(HOSTED_ROOT_HELP));
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(String(fetchImpl.mock.calls[0]![0])).toMatch(/\/v1\/manifest$/);
+    expect(fetchImpl.mock.calls.some(([url]) => /plugin|execute/.test(String(url)))).toBe(false);
   });
 
   it('matches local Commander bytes for an unknown site command', async () => {

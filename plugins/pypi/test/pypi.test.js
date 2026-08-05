@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import test, { after } from 'node:test';
+import { afterAll, test } from 'vitest';
 import { fileURLToPath } from 'node:url';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -16,7 +16,7 @@ if (!fs.existsSync(peerLink)) {
     createdPeerLink = true;
 }
 
-after(() => {
+afterAll(() => {
     if (!createdPeerLink) return;
     fs.rmSync(peerLink, { force: true, recursive: true });
     for (const dir of [peerScopeDir, path.dirname(peerScopeDir)]) {

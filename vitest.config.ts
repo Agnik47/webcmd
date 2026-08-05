@@ -15,7 +15,7 @@ export default defineConfig({
       {
         test: {
           name: 'adapter',
-          include: ['clis/**/*.test.{ts,js}', 'plugins/linkedin/test/**/*.test.{ts,js}'],
+          include: ['clis/**/*.test.{ts,js}', 'plugins/*/test/**/*.test.{ts,js}'],
           sequence: { groupOrder: 1 },
         },
       },

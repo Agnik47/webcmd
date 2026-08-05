@@ -48,6 +48,7 @@
     "build": "npm run clean-dist && npm run copy-yaml && npm run compile && npm run build-manifest",
     "compile": "tsc --build && node -e \"require('fs').chmodSync('dist/src/main.js', 0o755)\"",
     "build-manifest": "tsx src/build-manifest.ts",
+    "build-plugin-manifest": "tsx src/build-plugin-command-manifest.ts",
     "check:codex-plugin": "node scripts/check-codex-plugin.mjs",
     "check:hosted-contract": "node scripts/check-hosted-contract.mjs",
     "clean-dist": "node scripts/clean-dist.cjs",
@@ -71,7 +72,8 @@
     "advise:listing-id-pairing": "node scripts/check-listing-id-pairing.mjs",
     "check:package-bin": "node scripts/check-package-bin.mjs",
     "check:silent-column-drop": "node scripts/check-silent-column-drop.mjs",
-    "check:typed-error-lint": "node scripts/check-typed-error-lint.mjs"
+    "check:typed-error-lint": "node scripts/check-typed-error-lint.mjs",
+    "check:plugin-parity": "node scripts/check-plugin-command-parity.mjs"
   },
   "keywords": [
     "cli",
