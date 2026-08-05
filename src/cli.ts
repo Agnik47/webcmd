@@ -43,7 +43,7 @@ import { fetchDaemonStatus } from './browser/daemon-transport.js';
 import { aliasForContextId, loadProfileConfig, profileRouteParams, renameProfile, resolveProfileSelection, setDefaultProfile, type ProfileSelection } from './browser/profile.js';
 import { formatDaemonVersion, isDaemonStale } from './browser/daemon-version.js';
 import { DEFAULT_BROWSER_CONNECT_TIMEOUT } from './browser/config.js';
-import { CLI_COMMAND } from './brand.js';
+import { CLI_COMMAND, PACKAGE_NAME } from './brand.js';
 import type { BrowserDownloadWaitResult, IPage, ScreenshotOptions } from './types.js';
 import type { BrowserWindowMode } from './runtime.js';
 import { configureRootCommandSurface } from './root-command-surface.js';
@@ -911,6 +911,34 @@ export function createProgram(BUILTIN_CLIS: string, USER_CLIS: string): Command 
     .option('--path <path>', 'Also remove links from a custom agent skills directory')
     .option('--json', 'Output a JSON envelope', false)
     .action((opts) => handleSkillRemoveCommand(opts.path, opts.json));
+
+  program
+    .command('update')
+    .description('Update webcmd to the latest version and refresh bundled skills')
+    .option('--skip-skills', 'Skip refreshing bundled skill links after updating', false)
+    .action(async (opts) => {
+      const { buildUpgradeCommand, upgradePackage } = await import('./update.js');
+      const { cmd, args } = buildUpgradeCommand();
+      console.log(`Updating ${PACKAGE_NAME}: ${cmd} ${args.join(' ')}`);
+      try {
+        upgradePackage();
+      } catch (err) {
+        console.error(`Error: package update failed: ${getErrorMessage(err)}`);
+        console.error(`Hint: check your network connection and that ${cmd} is on PATH.`);
+        process.exitCode = EXIT_CODES.GENERIC_ERROR;
+        return;
+      }
+      if (!opts.skipSkills) {
+        try {
+          const { skills } = updateWebcmdSkill();
+          console.log(`Bundled skills refreshed: ${skills.length}`);
+        } catch (err) {
+          console.error(`Warning: skill refresh failed: ${getErrorMessage(err)}`);
+          console.error('Hint: run "webcmd skills update" once the new version is active.');
+        }
+      }
+      console.log('Update complete.');
+    });
 
   const authCmd = registerAuthCommands(program);
 
