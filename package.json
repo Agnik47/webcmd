@@ -3,7 +3,7 @@
   "version": "0.5.3",
   "description": "Turn websites, browser sessions, desktop apps, and local tools into deterministic CLI surfaces for humans and AI agents.",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=20.6.0"
   },
   "type": "module",
   "main": "dist/src/main.js",

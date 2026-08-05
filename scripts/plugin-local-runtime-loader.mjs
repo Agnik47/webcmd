@@ -20,6 +20,7 @@ export function resolve(specifier, context, nextResolve) {
     if (typeof target === 'string' && target.startsWith('./')) {
       return { url: pathToFileURL(path.join(packageRoot, target)).href, shortCircuit: true };
     }
+    throw new Error(`${packageName} does not export ${key}`);
   }
   return nextResolve(specifier, context);
 }

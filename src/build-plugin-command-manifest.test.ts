@@ -46,6 +46,20 @@ function command(site: string, name: string, overrides: Record<string, unknown> 
   };
 }
 
+function scanInChild(pluginsDir: string): string {
+  const moduleHref = pathToFileURL(path.resolve('src/build-plugin-command-manifest.ts')).href;
+  return execFileSync(process.execPath, [
+    '--import', 'tsx',
+    '--input-type=module',
+    '--eval',
+    `
+      import { scanPluginCommandModules } from ${JSON.stringify(moduleHref)};
+      const entries = await scanPluginCommandModules(${JSON.stringify(pluginsDir)});
+      process.stdout.write(JSON.stringify(entries));
+    `,
+  ], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+}
+
 describe('plugin command manifest', () => {
   it('scans flat command modules and emits deterministic plugin source paths', async () => {
     const root = fixture({
@@ -135,20 +149,52 @@ describe('plugin command manifest', () => {
         registry.set(command.site + '/' + command.name, command);
       }
     `);
-    const moduleHref = pathToFileURL(path.resolve('src/build-plugin-command-manifest.ts')).href;
-    const stdout = execFileSync(process.execPath, [
-      '--import', 'tsx',
-      '--input-type=module',
-      '--eval',
-      `
-        import { scanPluginCommandModules } from ${JSON.stringify(moduleHref)};
-        const entries = await scanPluginCommandModules(${JSON.stringify(path.join(root, 'plugins'))});
-        process.stdout.write(JSON.stringify(entries));
-      `,
-    ], { encoding: 'utf8' });
+    const stdout = scanInChild(path.join(root, 'plugins'));
     const entries = JSON.parse(stdout) as ManifestEntry[];
 
     expect(entries).toHaveLength(1);
     expect(entries[0]?.tags).toEqual(['search']);
+  });
+
+  it('rejects Webcmd subpaths missing from the local package instead of loading a stale install', () => {
+    const root = fixture({
+      'alpha/package.json': '{"name":"webcmd-plugin-alpha","type":"module"}',
+      'alpha/search.js': `
+        import { cli, Strategy } from '@agentrhq/webcmd/registry';
+        import { staleDescription } from '@agentrhq/webcmd/stale-only';
+        cli({
+          site: 'alpha',
+          name: 'search',
+          access: 'read',
+          description: staleDescription,
+          strategy: Strategy.PUBLIC,
+          browser: false,
+          args: [],
+          columns: ['id'],
+          func: async () => [],
+        });
+      `,
+    });
+    const stalePackage = path.join(root, 'node_modules', '@agentrhq', 'webcmd');
+    fs.mkdirSync(path.join(stalePackage, 'dist'), { recursive: true });
+    fs.writeFileSync(path.join(stalePackage, 'package.json'), JSON.stringify({
+      name: '@agentrhq/webcmd',
+      version: '0.0.0-stale',
+      type: 'module',
+      exports: { './stale-only': './dist/stale-only.js' },
+    }));
+    fs.writeFileSync(
+      path.join(stalePackage, 'dist', 'stale-only.js'),
+      "export const staleDescription = 'loaded from stale install';\n",
+    );
+
+    expect(() => scanInChild(path.join(root, 'plugins')))
+      .toThrow(/@agentrhq\/webcmd does not export \.\/stale-only/);
+  });
+
+  it('declares the minimum Node version required by module.register', () => {
+    const manifest = JSON.parse(fs.readFileSync('package.json', 'utf8')) as { engines?: { node?: string } };
+
+    expect(manifest.engines?.node).toBe('>=20.6.0');
   });
 });
