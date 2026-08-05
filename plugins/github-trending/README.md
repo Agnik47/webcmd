@@ -5,7 +5,7 @@ Webcmd commands for github-trending.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/github-trending
+webcmd plugin install github:agentrhq/webcmd/github-trending
 ```
 
 ## Commands

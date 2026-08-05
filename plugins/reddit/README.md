@@ -5,7 +5,7 @@ Webcmd commands for reddit.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/reddit
+webcmd plugin install github:agentrhq/webcmd/reddit
 ```
 
 ## Commands

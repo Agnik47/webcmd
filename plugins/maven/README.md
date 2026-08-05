@@ -5,7 +5,7 @@ Webcmd commands for maven.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/maven
+webcmd plugin install github:agentrhq/webcmd/maven
 ```
 
 ## Commands

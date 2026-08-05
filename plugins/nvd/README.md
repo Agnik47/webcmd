@@ -5,7 +5,7 @@ Webcmd commands for nvd.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/nvd
+webcmd plugin install github:agentrhq/webcmd/nvd
 ```
 
 ## Commands

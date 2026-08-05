@@ -5,7 +5,7 @@ Webcmd commands for trae-solo.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/trae-solo
+webcmd plugin install github:agentrhq/webcmd/trae-solo
 ```
 
 ## Commands

@@ -5,7 +5,7 @@ Webcmd commands for wikidata.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/wikidata
+webcmd plugin install github:agentrhq/webcmd/wikidata
 ```
 
 ## Commands

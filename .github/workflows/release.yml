@@ -72,6 +72,10 @@ jobs:
         if: ${{ steps.release.outputs.release_created || inputs.publish_tag != '' }}
         run: npm run build-plugin-manifest
 
+      - name: Check plugin command parity
+        if: ${{ steps.release.outputs.release_created || inputs.publish_tag != '' }}
+        run: npm run check:plugin-parity
+
       - name: Check community plugin metadata
         if: ${{ steps.release.outputs.release_created || inputs.publish_tag != '' }}
         run: npm run check-community-plugins

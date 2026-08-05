@@ -5,7 +5,7 @@ Webcmd commands for openreview.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/openreview
+webcmd plugin install github:agentrhq/webcmd/openreview
 ```
 
 ## Commands

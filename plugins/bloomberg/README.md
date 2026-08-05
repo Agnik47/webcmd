@@ -5,7 +5,7 @@ Webcmd commands for bloomberg.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/bloomberg
+webcmd plugin install github:agentrhq/webcmd/bloomberg
 ```
 
 ## Commands

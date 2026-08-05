@@ -5,7 +5,7 @@ Webcmd commands for mercury.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/mercury
+webcmd plugin install github:agentrhq/webcmd/mercury
 ```
 
 ## Commands

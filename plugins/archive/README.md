@@ -5,7 +5,7 @@ Webcmd commands for archive.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/archive
+webcmd plugin install github:agentrhq/webcmd/archive
 ```
 
 ## Commands

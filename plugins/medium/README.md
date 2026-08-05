@@ -5,7 +5,7 @@ Webcmd commands for medium.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/medium
+webcmd plugin install github:agentrhq/webcmd/medium
 ```
 
 ## Commands

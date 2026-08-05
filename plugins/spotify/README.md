@@ -5,7 +5,7 @@ Webcmd commands for spotify.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/spotify
+webcmd plugin install github:agentrhq/webcmd/spotify
 ```
 
 ## Commands

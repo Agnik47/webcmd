@@ -5,7 +5,7 @@ Webcmd commands for reuters.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/reuters
+webcmd plugin install github:agentrhq/webcmd/reuters
 ```
 
 ## Commands

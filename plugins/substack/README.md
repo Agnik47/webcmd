@@ -5,7 +5,7 @@ Webcmd commands for substack.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/substack
+webcmd plugin install github:agentrhq/webcmd/substack
 ```
 
 ## Commands

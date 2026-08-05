@@ -5,7 +5,7 @@ Webcmd commands for producthunt.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/producthunt
+webcmd plugin install github:agentrhq/webcmd/producthunt
 ```
 
 ## Commands

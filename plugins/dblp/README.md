@@ -5,7 +5,7 @@ Webcmd commands for dblp.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/dblp
+webcmd plugin install github:agentrhq/webcmd/dblp
 ```
 
 ## Commands

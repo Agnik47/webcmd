@@ -5,7 +5,7 @@ Webcmd commands for upwork.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/upwork
+webcmd plugin install github:agentrhq/webcmd/upwork
 ```
 
 ## Commands

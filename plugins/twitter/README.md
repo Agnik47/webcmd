@@ -5,7 +5,7 @@ Webcmd commands for twitter.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/twitter
+webcmd plugin install github:agentrhq/webcmd/twitter
 ```
 
 ## Commands

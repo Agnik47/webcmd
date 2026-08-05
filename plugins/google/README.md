@@ -5,7 +5,7 @@ Webcmd commands for google.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/google
+webcmd plugin install github:agentrhq/webcmd/google
 ```
 
 ## Commands

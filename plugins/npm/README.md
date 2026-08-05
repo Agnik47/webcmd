@@ -5,7 +5,7 @@ Webcmd commands for npm.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/npm
+webcmd plugin install github:agentrhq/webcmd/npm
 ```
 
 ## Commands

@@ -5,7 +5,7 @@ Webcmd commands for youtube.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/youtube
+webcmd plugin install github:agentrhq/webcmd/youtube
 ```
 
 ## Commands

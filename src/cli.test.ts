@@ -76,6 +76,45 @@ describe('Antigravity serve plugin loading', () => {
       fs.rmSync(pluginsDir, { recursive: true, force: true });
     }
   });
+
+  it('omits the serve bridge and uses missing-plugin guidance when Antigravity is absent', async () => {
+    const pluginsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'webcmd-antigravity-absent-'));
+    const registry = getRegistry();
+    const snapshot = new Map(registry);
+    const stderr = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const previousExitCode = process.exitCode;
+    registry.clear();
+    try {
+      const program = createProgram('', '', pluginsDir);
+      program.outputHelp = vi.fn();
+
+      await program.parseAsync(['antigravity', 'serve'], { from: 'user' });
+
+      expect(program.commands.some(command => command.name() === 'antigravity')).toBe(false);
+      expect(stderr.mock.calls.map(([line]) => line).join('\n')).toContain('Search: webcmd plugin search antigravity');
+      expect(process.exitCode).toBe(2);
+    } finally {
+      process.exitCode = previousExitCode;
+      stderr.mockRestore();
+      registry.clear();
+      for (const [key, value] of snapshot) registry.set(key, value);
+      fs.rmSync(pluginsDir, { recursive: true, force: true });
+    }
+  });
+
+  it('registers the serve bridge when the installed Antigravity module exists', () => {
+    const pluginsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'webcmd-antigravity-present-'));
+    const pluginDir = path.join(pluginsDir, 'antigravity');
+    fs.mkdirSync(pluginDir);
+    fs.writeFileSync(path.join(pluginDir, 'serve.js'), 'export async function startServe() {}\n');
+    try {
+      const antigravity = createProgram('', '', pluginsDir).commands.find(command => command.name() === 'antigravity');
+
+      expect(antigravity?.commands.map(command => command.name())).toContain('serve');
+    } finally {
+      fs.rmSync(pluginsDir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe('createProgram root help descriptions', () => {

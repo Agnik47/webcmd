@@ -5,7 +5,7 @@ Webcmd commands for semanticscholar.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/semanticscholar
+webcmd plugin install github:agentrhq/webcmd/semanticscholar
 ```
 
 ## Commands

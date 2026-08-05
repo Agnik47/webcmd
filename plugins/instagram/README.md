@@ -5,7 +5,7 @@ Webcmd commands for instagram.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/instagram
+webcmd plugin install github:agentrhq/webcmd/instagram
 ```
 
 ## Commands

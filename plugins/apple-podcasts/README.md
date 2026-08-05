@@ -5,7 +5,7 @@ Webcmd commands for apple-podcasts.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/apple-podcasts
+webcmd plugin install github:agentrhq/webcmd/apple-podcasts
 ```
 
 ## Commands

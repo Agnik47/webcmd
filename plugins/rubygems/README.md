@@ -5,7 +5,7 @@ Webcmd commands for rubygems.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/rubygems
+webcmd plugin install github:agentrhq/webcmd/rubygems
 ```
 
 ## Commands

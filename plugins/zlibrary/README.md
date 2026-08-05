@@ -5,7 +5,7 @@ Webcmd commands for zlibrary.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/zlibrary
+webcmd plugin install github:agentrhq/webcmd/zlibrary
 ```
 
 ## Commands

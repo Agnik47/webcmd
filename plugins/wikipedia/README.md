@@ -5,7 +5,7 @@ Webcmd commands for wikipedia.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/wikipedia
+webcmd plugin install github:agentrhq/webcmd/wikipedia
 ```
 
 ## Commands

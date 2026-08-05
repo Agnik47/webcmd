@@ -5,7 +5,7 @@ Webcmd commands for osv.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/osv
+webcmd plugin install github:agentrhq/webcmd/osv
 ```
 
 ## Commands

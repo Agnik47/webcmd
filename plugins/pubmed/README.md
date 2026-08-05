@@ -5,7 +5,7 @@ Webcmd commands for pubmed.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/pubmed
+webcmd plugin install github:agentrhq/webcmd/pubmed
 ```
 
 ## Commands

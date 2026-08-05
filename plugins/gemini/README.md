@@ -5,7 +5,7 @@ Webcmd commands for gemini.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/gemini
+webcmd plugin install github:agentrhq/webcmd/gemini
 ```
 
 ## Commands

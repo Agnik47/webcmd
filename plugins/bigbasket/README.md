@@ -5,7 +5,7 @@ Webcmd commands for bigbasket.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/bigbasket
+webcmd plugin install github:agentrhq/webcmd/bigbasket
 ```
 
 ## Commands

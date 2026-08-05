@@ -5,7 +5,7 @@ Webcmd commands for bbc.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/bbc
+webcmd plugin install github:agentrhq/webcmd/bbc
 ```
 
 ## Commands

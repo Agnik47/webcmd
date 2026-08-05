@@ -5,7 +5,7 @@ Webcmd commands for suno.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/suno
+webcmd plugin install github:agentrhq/webcmd/suno
 ```
 
 ## Commands

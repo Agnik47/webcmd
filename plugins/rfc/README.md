@@ -5,7 +5,7 @@ Webcmd commands for rfc.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/rfc
+webcmd plugin install github:agentrhq/webcmd/rfc
 ```
 
 ## Commands

@@ -5,7 +5,7 @@ Webcmd commands for endoflife.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/endoflife
+webcmd plugin install github:agentrhq/webcmd/endoflife
 ```
 
 ## Commands

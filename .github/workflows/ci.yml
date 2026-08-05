@@ -51,6 +51,10 @@ jobs:
         if: runner.os == 'Linux'
         run: npm run build-plugin-manifest
 
+      - name: Check plugin command parity
+        if: runner.os == 'Linux'
+        run: npm run check:plugin-parity
+
       - name: Check generated contract artifacts
         if: runner.os == 'Linux'
         run: npm run check:hosted-contract

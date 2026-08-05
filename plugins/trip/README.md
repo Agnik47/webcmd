@@ -5,7 +5,7 @@ Webcmd commands for trip.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/trip
+webcmd plugin install github:agentrhq/webcmd/trip
 ```
 
 ## Commands

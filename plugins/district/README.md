@@ -5,7 +5,7 @@ Webcmd commands for district.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/district
+webcmd plugin install github:agentrhq/webcmd/district
 ```
 
 ## Commands

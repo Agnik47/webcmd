@@ -8,6 +8,8 @@ const sites = process.argv.slice(2);
 const sharedRuntime = /((?:\.\.\/)+)_shared\/(?:common|desktop-commands|search-adapter|site-auth)\.js/g;
 
 if (sites.length === 0) fail('Usage: node scripts/migrate-cli-sites.mjs <site...>');
+const duplicate = sites.find((site, index) => sites.indexOf(site) !== index);
+if (duplicate) fail(`Duplicate site name: ${duplicate}`);
 for (const site of sites) {
   if (!/^[a-z0-9][a-z0-9-]*$/.test(site)) fail(`Invalid site name: ${site}`);
   if (!fs.existsSync(path.join(root, 'clis', site))) fail(`clis/${site} does not exist`);
@@ -119,7 +121,7 @@ function readme(site, description, commands) {
     .slice()
     .sort((a, b) => String(a.name).localeCompare(String(b.name)))
     .map(command => `| \`webcmd ${site} ${command.name}\` | ${String(command.description ?? '').replaceAll('|', '\\|')} |`);
-  return `# webcmd-plugin-${site}\n\n${description}.\n\n## Install\n\n\`\`\`bash\nwebcmd plugin install github:agentrhq/webcmd/plugins/${site}\n\`\`\`\n\n## Commands\n\n| Command | Description |\n| --- | --- |\n${rows.join('\n')}\n`;
+  return `# webcmd-plugin-${site}\n\n${description}.\n\n## Install\n\n\`\`\`bash\nwebcmd plugin install github:agentrhq/webcmd/${site}\n\`\`\`\n\n## Commands\n\n| Command | Description |\n| --- | --- |\n${rows.join('\n')}\n`;
 }
 
 function readJson(file, fallback) {

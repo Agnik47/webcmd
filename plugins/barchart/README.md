@@ -5,7 +5,7 @@ Webcmd commands for barchart.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/barchart
+webcmd plugin install github:agentrhq/webcmd/barchart
 ```
 
 ## Commands

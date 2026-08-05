@@ -6,7 +6,7 @@ API key is required.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/pypi
+webcmd plugin install github:agentrhq/webcmd/pypi
 ```
 
 ## Commands

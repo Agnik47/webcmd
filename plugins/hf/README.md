@@ -5,7 +5,7 @@ Webcmd commands for hf.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/hf
+webcmd plugin install github:agentrhq/webcmd/hf
 ```
 
 ## Commands

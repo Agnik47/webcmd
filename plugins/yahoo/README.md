@@ -5,7 +5,7 @@ Webcmd commands for yahoo.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/yahoo
+webcmd plugin install github:agentrhq/webcmd/yahoo
 ```
 
 ## Commands

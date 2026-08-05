@@ -5,7 +5,7 @@ Webcmd commands for mdn.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/mdn
+webcmd plugin install github:agentrhq/webcmd/mdn
 ```
 
 ## Commands

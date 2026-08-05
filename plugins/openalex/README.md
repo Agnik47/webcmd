@@ -5,7 +5,7 @@ Webcmd commands for openalex.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/openalex
+webcmd plugin install github:agentrhq/webcmd/openalex
 ```
 
 ## Commands

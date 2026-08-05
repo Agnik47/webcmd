@@ -5,7 +5,7 @@ Webcmd commands for paperreview.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/paperreview
+webcmd plugin install github:agentrhq/webcmd/paperreview
 ```
 
 ## Commands

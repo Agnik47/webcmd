@@ -5,7 +5,7 @@ Webcmd commands for notebooklm.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/notebooklm
+webcmd plugin install github:agentrhq/webcmd/notebooklm
 ```
 
 ## Commands

@@ -5,7 +5,7 @@ Webcmd commands for steam.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/steam
+webcmd plugin install github:agentrhq/webcmd/steam
 ```
 
 ## Commands

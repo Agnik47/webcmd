@@ -5,7 +5,7 @@ Webcmd commands for chatwise.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/chatwise
+webcmd plugin install github:agentrhq/webcmd/chatwise
 ```
 
 ## Commands

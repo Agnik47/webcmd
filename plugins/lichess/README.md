@@ -5,7 +5,7 @@ Webcmd commands for lichess.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/lichess
+webcmd plugin install github:agentrhq/webcmd/lichess
 ```
 
 ## Commands

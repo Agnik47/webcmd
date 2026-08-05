@@ -5,7 +5,7 @@ Webcmd commands for chatgpt-app.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/chatgpt-app
+webcmd plugin install github:agentrhq/webcmd/chatgpt-app
 ```
 
 ## Commands

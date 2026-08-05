@@ -5,7 +5,7 @@ Webcmd commands for discord-app.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/discord-app
+webcmd plugin install github:agentrhq/webcmd/discord-app
 ```
 
 ## Commands

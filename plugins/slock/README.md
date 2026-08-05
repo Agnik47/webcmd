@@ -5,7 +5,7 @@ Webcmd commands for slock.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/slock
+webcmd plugin install github:agentrhq/webcmd/slock
 ```
 
 ## Commands

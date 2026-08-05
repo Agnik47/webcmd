@@ -5,7 +5,7 @@ Webcmd commands for yahoo-finance.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/yahoo-finance
+webcmd plugin install github:agentrhq/webcmd/yahoo-finance
 ```
 
 ## Commands

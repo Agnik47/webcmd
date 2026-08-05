@@ -5,7 +5,7 @@ Webcmd commands for stackoverflow.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/stackoverflow
+webcmd plugin install github:agentrhq/webcmd/stackoverflow
 ```
 
 ## Commands

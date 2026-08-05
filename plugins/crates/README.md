@@ -5,7 +5,7 @@ Webcmd commands for crates.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/crates
+webcmd plugin install github:agentrhq/webcmd/crates
 ```
 
 ## Commands

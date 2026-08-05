@@ -4,6 +4,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
+import yaml from 'js-yaml';
 import type { ManifestEntry } from './manifest-types.js';
 
 const roots: string[] = [];
@@ -196,5 +197,48 @@ describe('plugin command manifest', () => {
     const manifest = JSON.parse(fs.readFileSync('package.json', 'utf8')) as { engines?: { node?: string } };
 
     expect(manifest.engines?.node).toBe('>=20.6.0');
+  });
+
+  it('documents the same minimum Node version as the package', () => {
+    expect(fs.readFileSync('README.md', 'utf8')).toContain('Node.js 20.6+');
+    expect(fs.readFileSync('docs/quickstart.mdx', 'utf8')).toContain('Node.js 20.6+');
+  });
+
+  it.each(['goettingen', 'heidelberg', 'hft'])('%s declares its direct undici import', (site) => {
+    const manifest = JSON.parse(fs.readFileSync(`plugins/${site}/package.json`, 'utf8')) as {
+      dependencies?: Record<string, string>;
+    };
+
+    expect(manifest.dependencies?.undici).toBe('^6.27.0');
+  });
+
+  it('requires the plugin-runtime release for LinkedIn', () => {
+    const packageManifest = JSON.parse(fs.readFileSync('plugins/linkedin/package.json', 'utf8')) as {
+      peerDependencies?: Record<string, string>;
+    };
+    const pluginManifest = JSON.parse(fs.readFileSync('plugins/linkedin/webcmd-plugin.json', 'utf8')) as {
+      webcmd?: string;
+    };
+    const rootManifest = JSON.parse(fs.readFileSync('webcmd-plugin.json', 'utf8')) as {
+      plugins?: Record<string, { webcmd?: string }>;
+    };
+
+    expect(packageManifest.peerDependencies?.['@agentrhq/webcmd']).toBe('>=0.6.0');
+    expect(pluginManifest.webcmd).toBe('>=0.6.0');
+    expect(rootManifest.plugins?.linkedin?.webcmd).toBe('>=0.6.0');
+  });
+
+  it.each([
+    ['CI', '.github/workflows/ci.yml', 'build'],
+    ['release', '.github/workflows/release.yml', 'release'],
+  ])('checks plugin parity immediately after manifest generation in %s', (_name, workflowPath, jobName) => {
+    const workflow = yaml.load(fs.readFileSync(workflowPath, 'utf8')) as {
+      jobs?: Record<string, { steps?: Array<{ run?: string }> }>;
+    };
+    const runs = workflow.jobs?.[jobName]?.steps?.map(step => step.run).filter(Boolean) ?? [];
+    const generation = runs.indexOf('npm run build-plugin-manifest');
+
+    expect(generation).toBeGreaterThanOrEqual(0);
+    expect(runs[generation + 1]).toBe('npm run check:plugin-parity');
   });
 });

@@ -5,7 +5,7 @@ Webcmd commands for jira.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/jira
+webcmd plugin install github:agentrhq/webcmd/jira
 ```
 
 ## Commands

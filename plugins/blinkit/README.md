@@ -5,7 +5,7 @@ Webcmd commands for blinkit.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/blinkit
+webcmd plugin install github:agentrhq/webcmd/blinkit
 ```
 
 ## Commands

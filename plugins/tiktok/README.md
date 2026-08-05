@@ -5,7 +5,7 @@ Webcmd commands for tiktok.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/tiktok
+webcmd plugin install github:agentrhq/webcmd/tiktok
 ```
 
 ## Commands

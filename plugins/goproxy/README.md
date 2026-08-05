@@ -5,7 +5,7 @@ Webcmd commands for goproxy.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/goproxy
+webcmd plugin install github:agentrhq/webcmd/goproxy
 ```
 
 ## Commands

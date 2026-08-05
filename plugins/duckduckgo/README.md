@@ -5,7 +5,7 @@ Webcmd commands for duckduckgo.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/duckduckgo
+webcmd plugin install github:agentrhq/webcmd/duckduckgo
 ```
 
 ## Commands

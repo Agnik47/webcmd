@@ -5,7 +5,7 @@ Webcmd commands for openfda.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/openfda
+webcmd plugin install github:agentrhq/webcmd/openfda
 ```
 
 ## Commands

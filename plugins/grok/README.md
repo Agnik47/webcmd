@@ -5,7 +5,7 @@ Webcmd commands for grok.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/grok
+webcmd plugin install github:agentrhq/webcmd/grok
 ```
 
 ## Commands

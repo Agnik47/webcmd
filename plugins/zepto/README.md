@@ -5,7 +5,7 @@ Webcmd commands for zepto.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/zepto
+webcmd plugin install github:agentrhq/webcmd/zepto
 ```
 
 ## Commands

@@ -5,7 +5,7 @@ Webcmd commands for confluence.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/confluence
+webcmd plugin install github:agentrhq/webcmd/confluence
 ```
 
 ## Commands

@@ -5,7 +5,7 @@ Webcmd commands for dockerhub.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/dockerhub
+webcmd plugin install github:agentrhq/webcmd/dockerhub
 ```
 
 ## Commands

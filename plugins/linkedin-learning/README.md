@@ -5,7 +5,7 @@ Webcmd commands for linkedin-learning.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/linkedin-learning
+webcmd plugin install github:agentrhq/webcmd/linkedin-learning
 ```
 
 ## Commands

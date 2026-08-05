@@ -5,7 +5,7 @@ Webcmd commands for uiverse.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/uiverse
+webcmd plugin install github:agentrhq/webcmd/uiverse
 ```
 
 ## Commands

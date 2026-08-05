@@ -5,7 +5,7 @@ Webcmd commands for claude.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/claude
+webcmd plugin install github:agentrhq/webcmd/claude
 ```
 
 ## Commands

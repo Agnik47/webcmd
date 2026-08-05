@@ -781,7 +781,7 @@ function applyRootSubcommandSummaries(program: Command): void {
   }
 }
 
-export function createProgram(BUILTIN_CLIS: string, USER_CLIS: string): Command {
+export function createProgram(BUILTIN_CLIS: string, USER_CLIS: string, pluginsDir: string = PLUGINS_DIR): Command {
   const program = new Command();
   // enablePositionalOptions: prevents parent from consuming flags meant for subcommands;
   // prerequisite for passThroughOptions to forward --help/--version to external binaries
@@ -3617,24 +3617,26 @@ cli({
 
   // ── Antigravity serve (long-running, special case) ────────────────────────
 
-  const antigravityCmd = program.command('antigravity').description('antigravity commands');
-  antigravityCmd
-    .command('serve')
-    .description('Start Anthropic-compatible API proxy for Antigravity')
-    .option('--port <port>', 'Server port (default: 8082)', '8082')
-    .option('--timeout <seconds>', 'Maximum time to wait for a reply (default: 120s)')
-    .action(async (opts) => {
-      const { startServe } = await loadAntigravityServe();
-      await startServe({
-        port: parseInt(opts.port, 10),
-        timeout: opts.timeout ? parsePositiveIntOption(opts.timeout, '--timeout', 120) : undefined,
+  const siteGroups = new Map<string, Command>();
+  if (fs.existsSync(path.join(pluginsDir, 'antigravity', 'serve.js'))) {
+    const antigravityCmd = program.command('antigravity').description('antigravity commands');
+    antigravityCmd
+      .command('serve')
+      .description('Start Anthropic-compatible API proxy for Antigravity')
+      .option('--port <port>', 'Server port (default: 8082)', '8082')
+      .option('--timeout <seconds>', 'Maximum time to wait for a reply (default: 120s)')
+      .action(async (opts) => {
+        const { startServe } = await loadAntigravityServe(pluginsDir);
+        await startServe({
+          port: parseInt(opts.port, 10),
+          timeout: opts.timeout ? parsePositiveIntOption(opts.timeout, '--timeout', 120) : undefined,
+        });
       });
-    });
+    siteGroups.set('antigravity', antigravityCmd);
+  }
 
   // ── Dynamic adapter commands ──────────────────────────────────────────────
 
-  const siteGroups = new Map<string, Command>();
-  siteGroups.set('antigravity', antigravityCmd);
   const siteNames = registerAllCommands(program, siteGroups);
   applyRootSubcommandSummaries(program);
 

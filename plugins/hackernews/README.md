@@ -5,7 +5,7 @@ Webcmd commands for hackernews.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/hackernews
+webcmd plugin install github:agentrhq/webcmd/hackernews
 ```
 
 ## Commands

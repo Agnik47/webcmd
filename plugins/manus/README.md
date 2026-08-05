@@ -5,7 +5,7 @@ Webcmd commands for manus.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/manus
+webcmd plugin install github:agentrhq/webcmd/manus
 ```
 
 ## Commands

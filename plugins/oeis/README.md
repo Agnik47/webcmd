@@ -5,7 +5,7 @@ Webcmd commands for oeis.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/oeis
+webcmd plugin install github:agentrhq/webcmd/oeis
 ```
 
 ## Commands

@@ -5,7 +5,7 @@ Webcmd commands for nuget.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/nuget
+webcmd plugin install github:agentrhq/webcmd/nuget
 ```
 
 ## Commands

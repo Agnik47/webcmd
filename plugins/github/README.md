@@ -5,7 +5,7 @@ Webcmd commands for github.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/github
+webcmd plugin install github:agentrhq/webcmd/github
 ```
 
 ## Commands

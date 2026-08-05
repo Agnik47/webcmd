@@ -5,7 +5,7 @@ Webcmd commands for booking.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/booking
+webcmd plugin install github:agentrhq/webcmd/booking
 ```
 
 ## Commands

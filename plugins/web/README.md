@@ -5,7 +5,7 @@ Webcmd commands for web.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/web
+webcmd plugin install github:agentrhq/webcmd/web
 ```
 
 ## Commands

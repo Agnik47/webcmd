@@ -5,7 +5,7 @@ Webcmd commands for bluesky.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/bluesky
+webcmd plugin install github:agentrhq/webcmd/bluesky
 ```
 
 ## Commands

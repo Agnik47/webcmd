@@ -5,7 +5,7 @@ Webcmd commands for flathub.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/flathub
+webcmd plugin install github:agentrhq/webcmd/flathub
 ```
 
 ## Commands

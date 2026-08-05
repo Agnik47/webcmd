@@ -52,7 +52,7 @@ skills with `webcmd skills add` in Codex.
 
 ### Other agents or plugin-free setup
 
-Webcmd requires Node.js 20+.
+Webcmd requires Node.js 20.6+.
 
 ```bash
 npm install -g @agentrhq/webcmd

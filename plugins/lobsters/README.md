@@ -5,7 +5,7 @@ Webcmd commands for lobsters.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/lobsters
+webcmd plugin install github:agentrhq/webcmd/lobsters
 ```
 
 ## Commands

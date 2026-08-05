@@ -5,7 +5,7 @@ Webcmd commands for homebrew.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/homebrew
+webcmd plugin install github:agentrhq/webcmd/homebrew
 ```
 
 ## Commands

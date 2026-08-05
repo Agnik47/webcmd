@@ -5,7 +5,7 @@ Webcmd commands for codex.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/codex
+webcmd plugin install github:agentrhq/webcmd/codex
 ```
 
 ## Commands

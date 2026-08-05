@@ -5,7 +5,7 @@ Webcmd commands for tvmaze.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/tvmaze
+webcmd plugin install github:agentrhq/webcmd/tvmaze
 ```
 
 ## Commands

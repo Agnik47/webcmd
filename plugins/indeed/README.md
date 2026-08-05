@@ -5,7 +5,7 @@ Webcmd commands for indeed.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/indeed
+webcmd plugin install github:agentrhq/webcmd/indeed
 ```
 
 ## Commands

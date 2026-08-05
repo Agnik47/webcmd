@@ -5,7 +5,7 @@ Webcmd commands for google-scholar.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/google-scholar
+webcmd plugin install github:agentrhq/webcmd/google-scholar
 ```
 
 ## Commands

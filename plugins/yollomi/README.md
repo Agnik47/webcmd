@@ -5,7 +5,7 @@ Webcmd commands for yollomi.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/yollomi
+webcmd plugin install github:agentrhq/webcmd/yollomi
 ```
 
 ## Commands

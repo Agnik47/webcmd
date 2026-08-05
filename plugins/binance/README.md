@@ -5,7 +5,7 @@ Webcmd commands for binance.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/binance
+webcmd plugin install github:agentrhq/webcmd/binance
 ```
 
 ## Commands

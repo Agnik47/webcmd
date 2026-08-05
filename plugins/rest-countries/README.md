@@ -5,7 +5,7 @@ Webcmd commands for rest-countries.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/rest-countries
+webcmd plugin install github:agentrhq/webcmd/rest-countries
 ```
 
 ## Commands

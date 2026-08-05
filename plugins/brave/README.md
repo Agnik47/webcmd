@@ -5,7 +5,7 @@ Webcmd commands for brave.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/brave
+webcmd plugin install github:agentrhq/webcmd/brave
 ```
 
 ## Commands

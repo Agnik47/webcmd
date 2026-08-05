@@ -5,7 +5,7 @@ Webcmd commands for imdb.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/imdb
+webcmd plugin install github:agentrhq/webcmd/imdb
 ```
 
 ## Commands

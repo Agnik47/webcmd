@@ -5,7 +5,7 @@ Webcmd commands for arxiv.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/arxiv
+webcmd plugin install github:agentrhq/webcmd/arxiv
 ```
 
 ## Commands

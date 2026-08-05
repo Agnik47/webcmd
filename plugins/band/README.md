@@ -5,7 +5,7 @@ Webcmd commands for band.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/band
+webcmd plugin install github:agentrhq/webcmd/band
 ```
 
 ## Commands

@@ -5,7 +5,7 @@ Webcmd commands for packagist.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/packagist
+webcmd plugin install github:agentrhq/webcmd/packagist
 ```
 
 ## Commands

@@ -5,7 +5,7 @@ Webcmd commands for amazon.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/amazon
+webcmd plugin install github:agentrhq/webcmd/amazon
 ```
 
 ## Commands

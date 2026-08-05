@@ -5,7 +5,7 @@ Webcmd commands for coingecko.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/coingecko
+webcmd plugin install github:agentrhq/webcmd/coingecko
 ```
 
 ## Commands

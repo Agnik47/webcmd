@@ -5,7 +5,7 @@ Webcmd commands for defillama.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/defillama
+webcmd plugin install github:agentrhq/webcmd/defillama
 ```
 
 ## Commands

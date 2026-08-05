@@ -5,7 +5,7 @@ Webcmd commands for practo.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/practo
+webcmd plugin install github:agentrhq/webcmd/practo
 ```
 
 ## Commands

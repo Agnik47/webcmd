@@ -5,7 +5,7 @@ Webcmd commands for geogebra.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/geogebra
+webcmd plugin install github:agentrhq/webcmd/geogebra
 ```
 
 ## Commands

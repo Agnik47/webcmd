@@ -5,7 +5,7 @@ Webcmd commands for qoder.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/qoder
+webcmd plugin install github:agentrhq/webcmd/qoder
 ```
 
 ## Commands

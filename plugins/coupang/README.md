@@ -5,7 +5,7 @@ Webcmd commands for coupang.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/coupang
+webcmd plugin install github:agentrhq/webcmd/coupang
 ```
 
 ## Commands

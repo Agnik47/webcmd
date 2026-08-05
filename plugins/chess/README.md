@@ -5,7 +5,7 @@ Webcmd commands for chess.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/chess
+webcmd plugin install github:agentrhq/webcmd/chess
 ```
 
 ## Commands

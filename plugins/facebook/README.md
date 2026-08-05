@@ -5,7 +5,7 @@ Webcmd commands for facebook.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/facebook
+webcmd plugin install github:agentrhq/webcmd/facebook
 ```
 
 ## Commands

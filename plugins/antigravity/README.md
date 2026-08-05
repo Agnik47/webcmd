@@ -5,7 +5,7 @@ Webcmd commands for antigravity.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/antigravity
+webcmd plugin install github:agentrhq/webcmd/antigravity
 ```
 
 ## Commands

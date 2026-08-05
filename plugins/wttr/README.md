@@ -5,7 +5,7 @@ Webcmd commands for wttr.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/wttr
+webcmd plugin install github:agentrhq/webcmd/wttr
 ```
 
 ## Commands

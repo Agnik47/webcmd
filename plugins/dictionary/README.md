@@ -5,7 +5,7 @@ Webcmd commands for dictionary.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/dictionary
+webcmd plugin install github:agentrhq/webcmd/dictionary
 ```
 
 ## Commands

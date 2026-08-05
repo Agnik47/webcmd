@@ -5,7 +5,7 @@ Webcmd commands for cursor.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/cursor
+webcmd plugin install github:agentrhq/webcmd/cursor
 ```
 
 ## Commands

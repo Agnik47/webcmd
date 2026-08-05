@@ -5,7 +5,7 @@ Webcmd commands for devto.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/devto
+webcmd plugin install github:agentrhq/webcmd/devto
 ```
 
 ## Commands

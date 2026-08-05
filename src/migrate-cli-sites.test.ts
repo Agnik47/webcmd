@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { _parseSource } from './plugin.js';
 
 const script = path.resolve('scripts/migrate-cli-sites.mjs');
 const roots: string[] = [];
@@ -69,7 +70,11 @@ describe('migrate-cli-sites', () => {
       webcmd: '>=0.6.0',
       author: { name: 'WebCMD Agent', handle: 'agentrhq' },
     });
-    expect(fs.readFileSync(path.join(plugin, 'README.md'), 'utf8')).toContain('| `webcmd example search` | Search examples |');
+    const readme = fs.readFileSync(path.join(plugin, 'README.md'), 'utf8');
+    expect(readme).toContain('| `webcmd example search` | Search examples |');
+    const installSource = readme.match(/webcmd plugin install (\S+)/)?.[1];
+    expect(installSource).toBe('github:agentrhq/webcmd/example');
+    expect(_parseSource(installSource!)).not.toBeNull();
     expect(fs.readFileSync(path.join(root, 'plugins', 'sibling', 'keep.txt'), 'utf8')).toBe('unchanged\n');
     expect(fs.readFileSync(path.join(root, 'scripts', 'silent-column-drop-baseline.json'), 'utf8')).toContain('plugins/example/search.js');
     expect(fs.readFileSync(path.join(root, 'scripts', 'typed-error-lint-baseline.json'), 'utf8')).toContain('plugins/example/search.js');
@@ -86,6 +91,17 @@ describe('migrate-cli-sites', () => {
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('plugins/example already exists');
     expect(fs.existsSync(path.join(root, 'clis', 'example', 'search.js'))).toBe(true);
+  });
+
+  it('refuses duplicate site arguments before moving anything', () => {
+    const root = fixture();
+
+    const result = spawnSync(process.execPath, [script, 'example', 'example'], { cwd: root, encoding: 'utf8' });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('Duplicate site name: example');
+    expect(fs.existsSync(path.join(root, 'clis', 'example', 'search.js'))).toBe(true);
+    expect(fs.existsSync(path.join(root, 'plugins', 'example'))).toBe(false);
   });
 
   it('allows the planned PyPI merge and preserves existing plugin-only files', () => {

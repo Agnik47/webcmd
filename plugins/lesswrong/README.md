@@ -5,7 +5,7 @@ Webcmd commands for lesswrong.
 ## Install
 
 ```bash
-webcmd plugin install github:agentrhq/webcmd/plugins/lesswrong
+webcmd plugin install github:agentrhq/webcmd/lesswrong
 ```
 
 ## Commands
