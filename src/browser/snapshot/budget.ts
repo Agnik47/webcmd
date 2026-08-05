@@ -18,8 +18,8 @@ type Candidate = {
   node: RenderedSnapshotNode;
   parent: Candidate | null;
   depth: number;
-  missingCostGeneration: number;
   missingIdentityCost: number;
+  missingFrontier: Candidate | null | undefined;
 };
 
 type AllocationState = {
@@ -27,7 +27,6 @@ type AllocationState = {
   markerChars: number;
   scopeByNode: Map<RenderedSnapshotNode, string>;
   markerDepthByScope: Map<string, number>;
-  selectionGeneration: number;
 };
 
 const allocationStates = new WeakMap<SnapshotAllocation, AllocationState>();
@@ -92,8 +91,8 @@ function collectCandidates(
       node,
       parent,
       depth,
-      missingCostGeneration: -1,
       missingIdentityCost: 0,
+      missingFrontier: undefined,
     };
     representationCosts.set(node, {
       identity: representationCost(node, "identity", depth),
@@ -176,7 +175,6 @@ function reserveEnvelopeAndMarkers(
     markerChars,
     scopeByNode,
     markerDepthByScope,
-    selectionGeneration: 0,
   });
   return allocation;
 }
@@ -200,7 +198,7 @@ function trySelect(
     representation,
     candidate.depth,
   );
-  const ancestorCost = missingAncestorIdentityCost(candidate, allocation, state);
+  const ancestorCost = missingAncestorIdentityCost(candidate, allocation);
   if (state.contentChars + ancestorCost + candidateCost > maxChars) return;
   const missing: Candidate[] = [];
   for (
@@ -231,22 +229,29 @@ function trySelect(
   for (const ancestor of missing)
     select(ancestor.node, "identity", allocation, state);
   select(candidate.node, representation, allocation, state);
-  state.selectionGeneration += 1;
 }
 
 function missingAncestorIdentityCost(
   candidate: Candidate,
   allocation: SnapshotAllocation,
-  state: AllocationState,
 ): number {
-  if (candidate.missingCostGeneration === state.selectionGeneration)
+  if (
+    candidate.missingFrontier !== undefined &&
+    (
+      candidate.missingFrontier === null ||
+      !allocation.selected.has(candidate.missingFrontier.node)
+    )
+  )
     return candidate.missingIdentityCost;
   const parent = candidate.parent;
-  const cost = !parent || allocation.selected.has(parent.node)
-    ? 0
-    : representationCostFor(parent.node, "identity", parent.depth) +
-      missingAncestorIdentityCost(parent, allocation, state);
-  candidate.missingCostGeneration = state.selectionGeneration;
+  if (!parent || allocation.selected.has(parent.node)) {
+    candidate.missingFrontier = null;
+    candidate.missingIdentityCost = 0;
+    return 0;
+  }
+  const cost = representationCostFor(parent.node, "identity", parent.depth) +
+    missingAncestorIdentityCost(parent, allocation);
+  candidate.missingFrontier = parent.missingFrontier ?? parent;
   candidate.missingIdentityCost = cost;
   return cost;
 }
@@ -280,7 +285,6 @@ function tryUpgrade(
     allocation,
     state,
   );
-  state.selectionGeneration += 1;
 }
 
 function select(
