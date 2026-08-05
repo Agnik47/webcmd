@@ -244,6 +244,16 @@
         "handle": "agentrhq"
       }
     },
+    "homebrew": {
+      "path": "plugins/homebrew",
+      "version": "0.1.0",
+      "description": "Webcmd commands for homebrew",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
     "iit": {
       "path": "plugins/iit",
       "version": "0.1.0",
@@ -264,6 +274,36 @@
         "handle": "agentrhq"
       }
     },
+    "jira": {
+      "path": "plugins/jira",
+      "version": "0.1.0",
+      "description": "Webcmd commands for jira",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "lesswrong": {
+      "path": "plugins/lesswrong",
+      "version": "0.1.0",
+      "description": "Webcmd commands for lesswrong",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "lichess": {
+      "path": "plugins/lichess",
+      "version": "0.1.0",
+      "description": "Webcmd commands for lichess",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
     "linkedin": {
       "path": "plugins/linkedin",
       "version": "0.1.0",
@@ -274,11 +314,111 @@
         "handle": "agentrhq"
       }
     },
+    "lobsters": {
+      "path": "plugins/lobsters",
+      "version": "0.1.0",
+      "description": "Webcmd commands for lobsters",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
     "luma": {
       "path": "plugins/luma",
       "version": "0.1.0",
       "description": "Manage hosted Luma events, registration questions, and guests",
       "webcmd": ">=0.5.2",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "maven": {
+      "path": "plugins/maven",
+      "version": "0.1.0",
+      "description": "Webcmd commands for maven",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "mdn": {
+      "path": "plugins/mdn",
+      "version": "0.1.0",
+      "description": "Webcmd commands for mdn",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "npm": {
+      "path": "plugins/npm",
+      "version": "0.1.0",
+      "description": "Webcmd commands for npm",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "nuget": {
+      "path": "plugins/nuget",
+      "version": "0.1.0",
+      "description": "Webcmd commands for nuget",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "nvd": {
+      "path": "plugins/nvd",
+      "version": "0.1.0",
+      "description": "Webcmd commands for nvd",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "oeis": {
+      "path": "plugins/oeis",
+      "version": "0.1.0",
+      "description": "Webcmd commands for oeis",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "openalex": {
+      "path": "plugins/openalex",
+      "version": "0.1.0",
+      "description": "Webcmd commands for openalex",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "openfda": {
+      "path": "plugins/openfda",
+      "version": "0.1.0",
+      "description": "Webcmd commands for openfda",
+      "webcmd": ">=0.6.0",
+      "author": {
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
+      }
+    },
+    "openreview": {
+      "path": "plugins/openreview",
+      "version": "0.1.0",
+      "description": "Webcmd commands for openreview",
+      "webcmd": ">=0.6.0",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"

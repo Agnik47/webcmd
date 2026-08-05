@@ -1,11 +1,18 @@
 #!/usr/bin/env node
 
 import * as fs from 'node:fs';
+import { register } from 'node:module';
 import * as path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { loadManifestEntries } from './build-manifest.js';
 import type { ManifestEntry } from './manifest-types.js';
 import { findPackageRoot } from './package-paths.js';
+
+const localPackageRoot = findPackageRoot(fileURLToPath(import.meta.url));
+register(pathToFileURL(path.join(localPackageRoot, 'scripts/plugin-local-runtime-loader.mjs')), {
+  parentURL: import.meta.url,
+  data: { packageRoot: localPackageRoot },
+});
 
 const EXECUTABLE_FIELDS = [
   'aliases', 'access', 'domain', 'strategy', 'browser', 'args', 'columns', 'tags', 'keywords',
@@ -74,9 +81,8 @@ export function serializePluginCommandManifest(entries: readonly ManifestEntry[]
 }
 
 async function main(): Promise<void> {
-  const packageRoot = findPackageRoot(fileURLToPath(import.meta.url));
-  const entries = await scanPluginCommandModules(path.join(packageRoot, 'plugins'));
-  const output = path.join(packageRoot, 'plugin-command-manifest.json');
+  const entries = await scanPluginCommandModules(path.join(localPackageRoot, 'plugins'));
+  const output = path.join(localPackageRoot, 'plugin-command-manifest.json');
   fs.writeFileSync(output, serializePluginCommandManifest(entries));
   process.stderr.write(`✅ Plugin command manifest compiled: ${entries.length} entries → ${output}\n`);
 }

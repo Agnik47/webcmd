@@ -3084,6 +3084,117 @@
     "sourceFile": "plugins/hft/export-postgraduate-courses.js"
   },
   {
+    "site": "homebrew",
+    "name": "cask",
+    "description": "Fetch a Homebrew cask's metadata (version, homepage, deprecation, download URL)",
+    "access": "read",
+    "domain": "formulae.brew.sh",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "token",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Cask token (e.g. \"firefox\", \"visual-studio-code\", \"google-chrome\")"
+      }
+    ],
+    "columns": [
+      "cask",
+      "tap",
+      "name",
+      "version",
+      "description",
+      "homepage",
+      "deprecated",
+      "disabled",
+      "download",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/homebrew/cask.js",
+    "sourceFile": "plugins/homebrew/cask.js"
+  },
+  {
+    "site": "homebrew",
+    "name": "formula",
+    "description": "Fetch a Homebrew formula's metadata (version, license, deps, deprecation, source)",
+    "access": "read",
+    "domain": "formulae.brew.sh",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "name",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Formula name (e.g. \"wget\", \"gcc@13\", \"imagemagick\")"
+      }
+    ],
+    "columns": [
+      "formula",
+      "tap",
+      "version",
+      "license",
+      "description",
+      "homepage",
+      "dependencies",
+      "deprecated",
+      "disabled",
+      "source",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/homebrew/formula.js",
+    "sourceFile": "plugins/homebrew/formula.js"
+  },
+  {
+    "site": "homebrew",
+    "name": "popular",
+    "description": "List most-installed Homebrew formulae or casks (Homebrew's analytics ranking)",
+    "access": "read",
+    "domain": "formulae.brew.sh",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "type",
+        "type": "str",
+        "default": "formula",
+        "required": false,
+        "help": "Package type (formula / cask)"
+      },
+      {
+        "name": "window",
+        "type": "str",
+        "default": "30d",
+        "required": false,
+        "help": "Time window (30d / 90d / 365d)"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 30,
+        "required": false,
+        "help": "Max rows (1-500)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "token",
+      "type",
+      "installs",
+      "percent",
+      "window",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/homebrew/popular.js",
+    "sourceFile": "plugins/homebrew/popular.js"
+  },
+  {
     "site": "iit",
     "name": "export-postgraduate-courses",
     "description": "Export Illinois Tech postgraduate programs using official public sources.",
@@ -3246,6 +3357,699 @@
     "type": "js",
     "modulePath": "plugins/jhu/export-postgraduate-courses.js",
     "sourceFile": "plugins/jhu/export-postgraduate-courses.js"
+  },
+  {
+    "site": "jira",
+    "name": "attachments",
+    "description": "Jira issue attachment metadata",
+    "access": "read",
+    "domain": "atlassian.net",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "key",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Jira issue key, e.g. PROJ-123"
+      }
+    ],
+    "columns": [
+      "id",
+      "filename",
+      "mimeType",
+      "size",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/jira/attachments.js",
+    "sourceFile": "plugins/jira/attachments.js"
+  },
+  {
+    "site": "jira",
+    "name": "comments",
+    "description": "Jira issue comments as Markdown",
+    "access": "read",
+    "domain": "atlassian.net",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "key",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Jira issue key, e.g. PROJ-123"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 50,
+        "required": false,
+        "help": "Max comments to return (1-100)"
+      }
+    ],
+    "columns": [
+      "id",
+      "author",
+      "created",
+      "updated",
+      "markdown"
+    ],
+    "type": "js",
+    "modulePath": "plugins/jira/comments.js",
+    "sourceFile": "plugins/jira/comments.js"
+  },
+  {
+    "site": "jira",
+    "name": "issue",
+    "description": "Jira issue detail normalized for agents (description, comments, attachments, links)",
+    "access": "read",
+    "domain": "atlassian.net",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "key",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Jira issue key, e.g. PROJ-123"
+      },
+      {
+        "name": "comments-limit",
+        "type": "int",
+        "default": 100,
+        "required": false,
+        "help": "Max comments to include (1-100)"
+      }
+    ],
+    "columns": [
+      "key",
+      "summary",
+      "issueType",
+      "status",
+      "priority",
+      "assignee",
+      "updated",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/jira/issue.js",
+    "sourceFile": "plugins/jira/issue.js"
+  },
+  {
+    "site": "jira",
+    "name": "links",
+    "description": "Jira issue links",
+    "access": "read",
+    "domain": "atlassian.net",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "key",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Jira issue key, e.g. PROJ-123"
+      }
+    ],
+    "columns": [
+      "key",
+      "type",
+      "direction"
+    ],
+    "type": "js",
+    "modulePath": "plugins/jira/links.js",
+    "sourceFile": "plugins/jira/links.js"
+  },
+  {
+    "site": "jira",
+    "name": "search",
+    "description": "Search Jira issues with JQL",
+    "access": "read",
+    "domain": "atlassian.net",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "jql",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "JQL query, e.g. \"project = PROJ order by updated desc\""
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max issues to return (1-100)"
+      }
+    ],
+    "columns": [
+      "key",
+      "summary",
+      "issueType",
+      "status",
+      "priority",
+      "assignee",
+      "updated",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/jira/search.js",
+    "sourceFile": "plugins/jira/search.js"
+  },
+  {
+    "site": "lesswrong",
+    "name": "comments",
+    "description": "Top comments on a post",
+    "access": "read",
+    "domain": "www.lesswrong.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "url-or-id",
+        "type": "string",
+        "required": true,
+        "positional": true,
+        "help": "Post URL or LessWrong post ID"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 5,
+        "required": false,
+        "help": "Number of comments"
+      }
+    ],
+    "columns": [
+      "rank",
+      "score",
+      "author",
+      "text"
+    ],
+    "type": "js",
+    "modulePath": "plugins/lesswrong/comments.js",
+    "sourceFile": "plugins/lesswrong/comments.js"
+  },
+  {
+    "site": "lesswrong",
+    "name": "curated",
+    "description": "Curated editor's picks",
+    "access": "read",
+    "domain": "www.lesswrong.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Number of results"
+      }
+    ],
+    "columns": [
+      "rank",
+      "title",
+      "author",
+      "karma",
+      "comments",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/lesswrong/curated.js",
+    "sourceFile": "plugins/lesswrong/curated.js"
+  },
+  {
+    "site": "lesswrong",
+    "name": "frontpage",
+    "description": "Algorithmic frontpage",
+    "access": "read",
+    "domain": "www.lesswrong.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Number of results"
+      }
+    ],
+    "columns": [
+      "rank",
+      "title",
+      "author",
+      "karma",
+      "comments",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/lesswrong/frontpage.js",
+    "sourceFile": "plugins/lesswrong/frontpage.js"
+  },
+  {
+    "site": "lesswrong",
+    "name": "new",
+    "description": "Latest posts",
+    "access": "read",
+    "domain": "www.lesswrong.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Number of results"
+      }
+    ],
+    "columns": [
+      "rank",
+      "title",
+      "author",
+      "karma",
+      "comments",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/lesswrong/new.js",
+    "sourceFile": "plugins/lesswrong/new.js"
+  },
+  {
+    "site": "lesswrong",
+    "name": "read",
+    "description": "Read full post by URL or ID",
+    "access": "read",
+    "domain": "www.lesswrong.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "url-or-id",
+        "type": "string",
+        "required": true,
+        "positional": true,
+        "help": "Post URL or LessWrong post ID"
+      }
+    ],
+    "columns": [
+      "title",
+      "author",
+      "karma",
+      "comments",
+      "tags",
+      "content",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/lesswrong/read.js",
+    "sourceFile": "plugins/lesswrong/read.js"
+  },
+  {
+    "site": "lesswrong",
+    "name": "sequences",
+    "description": "List post collections",
+    "access": "read",
+    "domain": "www.lesswrong.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Number of results"
+      }
+    ],
+    "columns": [
+      "rank",
+      "title",
+      "author"
+    ],
+    "type": "js",
+    "modulePath": "plugins/lesswrong/sequences.js",
+    "sourceFile": "plugins/lesswrong/sequences.js"
+  },
+  {
+    "site": "lesswrong",
+    "name": "shortform",
+    "description": "Quick takes / shortform posts",
+    "access": "read",
+    "domain": "www.lesswrong.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Number of results"
+      }
+    ],
+    "columns": [
+      "rank",
+      "title",
+      "author",
+      "karma",
+      "comments",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/lesswrong/shortform.js",
+    "sourceFile": "plugins/lesswrong/shortform.js"
+  },
+  {
+    "site": "lesswrong",
+    "name": "tag",
+    "description": "Posts by tag",
+    "access": "read",
+    "domain": "www.lesswrong.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "tag",
+        "type": "string",
+        "required": true,
+        "positional": true,
+        "help": "Tag slug or name"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Number of results"
+      }
+    ],
+    "columns": [
+      "rank",
+      "title",
+      "author",
+      "karma",
+      "comments",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/lesswrong/tag.js",
+    "sourceFile": "plugins/lesswrong/tag.js"
+  },
+  {
+    "site": "lesswrong",
+    "name": "tags",
+    "description": "List popular tags",
+    "access": "read",
+    "domain": "www.lesswrong.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of results"
+      }
+    ],
+    "columns": [
+      "rank",
+      "name",
+      "posts"
+    ],
+    "type": "js",
+    "modulePath": "plugins/lesswrong/tags.js",
+    "sourceFile": "plugins/lesswrong/tags.js"
+  },
+  {
+    "site": "lesswrong",
+    "name": "top",
+    "description": "Top all-time",
+    "access": "read",
+    "domain": "www.lesswrong.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Number of results"
+      }
+    ],
+    "columns": [
+      "rank",
+      "title",
+      "author",
+      "karma",
+      "comments",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/lesswrong/top.js",
+    "sourceFile": "plugins/lesswrong/top.js"
+  },
+  {
+    "site": "lesswrong",
+    "name": "top-month",
+    "description": "Top this month",
+    "access": "read",
+    "domain": "www.lesswrong.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Number of results"
+      }
+    ],
+    "columns": [
+      "rank",
+      "title",
+      "author",
+      "karma",
+      "comments",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/lesswrong/top-month.js",
+    "sourceFile": "plugins/lesswrong/top-month.js"
+  },
+  {
+    "site": "lesswrong",
+    "name": "top-week",
+    "description": "Top this week",
+    "access": "read",
+    "domain": "www.lesswrong.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Number of results"
+      }
+    ],
+    "columns": [
+      "rank",
+      "title",
+      "author",
+      "karma",
+      "comments",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/lesswrong/top-week.js",
+    "sourceFile": "plugins/lesswrong/top-week.js"
+  },
+  {
+    "site": "lesswrong",
+    "name": "top-year",
+    "description": "Top this year",
+    "access": "read",
+    "domain": "www.lesswrong.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Number of results"
+      }
+    ],
+    "columns": [
+      "rank",
+      "title",
+      "author",
+      "karma",
+      "comments",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/lesswrong/top-year.js",
+    "sourceFile": "plugins/lesswrong/top-year.js"
+  },
+  {
+    "site": "lesswrong",
+    "name": "user",
+    "description": "User profile",
+    "access": "read",
+    "domain": "www.lesswrong.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "username",
+        "type": "string",
+        "required": true,
+        "positional": true,
+        "help": "LessWrong username or slug"
+      }
+    ],
+    "columns": [
+      "field",
+      "value"
+    ],
+    "type": "js",
+    "modulePath": "plugins/lesswrong/user.js",
+    "sourceFile": "plugins/lesswrong/user.js"
+  },
+  {
+    "site": "lesswrong",
+    "name": "user-posts",
+    "description": "List a user's posts",
+    "access": "read",
+    "domain": "www.lesswrong.com",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "username",
+        "type": "string",
+        "required": true,
+        "positional": true,
+        "help": "LessWrong username or slug"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Number of results"
+      }
+    ],
+    "columns": [
+      "rank",
+      "title",
+      "karma",
+      "comments",
+      "date",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/lesswrong/user-posts.js",
+    "sourceFile": "plugins/lesswrong/user-posts.js"
+  },
+  {
+    "site": "lichess",
+    "name": "top",
+    "description": "Top-N Lichess leaderboard for a perf type (bullet/blitz/rapid/classical/...)",
+    "access": "read",
+    "domain": "lichess.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "perf",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Perf type (bullet, blitz, rapid, classical, ultraBullet, chess960, ...)"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Top-N rows (1-200)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "username",
+      "id",
+      "title",
+      "rating",
+      "progress",
+      "patron",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/lichess/top.js",
+    "sourceFile": "plugins/lichess/top.js"
+  },
+  {
+    "site": "lichess",
+    "name": "user",
+    "description": "Fetch a Lichess player profile by username (rating, perfs, counts)",
+    "access": "read",
+    "domain": "lichess.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "username",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Lichess username (case-insensitive)"
+      }
+    ],
+    "columns": [
+      "username",
+      "id",
+      "title",
+      "patron",
+      "online",
+      "tosViolation",
+      "createdAt",
+      "seenAt",
+      "gamesAll",
+      "gamesWin",
+      "gamesLoss",
+      "gamesDraw",
+      "topPerfName",
+      "topPerfRating",
+      "topPerfGames",
+      "fideRating",
+      "country",
+      "bio",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/lichess/user.js",
+    "sourceFile": "plugins/lichess/user.js"
   },
   {
     "site": "linkedin",
@@ -4316,6 +5120,236 @@
     "siteSession": "persistent"
   },
   {
+    "site": "lobsters",
+    "name": "active",
+    "description": "Lobste.rs most active discussions",
+    "access": "read",
+    "domain": "lobste.rs",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of stories"
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "title",
+      "score",
+      "author",
+      "comments",
+      "created_at",
+      "tags",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/lobsters/active.js",
+    "sourceFile": "plugins/lobsters/active.js"
+  },
+  {
+    "site": "lobsters",
+    "name": "domain",
+    "description": "Lobste.rs stories submitted from a specific domain",
+    "access": "read",
+    "domain": "lobste.rs",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "domain",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Source domain (e.g. github.com, arxiv.org, blog.cloudflare.com)"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of stories (1-25 — single page)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "title",
+      "score",
+      "author",
+      "comments",
+      "created_at",
+      "tags",
+      "submission_url",
+      "comments_url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/lobsters/domain.js",
+    "sourceFile": "plugins/lobsters/domain.js"
+  },
+  {
+    "site": "lobsters",
+    "name": "hot",
+    "description": "Lobste.rs hottest stories",
+    "access": "read",
+    "domain": "lobste.rs",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of stories"
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "title",
+      "score",
+      "author",
+      "comments",
+      "created_at",
+      "tags",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/lobsters/hot.js",
+    "sourceFile": "plugins/lobsters/hot.js"
+  },
+  {
+    "site": "lobsters",
+    "name": "newest",
+    "description": "Lobste.rs newest stories",
+    "access": "read",
+    "domain": "lobste.rs",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of stories"
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "title",
+      "score",
+      "author",
+      "comments",
+      "created_at",
+      "tags",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/lobsters/newest.js",
+    "sourceFile": "plugins/lobsters/newest.js"
+  },
+  {
+    "site": "lobsters",
+    "name": "read",
+    "description": "Read a Lobste.rs story and its comment tree",
+    "access": "read",
+    "domain": "lobste.rs",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "id",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Lobste.rs short_id (e.g. 6cmh6h)"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 25,
+        "required": false,
+        "help": "Max top-level comments"
+      },
+      {
+        "name": "depth",
+        "type": "int",
+        "default": 2,
+        "required": false,
+        "help": "Max reply depth (1=no replies, 2=one level of replies, etc.)"
+      },
+      {
+        "name": "replies",
+        "type": "int",
+        "default": 5,
+        "required": false,
+        "help": "Max replies shown per comment at each level"
+      },
+      {
+        "name": "max-length",
+        "type": "int",
+        "default": 2000,
+        "required": false,
+        "help": "Max characters per comment body (min 100)"
+      }
+    ],
+    "columns": [
+      "type",
+      "author",
+      "score",
+      "text"
+    ],
+    "type": "js",
+    "modulePath": "plugins/lobsters/read.js",
+    "sourceFile": "plugins/lobsters/read.js"
+  },
+  {
+    "site": "lobsters",
+    "name": "tag",
+    "description": "Lobste.rs stories by tag",
+    "access": "read",
+    "domain": "lobste.rs",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "tag",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Tag name (e.g. programming, rust, security, ai)"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Number of stories"
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "title",
+      "score",
+      "author",
+      "comments",
+      "created_at",
+      "tags",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/lobsters/tag.js",
+    "sourceFile": "plugins/lobsters/tag.js"
+  },
+  {
     "site": "luma",
     "name": "create-event",
     "description": "Create a free single-session Luma event",
@@ -4703,6 +5737,818 @@
     "sourceFile": "plugins/luma/auth.js",
     "navigateBefore": false,
     "siteSession": "persistent"
+  },
+  {
+    "site": "maven",
+    "name": "artifact",
+    "description": "Fetch a Maven Central artifact's version history (groupId:artifactId[:version])",
+    "access": "read",
+    "domain": "search.maven.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "coordinate",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Maven coord \"groupId:artifactId\" or \"groupId:artifactId:version\""
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max versions (1-200, ignored when version is pinned)"
+      }
+    ],
+    "columns": [
+      "groupId",
+      "artifactId",
+      "version",
+      "packaging",
+      "publishedAt",
+      "tags",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/maven/artifact.js",
+    "sourceFile": "plugins/maven/artifact.js"
+  },
+  {
+    "site": "maven",
+    "name": "search",
+    "description": "Search Maven Central by keyword (artifact name, groupId, tag)",
+    "access": "read",
+    "domain": "search.maven.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Search keyword (e.g. \"jackson\", \"guava\", \"ai.koog\")"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 30,
+        "required": false,
+        "help": "Max artifacts (1-200)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "coordinate",
+      "groupId",
+      "artifactId",
+      "latestVersion",
+      "packaging",
+      "versions",
+      "lastPublished",
+      "repository",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/maven/search.js",
+    "sourceFile": "plugins/maven/search.js"
+  },
+  {
+    "site": "mdn",
+    "name": "search",
+    "description": "Search MDN Web Docs by keyword",
+    "access": "read",
+    "domain": "developer.mozilla.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Search keyword (e.g. \"fetch\", \"flexbox\", \"Array.prototype.map\")"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Max results (1-50)"
+      },
+      {
+        "name": "locale",
+        "type": "str",
+        "default": "en-US",
+        "required": false,
+        "help": "Doc locale (en-US default; de / es / fr / ja / ko / pt-BR / ru / zh-CN / zh-TW)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "title",
+      "slug",
+      "locale",
+      "summary",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/mdn/search.js",
+    "sourceFile": "plugins/mdn/search.js"
+  },
+  {
+    "site": "npm",
+    "name": "downloads",
+    "description": "Daily download counts for an npm package over a window",
+    "access": "read",
+    "domain": "api.npmjs.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "name",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "npm package name (e.g. \"react\", \"@vercel/og\")"
+      },
+      {
+        "name": "period",
+        "type": "str",
+        "default": "last-week",
+        "required": false,
+        "help": "last-day / last-week / last-month / last-year, or YYYY-MM-DD:YYYY-MM-DD"
+      }
+    ],
+    "columns": [
+      "rank",
+      "package",
+      "day",
+      "downloads"
+    ],
+    "type": "js",
+    "modulePath": "plugins/npm/downloads.js",
+    "sourceFile": "plugins/npm/downloads.js"
+  },
+  {
+    "site": "npm",
+    "name": "package",
+    "description": "Single npm package metadata (latest version, license, homepage, repository). Use `npm downloads` for stats.",
+    "access": "read",
+    "domain": "registry.npmjs.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "name",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "npm package name (e.g. \"react\", \"@vercel/og\")"
+      }
+    ],
+    "columns": [
+      "name",
+      "latestVersion",
+      "description",
+      "license",
+      "homepage",
+      "repository",
+      "bugs",
+      "maintainers",
+      "keywords",
+      "created",
+      "modified",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/npm/package.js",
+    "sourceFile": "plugins/npm/package.js"
+  },
+  {
+    "site": "npm",
+    "name": "search",
+    "description": "Search the public npm registry by keyword",
+    "access": "read",
+    "domain": "registry.npmjs.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Search keyword (e.g. \"react\", \"graphql client\")"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max results (1-250)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "name",
+      "version",
+      "description",
+      "weeklyDownloads",
+      "dependents",
+      "license",
+      "publisher",
+      "updated",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/npm/search.js",
+    "sourceFile": "plugins/npm/search.js"
+  },
+  {
+    "site": "nuget",
+    "name": "package",
+    "description": "Full NuGet package version history (catalogEntry per release)",
+    "access": "read",
+    "domain": "api.nuget.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "id",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "NuGet package id (e.g. \"Newtonsoft.Json\", case-insensitive)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "version",
+      "title",
+      "authors",
+      "tags",
+      "language",
+      "licenseExpression",
+      "projectUrl",
+      "published",
+      "listed",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/nuget/package.js",
+    "sourceFile": "plugins/nuget/package.js"
+  },
+  {
+    "site": "nuget",
+    "name": "search",
+    "description": "Search NuGet packages by keyword",
+    "access": "read",
+    "domain": "api.nuget.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Search keyword"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max packages (1-1000)"
+      },
+      {
+        "name": "prerelease",
+        "type": "boolean",
+        "default": false,
+        "required": false,
+        "help": "Include prerelease versions"
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "version",
+      "title",
+      "description",
+      "authors",
+      "tags",
+      "totalDownloads",
+      "verified",
+      "projectUrl",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/nuget/search.js",
+    "sourceFile": "plugins/nuget/search.js"
+  },
+  {
+    "site": "nvd",
+    "name": "cve",
+    "description": "NIST NVD CVE detail (description, CVSS, CWE, KEV flag)",
+    "access": "read",
+    "domain": "services.nvd.nist.gov",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "id",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "CVE identifier (e.g. \"CVE-2021-44228\")"
+      }
+    ],
+    "columns": [
+      "id",
+      "published",
+      "lastModified",
+      "vulnStatus",
+      "baseScore",
+      "severity",
+      "attackVector",
+      "cwe",
+      "kevAdded",
+      "description",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/nvd/cve.js",
+    "sourceFile": "plugins/nvd/cve.js"
+  },
+  {
+    "site": "oeis",
+    "name": "search",
+    "description": "Search OEIS sequences by keyword or numeric pattern",
+    "access": "read",
+    "domain": "oeis.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Search keyword or comma-separated terms (e.g. \"fibonacci\", \"1,1,2,3,5,8\")"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Max sequences (1-100)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "name",
+      "keywords",
+      "preview",
+      "author",
+      "created",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/oeis/search.js",
+    "sourceFile": "plugins/oeis/search.js"
+  },
+  {
+    "site": "oeis",
+    "name": "sequence",
+    "description": "Full OEIS sequence detail by A-number (terms, name, keywords, formula counts)",
+    "access": "read",
+    "domain": "oeis.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "id",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "OEIS sequence id (e.g. \"A000045\" for Fibonacci)"
+      }
+    ],
+    "columns": [
+      "id",
+      "name",
+      "keywords",
+      "preview",
+      "termCount",
+      "offset",
+      "author",
+      "created",
+      "revision",
+      "commentCount",
+      "formulaCount",
+      "referenceCount",
+      "xrefCount",
+      "linkCount",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/oeis/sequence.js",
+    "sourceFile": "plugins/oeis/sequence.js"
+  },
+  {
+    "site": "openalex",
+    "name": "search",
+    "description": "Search OpenAlex Works (papers, books, preprints) by keyword",
+    "access": "read",
+    "domain": "api.openalex.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Search text (e.g. \"transformers\", \"open access scholarly\")"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 20,
+        "required": false,
+        "help": "Max works (1-200, single OpenAlex page)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "title",
+      "year",
+      "citations",
+      "firstAuthor",
+      "venue",
+      "openAccess",
+      "type",
+      "doi",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/openalex/search.js",
+    "sourceFile": "plugins/openalex/search.js"
+  },
+  {
+    "site": "openalex",
+    "name": "work",
+    "description": "Fetch a single OpenAlex Work (paper / preprint / book) — metadata + abstract",
+    "access": "read",
+    "domain": "api.openalex.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "id",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "OpenAlex Work id (\"W2741809807\"), DOI (\"10.7717/peerj.4375\"), or full URL"
+      }
+    ],
+    "columns": [
+      "id",
+      "title",
+      "type",
+      "year",
+      "date",
+      "language",
+      "authors",
+      "venue",
+      "citations",
+      "openAccess",
+      "openAccessUrl",
+      "referencedCount",
+      "doi",
+      "abstract",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/openalex/work.js",
+    "sourceFile": "plugins/openalex/work.js"
+  },
+  {
+    "site": "openfda",
+    "name": "drug-label",
+    "description": "Search FDA-approved drug labels (brand or generic name)",
+    "access": "read",
+    "domain": "fda.gov",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Brand or generic drug name (e.g. \"aspirin\", \"lisinopril\")"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 5,
+        "required": false,
+        "help": "Max rows (1-25, default 5; openFDA caps anonymous tier at 25/page)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "brandName",
+      "genericName",
+      "manufacturer",
+      "productType",
+      "route",
+      "productNdc",
+      "pharmClass",
+      "purpose",
+      "indications",
+      "warnings",
+      "dosage",
+      "effectiveTime"
+    ],
+    "type": "js",
+    "modulePath": "plugins/openfda/drug-label.js",
+    "sourceFile": "plugins/openfda/drug-label.js"
+  },
+  {
+    "site": "openfda",
+    "name": "food-recall",
+    "description": "FDA food recall and enforcement actions (most recent first)",
+    "access": "read",
+    "domain": "fda.gov",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": false,
+        "help": "Free-text Lucene query (e.g. \"salmonella\", \"listeria\"); default: all recent recalls"
+      },
+      {
+        "name": "status",
+        "type": "str",
+        "required": false,
+        "help": "Filter by status: \"Ongoing\", \"Completed\", \"Terminated\""
+      },
+      {
+        "name": "classification",
+        "type": "str",
+        "required": false,
+        "help": "Filter by class: \"Class I\" (most serious), \"Class II\", \"Class III\""
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 10,
+        "required": false,
+        "help": "Max rows (1-100, default 10; openFDA caps anonymous tier at 100/page)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "recallNumber",
+      "status",
+      "classification",
+      "voluntary",
+      "recallingFirm",
+      "city",
+      "state",
+      "country",
+      "productDescription",
+      "reasonForRecall",
+      "productQuantity",
+      "distributionPattern",
+      "reportDate",
+      "recallInitiationDate",
+      "terminationDate"
+    ],
+    "type": "js",
+    "modulePath": "plugins/openfda/food-recall.js",
+    "sourceFile": "plugins/openfda/food-recall.js"
+  },
+  {
+    "site": "openreview",
+    "name": "author",
+    "description": "List OpenReview submissions by an author profile id (newest first)",
+    "access": "read",
+    "domain": "openreview.net",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "profile",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "OpenReview profile id (e.g. \"~Yoshua_Bengio1\"). Find it on the author profile URL on openreview.net."
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 50,
+        "required": false,
+        "help": "Max submissions (1-1000)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "title",
+      "authors",
+      "venue",
+      "pdate",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/openreview/author.js",
+    "sourceFile": "plugins/openreview/author.js"
+  },
+  {
+    "site": "openreview",
+    "name": "paper",
+    "description": "Show full metadata for a single OpenReview paper",
+    "access": "read",
+    "domain": "openreview.net",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "id",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "OpenReview note id (e.g. \"5sRnsubyAK\")"
+      }
+    ],
+    "columns": [
+      "id",
+      "title",
+      "authors",
+      "keywords",
+      "venue",
+      "venueid",
+      "primary_area",
+      "abstract",
+      "pdate",
+      "pdf",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/openreview/paper.js",
+    "sourceFile": "plugins/openreview/paper.js"
+  },
+  {
+    "site": "openreview",
+    "name": "reviews",
+    "description": "Show full review thread (paper + reviews + decisions) for an OpenReview forum",
+    "access": "read",
+    "domain": "openreview.net",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "forum",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "OpenReview forum id (same as paper id)"
+      },
+      {
+        "name": "max-length",
+        "type": "int",
+        "default": 4000,
+        "required": false,
+        "help": "Per-row text truncation (min 200)"
+      }
+    ],
+    "columns": [
+      "type",
+      "author",
+      "rating",
+      "confidence",
+      "text"
+    ],
+    "type": "js",
+    "modulePath": "plugins/openreview/reviews.js",
+    "sourceFile": "plugins/openreview/reviews.js"
+  },
+  {
+    "site": "openreview",
+    "name": "search",
+    "description": "Search OpenReview papers by free-text query",
+    "access": "read",
+    "domain": "openreview.net",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "query",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Search keyword (e.g. \"diffusion model\")"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 25,
+        "required": false,
+        "help": "Max results (max 50)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "title",
+      "authors",
+      "venue",
+      "pdate",
+      "url"
+    ],
+    "tags": [
+      "search"
+    ],
+    "type": "js",
+    "modulePath": "plugins/openreview/search.js",
+    "sourceFile": "plugins/openreview/search.js"
+  },
+  {
+    "site": "openreview",
+    "name": "venue",
+    "description": "List papers at an OpenReview venue (e.g. \"ICLR 2024 oral\" or full invitation id)",
+    "access": "read",
+    "domain": "openreview.net",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "venue",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "Venue name (\"ICLR 2024 oral\") or invitation (\"ICLR.cc/2025/Conference/-/Submission\")"
+      },
+      {
+        "name": "limit",
+        "type": "int",
+        "default": 25,
+        "required": false,
+        "help": "Max results (max 200)"
+      },
+      {
+        "name": "offset",
+        "type": "int",
+        "default": 0,
+        "required": false,
+        "help": "Pagination offset"
+      }
+    ],
+    "columns": [
+      "rank",
+      "id",
+      "title",
+      "authors",
+      "keywords",
+      "primary_area",
+      "pdate",
+      "pdf",
+      "url"
+    ],
+    "type": "js",
+    "modulePath": "plugins/openreview/venue.js",
+    "sourceFile": "plugins/openreview/venue.js"
   },
   {
     "site": "pypi",

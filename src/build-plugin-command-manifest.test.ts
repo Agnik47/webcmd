@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -96,5 +97,58 @@ describe('plugin command manifest', () => {
     expect(findPluginCommandParityIssues(changed, frozen)).toEqual([
       'alpha/search executable metadata differs from frozen core manifest',
     ]);
+  });
+
+  it('scans plugin packages against the local Webcmd runtime', async () => {
+    const root = fixture({
+      'alpha/package.json': '{"name":"webcmd-plugin-alpha","type":"module"}',
+      'alpha/search.js': `
+        import { cli, Strategy } from '@agentrhq/webcmd/registry';
+        cli({
+          site: 'alpha',
+          name: 'search',
+          tags: ['search'],
+          access: 'read',
+          description: 'Search alpha',
+          strategy: Strategy.PUBLIC,
+          browser: false,
+          args: [],
+          columns: ['id'],
+          func: async () => [],
+        });
+      `,
+    });
+    const stalePackage = path.join(root, 'node_modules', '@agentrhq', 'webcmd');
+    fs.mkdirSync(path.join(stalePackage, 'dist'), { recursive: true });
+    fs.writeFileSync(path.join(stalePackage, 'package.json'), JSON.stringify({
+      name: '@agentrhq/webcmd',
+      version: '0.0.0-stale',
+      type: 'module',
+      exports: { './registry': './dist/registry.js' },
+    }));
+    fs.writeFileSync(path.join(stalePackage, 'dist', 'registry.js'), `
+      const registry = globalThis.__webcmd_registry__ ??= new Map();
+      export const Strategy = { PUBLIC: 'public' };
+      export function cli(options) {
+        const command = { ...options };
+        delete command.tags;
+        registry.set(command.site + '/' + command.name, command);
+      }
+    `);
+    const moduleHref = pathToFileURL(path.resolve('src/build-plugin-command-manifest.ts')).href;
+    const stdout = execFileSync(process.execPath, [
+      '--import', 'tsx',
+      '--input-type=module',
+      '--eval',
+      `
+        import { scanPluginCommandModules } from ${JSON.stringify(moduleHref)};
+        const entries = await scanPluginCommandModules(${JSON.stringify(path.join(root, 'plugins'))});
+        process.stdout.write(JSON.stringify(entries));
+      `,
+    ], { encoding: 'utf8' });
+    const entries = JSON.parse(stdout) as ManifestEntry[];
+
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.tags).toEqual(['search']);
   });
 });
