@@ -81,6 +81,8 @@ describe('plugin runtime search helpers', () => {
     await expect(runBrowserStep('search', async () => { throw codedFunction; })).rejects.toBe(codedFunction);
     await expect(runBrowserStep('search', async () => { throw new Error('broke'); }))
       .rejects.toThrow('search failed: broke');
+    await expect(runBrowserStep('search', async () => { throw { message: 'browser failed' }; }))
+      .rejects.toThrow('search failed: browser failed');
   });
 });
 

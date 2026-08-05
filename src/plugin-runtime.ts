@@ -83,7 +83,7 @@ export async function runBrowserStep<T>(label: string, fn: () => Promise<T>): Pr
   } catch (error) {
     const typedError = error as { code?: unknown; name?: string } | undefined;
     if (typedError?.code || typedError?.name === 'ArgumentError') throw error;
-    throw new CommandExecutionError(`${label} failed: ${error instanceof Error ? error.message : String(error)}`);
+    throw new CommandExecutionError(`${label} failed: ${(error as { message?: unknown } | null)?.message ?? error}`);
   }
 }
 
