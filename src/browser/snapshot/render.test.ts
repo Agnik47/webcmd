@@ -3,6 +3,7 @@ import {
   boundSnapshotText,
   renderSnapshot,
   renderSnapshotFrames,
+  renderSnapshotResult,
 } from "./render.js";
 import type { AiSnapshot, AiSnapshotNode } from "./types.js";
 
@@ -43,7 +44,120 @@ function snap(roots: AiSnapshotNode[]): AiSnapshot {
   };
 }
 
+function wideSnapshot({ lateFocused }: { lateFocused: boolean }): AiSnapshot {
+  return snap([
+    node({
+      role: "main",
+      ref: "l1",
+      children: [
+        ...Array.from({ length: 12 }, (_, index) =>
+          node({
+            role: "button",
+            name: `Early action ${index + 1}`,
+            ref: `l${index + 2}`,
+          }),
+        ),
+        node({
+          role: "button",
+          name: "Late critical action",
+          ref: "l20",
+          properties: lateFocused ? { focused: true } : {},
+        }),
+      ],
+    }),
+  ]);
+}
+
+function recordSnapshot(count: number): AiSnapshot {
+  const detail = (index: number): AiSnapshotNode =>
+    node({
+      role: "paragraph",
+      children: Array.from({ length: 10 }, (_, part) =>
+        node({
+          role: "StaticText",
+          name: `${part ? "continued" : "verbose detail"} for result ${index} ${"x".repeat(100)}`,
+        }),
+      ),
+    });
+  return snap([
+    node({
+      role: "list",
+      ref: "l12",
+      children: Array.from({ length: count }, (_, offset) => {
+        const index = offset + 1;
+        return node({
+          role: "listitem",
+          name: `Result ${index}`,
+          ref: `l${20 + index}`,
+          children: [
+            detail(index),
+            node({ role: "button", name: `Open result ${index}`, ref: `l${40 + index}` }),
+          ],
+        });
+      }),
+    }),
+  ]);
+}
+
+function criticalSnapshot(count: number): AiSnapshot {
+  return {
+    title: "",
+    url: "",
+    frames: [
+      {
+        status: "ok",
+        scope: "document",
+        id: "main",
+        index: 0,
+        url: "",
+        name: null,
+        parentId: null,
+        roots: [
+          node({
+            role: "main",
+            ref: "l1",
+            children: Array.from({ length: count }, (_, index) =>
+              node({
+                role: "button",
+                name: `Critical ${index + 1}`,
+                ref: `l${index + 2}`,
+                properties: { focused: true },
+              }),
+            ),
+          }),
+        ],
+      },
+    ],
+  };
+}
+
 describe("renderSnapshot", () => {
+  it('keeps a late focused control ahead of early low-signal siblings', () => {
+    const result = renderSnapshotResult(wideSnapshot({ lateFocused: true }), { mode: 'act', maxChars: 700 });
+    expect(result.value).toContain('Late critical action');
+    expect(result.value).toMatch(/\[more ref=l\d+ nodes=\d+/);
+    expect(result.truncated).toBe(true);
+    expect(result.value.length).toBeLessThanOrEqual(700);
+  });
+
+  it('represents every repeated record before adding record detail', () => {
+    const result = renderSnapshotResult(recordSnapshot(8), { mode: 'tree', maxChars: 1400 });
+    for (let index = 1; index <= 8; index += 1) expect(result.value).toContain(`Result ${index}`);
+    expect(result.value).not.toContain('verbose detail for result 1');
+  });
+
+  it('reports critical omission instead of silently cutting it', () => {
+    const result = renderSnapshotResult(criticalSnapshot(20), { mode: 'act', maxChars: 180 });
+    expect(result.criticalOmitted).toBeGreaterThan(0);
+    expect(result.warnings[0]).toMatch(/inspect.*ref/i);
+    expect(result.value).toMatch(/criticalOmitted=\d+/);
+  });
+
+  it('uses the full scoped budget without a per-parent cap', () => {
+    const result = renderSnapshotResult(recordSnapshot(10), { mode: 'tree', ref: 'l12', maxChars: 12000 });
+    for (let index = 1; index <= 10; index += 1) expect(result.value).toContain(`Result ${index}`);
+  });
+
   it("summarizes critical state, actions, records, and text during rendering", () => {
     const frames = renderSnapshotFrames(snap([node({
       role: "list", ref: "l10", children: [

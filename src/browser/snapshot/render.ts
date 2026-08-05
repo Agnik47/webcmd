@@ -4,6 +4,13 @@
  */
 
 import { scopeSnapshotToRef } from "./capture.js";
+import {
+  allocateSnapshot,
+  renderSnapshotMarker,
+  snapshotIdentityAttrs,
+  snapshotIdentityLabel,
+  type SnapshotAllocation,
+} from "./budget.js";
 import type {
   AiSnapshot,
   AiSnapshotFrame,
@@ -14,19 +21,15 @@ import type {
   RenderedSnapshotNode,
   SnapshotPriority,
   SnapshotRecordIdentity,
+  SnapshotRenderResult,
   SnapshotSubtreeSummary,
   SnapshotTreeMode,
   SnapshotPrimitive,
   SnapshotTextNode,
 } from "./types.js";
 
-const MAX_CHILDREN_PER_PARENT = 4;
 const MAX_LABEL_CHARS = 140;
-const MAX_SUMMARY_TEXT_CHARS = 80;
 const MAX_HREF_CHARS = 96;
-const MAX_ACTIONS_IN_SUMMARY = 3;
-const MAX_ACTION_LABEL_CHARS = 80;
-const TREE_MAX_SUMMARY_TEXT_CHARS = 240;
 const TREE_EXTRA_ROLES = new Set(["paragraph", "article", "section", "region"]);
 
 const PRESERVE_CHILDREN_BY_ROLE = new Set([
@@ -73,16 +76,6 @@ const RECORD_IDENTITY_STATE_ATTRS = new Set([
   "pressed",
   "value",
 ]);
-const ACTION_STATE_ATTRS = new Set([
-  "checked",
-  "disabled",
-  "expanded",
-  "pressed",
-  "selected",
-  "value",
-  "placeholder",
-]);
-const TEXT_ACTION_ROLES = new Set(["button", "link", "menuitem", "tab"]);
 const KEEP_ROLES = new Set([
   "document",
   "main",
@@ -137,22 +130,37 @@ export interface RenderSnapshotOptions {
   maxChars?: number;
 }
 
+export const DEFAULT_ACT_SNAPSHOT_CHARS = 12_288;
+export const DEFAULT_TREE_SNAPSHOT_CHARS = 32_768;
+
+export function renderSnapshotResult(
+  snapshot: AiSnapshot,
+  options: RenderSnapshotOptions = {},
+): SnapshotRenderResult {
+  const mode = options.mode ?? "act";
+  const scoped = options.ref ? scopeSnapshotToRef(snapshot, options.ref) : snapshot;
+  const maxChars = Math.max(0, Math.floor(options.maxChars ?? (
+    mode === "act" ? DEFAULT_ACT_SNAPSHOT_CHARS : DEFAULT_TREE_SNAPSHOT_CHARS
+  )));
+  const frames = renderSnapshotFrames(scoped, mode);
+  const allocation = allocateSnapshot(frames, maxChars, pageAndFrameEnvelopeChars(scoped, frames));
+  const value = renderAllocatedSnapshot(scoped, frames, allocation);
+  if (value.length > maxChars) throw new Error("snapshot allocator exceeded its hard character ceiling");
+  return {
+    value,
+    truncated: allocation.truncated,
+    criticalOmitted: allocation.criticalOmitted,
+    warnings: allocation.criticalOmitted
+      ? ["Critical snapshot content was omitted; inspect the nearest [more ref=...] scope."]
+      : [],
+  };
+}
+
 export function renderSnapshot(
   snapshot: AiSnapshot,
   options: RenderSnapshotOptions = {},
 ): string {
-  const mode = options.mode ?? "act";
-  const scoped = options.ref
-    ? scopeSnapshotToRef(snapshot, options.ref)
-    : snapshot;
-  const lines = [renderPageOpen(scoped, "")];
-  for (const frame of renderSnapshotFrames(scoped, mode))
-    renderFrame(frame, 1, lines);
-  lines.push("</page>");
-  const value = lines.join("\n");
-  return Number.isFinite(options.maxChars)
-    ? boundSnapshotText(value, options.maxChars!).value
-    : value;
+  return renderSnapshotResult(snapshot, options).value;
 }
 
 export function renderSnapshotFrames(
@@ -199,6 +207,86 @@ function renderPageOpen(
   )}`;
 }
 
+function pageAndFrameEnvelopeChars(
+  snapshot: AiSnapshot,
+  frames: RenderedSnapshotFrame[],
+): number {
+  const lines = [renderPageOpen(snapshot, "")];
+  for (const frame of frames) {
+    lines.push(renderFrameLine(frame, 1, "", frame.status === "unavailable"));
+    if (frame.status === "ok") lines.push(`${indent(1)}</frame>`);
+  }
+  lines.push("</page>");
+  return lines.join("\n").length;
+}
+
+function renderAllocatedSnapshot(
+  snapshot: AiSnapshot,
+  frames: RenderedSnapshotFrame[],
+  allocation: SnapshotAllocation,
+): string {
+  const lines = [renderPageOpen(snapshot, "")];
+  const renderedMarkers = new Set<string>();
+  for (const frame of frames) {
+    if (frame.status === "unavailable") {
+      lines.push(renderFrameLine(frame, 1, "", true));
+      continue;
+    }
+    lines.push(renderFrameLine(frame, 1, "", false));
+    for (const root of frame.roots) {
+      renderAllocatedNode(root, 2, lines, allocation);
+      const ref = rootMarkerRef(root);
+      const summary = ref ? allocation.omittedByScope.get(ref) : undefined;
+      if (ref && summary && hasOmittedSummary(summary) && !renderedMarkers.has(ref)) {
+        lines.push(`${indent(2)}${renderSnapshotMarker(ref, summary)}`);
+        renderedMarkers.add(ref);
+      }
+    }
+    lines.push(`${indent(1)}</frame>`);
+  }
+  lines.push("</page>");
+  return lines.join("\n");
+}
+
+function renderAllocatedNode(
+  node: RenderedSnapshotNode,
+  depth: number,
+  lines: string[],
+  allocation: SnapshotAllocation,
+): void {
+  const representation = allocation.selected.get(node);
+  if (!representation) return;
+  const attrs = representation === "identity"
+    ? snapshotIdentityAttrs(node)
+    : node.attrs;
+  const label = representation === "identity" ? snapshotIdentityLabel(node) : null;
+  if (label && !node.record) {
+    lines.push(`${indent(depth)}${formatTag(node.role, attrs, true)}${escapeText(label)}</${node.role}>`);
+    return;
+  }
+  lines.push(`${indent(depth)}${formatTag(node.role, attrs, true)}`);
+  if (label) lines.push(`${indent(depth + 1)}${escapeText(label)}`);
+  for (const child of node.children)
+    if (child.kind === "node") renderAllocatedNode(child, depth + 1, lines, allocation);
+    else if (representation === "full") lines.push(`${indent(depth + 1)}${escapeText(child.text)}`);
+  lines.push(`${indent(depth)}</${node.role}>`);
+}
+
+function rootMarkerRef(node: RenderedSnapshotNode): string | null {
+  if (node.scopeRef) return node.scopeRef;
+  for (const child of node.children)
+    if (child.kind === "node") {
+      const ref = rootMarkerRef(child);
+      if (ref) return ref;
+    }
+  return null;
+}
+
+function hasOmittedSummary(summary: SnapshotSubtreeSummary): boolean {
+  return summary.nodes > 0 || summary.actions > 0 || summary.records > 0 ||
+    summary.textChars > 0 || summary.changed > 0 || summary.critical > 0;
+}
+
 function renderFrameLine(
   frame: RenderedSnapshotFrame,
   depth: number,
@@ -232,25 +320,12 @@ function formatTag(
   return hasChildren ? `<${tagName}${attrs}>` : `<${tagName}${attrs} />`;
 }
 
+// Kept only until snapshot diff rendering adopts structured markers in Task 5.
 export function renderChildrenTruncationNotice(
   children: RenderedSnapshotChild[],
-  mode: SnapshotTreeMode = "act",
 ): string {
   const count = children.length;
-  const summaryActions = actionSummariesForChildren(children);
-  const textSnippet = previewForChildren(
-    children,
-    summaryActions.labels,
-    mode === "tree" ? TREE_MAX_SUMMARY_TEXT_CHARS : MAX_SUMMARY_TEXT_CHARS,
-  );
-  const elementLabel = count === 1 ? "element" : "elements";
-  const textSnippetPart = textSnippet
-    ? `. Text snippet: ${JSON.stringify(textSnippet)}`
-    : "";
-  const interactiveText = summaryActions.actions.length
-    ? `. Interactive elements: ${summaryActions.actions.map((action) => action.markup).join(", ")}${summaryActions.hasMore ? ", ..." : ""}`
-    : "";
-  return `[Truncated ${count} more ${elementLabel}${textSnippetPart}${interactiveText}]`;
+  return `[Truncated ${count} more ${count === 1 ? "element" : "elements"}]`;
 }
 
 function toRenderedFrame(
@@ -650,14 +725,10 @@ function renderChildren(
   lines: string[],
   prefix: string,
 ): void {
-  for (const child of children.slice(0, MAX_CHILDREN_PER_PARENT))
+  for (const child of children)
     child.kind === "text"
       ? lines.push(`${prefix}${indent(depth)}${escapeText(child.text)}`)
       : renderNode(child, depth, lines, prefix);
-  if (children.length > MAX_CHILDREN_PER_PARENT)
-    lines.push(
-      `${prefix}${indent(depth)}${renderChildrenTruncationNotice(children.slice(MAX_CHILDREN_PER_PARENT))}`,
-    );
 }
 function renderFoldedSingleChildChain(
   node: RenderedSnapshotNode,
@@ -825,89 +896,6 @@ function normalizedText(children: RenderedSnapshotChild[]): string {
       child.kind === "text" ? child.text : normalizedText(child.children),
     )
     .join(" ");
-}
-function previewForChildren(
-  children: RenderedSnapshotChild[],
-  excludedText: Set<string>,
-  maxChars: number,
-): string {
-  const labels: string[] = [];
-  const seen = new Set<string>();
-  const pushLabel = (value: string | null): void => {
-    const normalized = normalizeRawText(value ?? "");
-    if (
-      !normalized ||
-      normalized === "no visible text" ||
-      seen.has(normalized) ||
-      excludedText.has(normalized)
-    )
-      return;
-    seen.add(normalized);
-    labels.push(normalized);
-  };
-  const visit = (
-    child: RenderedSnapshotChild,
-    insideInteractive: boolean,
-  ): void => {
-    if (child.kind === "text") {
-      if (!insideInteractive) pushLabel(child.text);
-      return;
-    }
-    const nextInsideInteractive =
-      insideInteractive || ACTION_ROLES.has(child.role);
-    if (labels.join(" · ").length > maxChars) return;
-    for (const grandchild of child.children)
-      visit(grandchild, nextInsideInteractive);
-  };
-  for (const child of children) visit(child, false);
-  const preview = labels.join(" · ");
-  return preview ? truncate(preview, maxChars) : "";
-}
-function actionSummariesForChildren(children: RenderedSnapshotChild[]): {
-  actions: Array<{ markup: string; label: string | null }>;
-  labels: Set<string>;
-  hasMore: boolean;
-} {
-  const actions: Array<{ markup: string; label: string | null }> = [];
-  const labels = new Set<string>();
-  const seenRefs = new Set<string>();
-  let hasMore = false;
-  const visit = (child: RenderedSnapshotChild): void => {
-    if (child.kind === "text") return;
-    const ref = attrValue(child, "ref");
-    if (ref && ACTION_ROLES.has(child.role) && !seenRefs.has(ref)) {
-      seenRefs.add(ref);
-      const label = actionLabel(child);
-      if (label) labels.add(label);
-      if (actions.length < MAX_ACTIONS_IN_SUMMARY)
-        actions.push({ markup: renderActionSummary(child, ref), label });
-      else hasMore = true;
-    }
-    for (const grandchild of child.children) visit(grandchild);
-  };
-  for (const child of children) visit(child);
-  return { actions, labels, hasMore };
-}
-function renderActionSummary(node: RenderedSnapshotNode, ref: string): string {
-  const label = actionLabel(node);
-  const attrs: Array<[string, string]> = [["ref", ref]];
-  for (const [name, value] of node.attrs)
-    if (name !== "ref" && ACTION_STATE_ATTRS.has(name))
-      attrs.push([name, normalizeText(value, MAX_ACTION_LABEL_CHARS)]);
-  if (!label || !TEXT_ACTION_ROLES.has(node.role)) {
-    const name = attrValue(node, "name");
-    if (name) attrs.push(["name", normalizeText(name, MAX_ACTION_LABEL_CHARS)]);
-    return formatTag(node.role, attrs, false);
-  }
-  return `${formatTag(node.role, attrs, true)}${escapeText(normalizeText(label, MAX_ACTION_LABEL_CHARS))}</${node.role}>`;
-}
-function actionLabel(node: RenderedSnapshotNode): string | null {
-  return firstNonEmpty(
-    singleTextChild(node),
-    attrValue(node, "name"),
-    attrValue(node, "value"),
-    attrValue(node, "placeholder"),
-  );
 }
 function attrValue(node: RenderedSnapshotNode, name: string): string | null {
   return node.attrs.find(([attr]) => attr === name)?.[1] ?? null;
