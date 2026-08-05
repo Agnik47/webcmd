@@ -176,7 +176,7 @@ describe('webcmd skills content', () => {
       'utf8',
     );
     expect(usage).toMatch(/existing adapter command first[\s\S]{0,160}load `webcmd-browser` and run Playwright/i);
-    expect(browser).toMatch(/`tabs`, `bind --page`, `run`, and `close`/i);
+    expect(browser).toMatch(/`tabs`, `bind --page`, `snapshot`, `run`, and `close`/i);
     expect(browser).toContain('webcmd browser work tabs');
     expect(browser).toContain('webcmd browser work bind --page');
     expect(browser).toContain('webcmd browser work run --stdin');
@@ -187,8 +187,11 @@ describe('webcmd skills content', () => {
     expect(browser).toMatch(/persistent browser state/i);
     expect(browser).toContain("run --stdin <<'JS'");
     expect(browser).toContain("await page.getByRole('link', { name: 'More information' }).click()");
-    expect(browser).toContain('page.snapshotForAI()');
-    expect(browser).toContain('--snapshot-diff');
+    expect(browser).toContain('webcmd browser work snapshot');
+    expect(browser).toContain('--snapshot-mode act');
+    expect(browser).toContain('--no-snapshot-diff');
+    expect(browser).not.toContain('page.snapshotForAI()');
+    expect(browser).not.toContain('--snapshot-diff');
     expect(browserRunReference).toMatch(/sandbox boundaries/i);
     expect(browserRunReference).toMatch(/artifact paths/i);
     expect(browserRunReference).toMatch(/errors/i);

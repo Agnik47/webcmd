@@ -2,7 +2,7 @@
 
 ## Sandbox boundaries
 
-`run` evaluates the supplied JavaScript in a fresh sandbox. Browser state in the bound session persists, but JavaScript variables and handles do not. `page`, `context`, and `browser` are normal Playwright globals; use the vendored Playwright client as the API reference. Return only JSON-compatible data.
+`run` evaluates the supplied JavaScript in a fresh sandbox. Browser state in the bound session persists, but JavaScript variables and handles do not. `page`, `context`, `browser`, and `console` are normal Playwright globals; use the vendored Playwright client as the API reference. Return only JSON-compatible data. `page.snapshotForAI()` is not available.
 
 ## Artifact paths
 
@@ -14,7 +14,7 @@ Artifacts written by Playwright must use a relative logical filename. Webcmd ret
 
 ## Snapshot behavior
 
-`page.snapshotForAI()` returns the current semantic snapshot inside a program. `--snapshot-diff` asks Webcmd to capture bounded before/after snapshots; a failed post-run snapshot becomes a warning, not a successful result change.
+Use `webcmd browser <session> snapshot --snapshot-mode act` to inspect the current page, or `--snapshot-mode read` for content-heavy extraction. Successful runs return `snapshotDiff` automatically. Pass `--no-snapshot-diff` only for pure read-only code when its result already contains the needed state. A failed post-run snapshot becomes a warning, not a successful result change.
 
 ## Timing
 

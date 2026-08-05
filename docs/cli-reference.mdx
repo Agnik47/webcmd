@@ -61,22 +61,27 @@ The old `web read` command has been renamed to `web fetch-browser`.
 existing local CloakBrowser session:
 
 ```bash
-webcmd browser work run --file explore.js
-webcmd browser work run --stdin --timeout 45 --snapshot-diff
+webcmd browser work snapshot --snapshot-mode act
+webcmd browser work snapshot --snapshot-mode read
+webcmd browser work run --stdin --timeout 45
+webcmd browser work run --stdin --no-snapshot-diff
 ```
 
-Exactly one of `--file <path>` or `--stdin` is required. The CLI reads files
-locally and sends source—not the path—to the local daemon. `--timeout` is in
-seconds, `--max-output` bounds returned results and logs, `--snapshot-diff`
-returns a structural before/after diff for that run, and `--tab <page-id>`
-targets an existing tab.
+Use `snapshot` for explicit page inspection. `act` is the default
+action-first mode; `read` preserves more content text. Exactly one of `--file
+<path>` or `--stdin` is required for `run`. The CLI reads files locally and
+sends source—not the path—to the local daemon. `--timeout` is in seconds and
+`--max-output` bounds returned results and logs. Successful runs return a
+`snapshotDiff` by default; pass `--no-snapshot-diff` only when the program is
+pure read-only and its result already contains the needed state.
 
-The program runs in a fresh QuickJS sandbox. It can obtain the selected page
-with `await browser.currentPage()`, use the supported Page/Frame/Locator
-methods, and passively inspect request and response events. It cannot access
-Node.js, the filesystem, environment variables, raw CDP endpoints, browser
-launch/connect APIs, or browser-context ownership. Screenshot bytes are
-written to a Webcmd-owned cache directory and returned as a receipt.
+The program runs in a fresh QuickJS sandbox with `page`, `context`, `browser`,
+and `console` globals. `page.snapshotForAI()` is not available. It can use the
+supported Page/Frame/Locator methods and passively inspect request and response
+events. It cannot access Node.js, the filesystem, environment variables, raw
+CDP endpoints, browser launch/connect APIs, or browser-context ownership.
+Screenshot bytes are written to a Webcmd-owned cache directory and returned as
+a receipt.
 
 This command is currently local-only. Existing primitive browser commands are
 unchanged, and reusable adapters continue to use the existing `IPage` API.

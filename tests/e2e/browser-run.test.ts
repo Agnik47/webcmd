@@ -96,12 +96,11 @@ describe('browser run local lifecycle', () => {
     const env = { WEBCMD_CACHE_DIR: cacheDir };
     const session = 'browser-run-lifecycle';
 
-    const first = await runCliWithStdin(['browser', session, 'run', '--stdin', '--snapshot-diff'], `
+    const first = await runCliWithStdin(['browser', session, 'run', '--stdin'], `
       globalThis.onlyThisRun = 'gone';
       await page.goto(${JSON.stringify(fixture.url)});
       await page.locator('#name').fill('Ada');
       await page.locator('#save').click();
-      const snapshot = await page.snapshotForAI();
       const popupPromise = context.waitForEvent('page');
       await page.locator('#popup').click();
       const popup = await popupPromise;
@@ -112,7 +111,6 @@ describe('browser run local lifecycle', () => {
       await page.screenshot({ path: 'lifecycle.png' });
       return {
         saved: await page.locator('#status').innerText(),
-        snapshotHasStatus: snapshot.includes('Ada'),
         popupTitle: await popup.title(),
         download: download.suggestedFilename(),
       };
@@ -123,7 +121,6 @@ describe('browser run local lifecycle', () => {
     expect(firstData).toMatchObject({
       result: {
         saved: 'Ada',
-        snapshotHasStatus: true,
         popupTitle: 'Popup receipt',
         download: 'receipt.txt',
       },
@@ -131,16 +128,22 @@ describe('browser run local lifecycle', () => {
     });
     expect(firstData.snapshotDiff).toContain('Ada');
 
-    const second = await runCliWithStdin(['browser', session, 'run', '--stdin'], `
+    const snapshot = await runCliWithStdin(['browser', session, 'snapshot', '--snapshot-mode', 'act'], '', env);
+    expect(snapshot.code).toBe(0);
+    expect(snapshot.stdout).toContain('Ada');
+
+    const second = await runCliWithStdin(['browser', session, 'run', '--stdin', '--no-snapshot-diff'], `
       return {
         saved: await page.locator('#status').innerText(),
         variable: typeof globalThis.onlyThisRun,
       };
     `, env);
     expect(second.code).toBe(0);
-    expect(parseJsonOutput(second.stdout)).toMatchObject({
+    const secondData = parseJsonOutput(second.stdout);
+    expect(secondData).toMatchObject({
       result: { saved: 'Ada', variable: 'undefined' },
     });
+    expect(secondData).not.toHaveProperty('snapshotDiff');
 
     const tabs = await runCliWithStdin(['browser', session, 'tabs'], '', env);
     expect(tabs.code).toBe(0);

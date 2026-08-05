@@ -44,9 +44,14 @@ const response = await responsePromise;
 return {
   url: page.url(),
   endpoint: { url: response.url(), status: response.status() },
-  snapshot: await page.snapshotForAI(),
 };
 JS
+```
+
+Then inspect the current page when a snapshot is needed:
+
+```bash
+webcmd browser recon snapshot --snapshot-mode read
 ```
 
 Use the snapshot and any response evidence collected in the run to classify the site:
