@@ -347,14 +347,6 @@ function formatTag(
   return hasChildren ? `<${tagName}${attrs}>` : `<${tagName}${attrs} />`;
 }
 
-// Kept only until snapshot diff rendering adopts structured markers in Task 5.
-export function renderChildrenTruncationNotice(
-  children: RenderedSnapshotChild[],
-): string {
-  const count = children.length;
-  return `[Truncated ${count} more ${count === 1 ? "element" : "elements"}]`;
-}
-
 function toRenderedFrame(
   frame: AiSnapshotFrame,
   mode: SnapshotTreeMode,

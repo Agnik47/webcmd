@@ -4,7 +4,7 @@ import {
   captureSnapshot,
   boundSnapshotText,
   MemorySnapshotBaselineStore,
-  renderSnapshot,
+  renderSnapshotResult,
   type SnapshotBaselineStore,
 } from '../../snapshot/index.js';
 import { redactText, redactUrl } from '../../../observation/redaction.js';
@@ -269,14 +269,17 @@ export async function dispatchCloakAction(manager: CloakSessionManager, command:
           };
         }
         const snapshot = await captureSnapshot(lease.page);
-        const tree = renderSnapshot(snapshot, {
+        const rendered = renderSnapshotResult(snapshot, {
           mode: command.snapshotMode === 'tree' ? 'tree' : 'act',
           ref: command.ref,
+          maxChars: command.maxOutputChars,
         });
-        const redacted = redactUrl(redactText(tree, { maxStringLength: Number.MAX_SAFE_INTEGER }));
+        const redacted = redactUrl(redactText(rendered.value, { maxStringLength: Number.MAX_SAFE_INTEGER }));
         const bounded = Number.isFinite(command.maxOutputChars)
           ? boundSnapshotText(redacted, command.maxOutputChars!)
           : { value: redacted, truncated: false };
+        const warnings = [...rendered.warnings];
+        if (bounded.truncated) warnings.push('Snapshot output was truncated after redaction.');
         snapshotBaselineStore(manager).set(lease.pageId, snapshot);
         return {
           id: command.id,
@@ -289,8 +292,8 @@ export async function dispatchCloakAction(manager: CloakSessionManager, command:
               url: redactUrl(lease.page.url()),
               title: redactText(await lease.page.title().catch(() => '')),
             },
-            warnings: [],
-            limits: { snapshotTruncated: bounded.truncated },
+            warnings,
+            limits: { snapshotTruncated: rendered.truncated || bounded.truncated },
           },
           page: lease.pageId,
         };

@@ -97,6 +97,7 @@ export type RenderedSnapshotChild = RenderedSnapshotNode | SnapshotTextNode;
 export type RenderedSnapshotFrame =
   | {
       status: 'ok';
+      scope: 'document' | 'modal';
       id: string;
       index: number;
       url: string;

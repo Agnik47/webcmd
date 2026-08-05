@@ -76,6 +76,25 @@ describe('local Cloak browser run', () => {
     expect(tree).toContain('>Next</link>');
   });
 
+  it('propagates critical omission warnings from explicit structural snapshots', async () => {
+    await initialPage.setContent(`<main>${Array.from({ length: 20 }, (_, index) =>
+      `<input aria-label="Critical ${index + 1}" aria-invalid="true">`).join('')}</main>`);
+    await manager.getPage({ profileId: 'default', session: 'work', surface: 'browser' });
+
+    const result = await dispatchCloakAction(manager, command('snapshot-critical', 'snapshot', {
+      maxOutputChars: 220,
+    }));
+
+    expect(result).toMatchObject({
+      ok: true,
+      data: {
+        warnings: [expect.stringMatching(/inspect.*ref/i)],
+        limits: { snapshotTruncated: true },
+      },
+    });
+    expect((result.data as { tree: string }).tree.length).toBeLessThanOrEqual(220);
+  });
+
   it('returns readable markdown for read snapshots', async () => {
     await initialPage.setContent(`
       <main>

@@ -532,13 +532,18 @@ export async function runBrowserProgram(
         baselineStore.set(input.pageId, afterSnapshot);
         const rendered = renderSnapshotDiff(
           diffSnapshots(beforeSnapshot, afterSnapshot, snapshotMode),
-        ).value;
+          maxOutputChars,
+        );
         const bounded = boundSnapshotText(
-          redactUrl(redactText(rendered, { maxStringLength: Number.MAX_SAFE_INTEGER })),
+          redactUrl(redactText(rendered.value, { maxStringLength: Number.MAX_SAFE_INTEGER })),
           maxOutputChars,
         );
         savedSnapshotDiff = bounded.value;
-        snapshotTruncated ||= bounded.truncated;
+        snapshotTruncated ||= rendered.truncated || bounded.truncated;
+        if (rendered.criticalOmitted) warnings.push({
+          code: 'BROWSER_RUN_CRITICAL_SNAPSHOT_OMITTED',
+          message: rendered.warnings[0]!,
+        });
       } catch (snapshotError) {
         baselineStore.clear(input.pageId);
         warnings.push({

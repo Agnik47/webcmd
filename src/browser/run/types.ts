@@ -36,7 +36,10 @@ export interface BrowserRunArtifactSink {
 }
 
 export interface BrowserRunWarning {
-  code: 'BROWSER_RUN_SIDE_EFFECTS_MAY_HAVE_OCCURRED' | 'BROWSER_RUN_SNAPSHOT_FAILED';
+  code:
+    | 'BROWSER_RUN_SIDE_EFFECTS_MAY_HAVE_OCCURRED'
+    | 'BROWSER_RUN_SNAPSHOT_FAILED'
+    | 'BROWSER_RUN_CRITICAL_SNAPSHOT_OMITTED';
   message: string;
 }
 

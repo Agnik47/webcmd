@@ -106,6 +106,21 @@ describe('runBrowserProgram', () => {
     expect(output.limits.snapshotTruncated).toBe(true);
   });
 
+  it('warns when a structural diff omits critical snapshot content', async () => {
+    const controls = Array.from({ length: 20 }, (_, index) =>
+      `<input aria-label="Critical ${index + 1}" aria-invalid="true">`).join('');
+    const output = await run(`
+      await page.setContent(${JSON.stringify(`<main>${controls}</main>`)});
+      return null;
+    `, { maxOutputChars: 220 });
+
+    expect(output.limits.snapshotTruncated).toBe(true);
+    expect(output.warnings).toContainEqual(expect.objectContaining({
+      code: 'BROWSER_RUN_CRITICAL_SNAPSHOT_OMITTED',
+      message: expect.stringMatching(/inspect.*ref/i),
+    }));
+  });
+
   it('does not execute the program when the pre-snapshot fails', async () => {
     context.newCDPSession = (() => Promise.reject(new Error('pre snapshot failed'))) as BrowserContext['newCDPSession'];
 

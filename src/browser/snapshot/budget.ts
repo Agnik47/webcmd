@@ -64,7 +64,7 @@ export function allocateSnapshot(
     for (const candidate of buckets[priority]!)
       trySelect(
         candidate,
-        priority <= 2 ? "identity" : "full",
+        preferredRepresentation(candidate.node),
         allocation,
         maxChars,
       );
@@ -321,7 +321,7 @@ function trySelectComplete(
   const projected = cloneSummaries(allocation.omittedByScope);
   let contentChars = state.contentChars;
   for (const candidate of candidates) {
-    const representation = candidate.node.priority <= 2 ? "identity" : "full";
+    const representation = preferredRepresentation(candidate.node);
     contentChars += representationCostFor(candidate.node, representation, candidate.depth);
     const scope = state.scopeByNode.get(candidate.node);
     const summary = scope ? projected.get(scope) : undefined;
@@ -335,12 +335,19 @@ function trySelectComplete(
   for (const candidate of candidates)
     select(
       candidate.node,
-      candidate.node.priority <= 2 ? "identity" : "full",
+      preferredRepresentation(candidate.node),
       allocation,
       state,
     );
   state.contentChars = contentChars;
   return true;
+}
+
+function preferredRepresentation(node: RenderedSnapshotNode): SnapshotRepresentation {
+  let childChanges = 0;
+  for (const child of node.children)
+    if (child.kind === "node") childChanges += child.summary.changed;
+  return node.summary.changed > childChanges || node.priority > 2 ? "full" : "identity";
 }
 
 function projectedMarkerChars(

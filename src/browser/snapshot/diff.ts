@@ -5,21 +5,27 @@
 
 import {
   boundSnapshotText,
-  renderChildrenTruncationNotice,
-  renderFrame,
-  renderNode,
+  renderSnapshotResult,
   renderSnapshotFrames,
 } from './render.js';
+import {
+  allocateSnapshot,
+  renderSnapshotMarker,
+  snapshotIdentityAttrs,
+  snapshotIdentityLabel,
+  type SnapshotAllocation,
+  type SnapshotRepresentation,
+} from './budget.js';
 import type {
   AiSnapshot,
-  BoundedSnapshotText,
   RenderedSnapshotChild,
   RenderedSnapshotFrame,
   RenderedSnapshotNode,
+  SnapshotRenderResult,
+  SnapshotSubtreeSummary,
   SnapshotTreeMode,
 } from './types.js';
 
-const MAX_DIFF_CHILDREN_PER_PARENT = 4;
 const MAX_LABEL_CHARS = 140;
 const LOW_SIGNAL_DIFF_ATTRS = new Set(['ref']);
 
@@ -28,10 +34,12 @@ export type SnapshotDiff = {
   after: AiSnapshot;
   changed: boolean;
   pageChanged: boolean;
+  mode: SnapshotTreeMode;
   frames: SnapshotFrameDiff[];
 };
 
 type SnapshotFrameDiff =
+  | { type: 'scope-change'; beforeScope: 'document' | 'modal'; frame: RenderedSnapshotFrame }
   | { type: 'context'; frame: RenderedSnapshotFrame; children: SnapshotDiffChild[] }
   | { type: 'modified'; before: RenderedSnapshotFrame; after: RenderedSnapshotFrame }
   | { type: 'added'; frame: RenderedSnapshotFrame }
@@ -61,24 +69,97 @@ export function diffSnapshots(
   const afterFrames = renderSnapshotFrames(after, mode);
   const pageChanged = before.title !== after.title || before.url !== after.url;
   const frames = diffFrames(beforeFrames, afterFrames);
-  return { before, after, pageChanged, frames, changed: pageChanged || frames.length > 0 };
+  return { before, after, mode, pageChanged, frames, changed: pageChanged || frames.length > 0 };
 }
 
 export function renderSnapshotDiff(
   diff: SnapshotDiff,
   maxChars?: number,
-): BoundedSnapshotText {
-  if (!diff.changed) return { value: '', truncated: false };
+): SnapshotRenderResult {
+  if (!diff.changed) return emptyRenderResult('');
+
+  const scopeChanges = diff.frames.filter(
+    (frame): frame is Extract<SnapshotFrameDiff, { type: 'scope-change' }> => frame.type === 'scope-change',
+  );
+  if (scopeChanges.length) {
+    const frameIds = new Set(scopeChanges.map(({ frame }) => frame.id));
+    const activeSnapshot = {
+      ...diff.after,
+      frames: diff.after.frames.filter((frame) => frameIds.has(frame.id)),
+    };
+    const scopes = scopeChanges.map(({ frame }) => frame.status === 'ok' ? frame.scope : 'document');
+    const scopeChars = scopes.reduce((total, scope) => total + ` scope="${scope}"`.length, 0);
+    const renderMaxChars = Number.isFinite(maxChars)
+      ? Math.max(0, Math.floor(maxChars!) - scopeChars)
+      : maxChars;
+    const rendered = renderSnapshotResult(activeSnapshot, { mode: diff.mode, maxChars: renderMaxChars });
+    let frameIndex = 0;
+    const value = rendered.value.replace(/<frame /g, () =>
+      `<frame scope="${scopes[frameIndex++]!}" `);
+    const bounded = Number.isFinite(maxChars)
+      ? boundSnapshotText(value, maxChars!)
+      : { value, truncated: false };
+    return { ...rendered, value: bounded.value, truncated: rendered.truncated || bounded.truncated };
+  }
 
   const value = diff.pageChanged && diff.frames.length === 0
     ? [renderPageOpen(diff.before, '- ', true), renderPageOpen(diff.after, '+ ', true)].join('\n')
-    : renderDiffPage(diff);
-  return Number.isFinite(maxChars) ? boundSnapshotText(value, maxChars!) : { value, truncated: false };
+    : null;
+  if (value !== null) return boundedRenderResult(value, maxChars);
+
+  const budgeted = budgetDiffFrames(diff.frames);
+  const limit = Number.isFinite(maxChars)
+    ? Math.max(0, Math.floor(maxChars!))
+    : Number.MAX_SAFE_INTEGER;
+  const allocation = allocateSnapshot(
+    budgeted.frames,
+    limit,
+    diffEnvelopeChars(diff.after, budgeted) + diffSyntaxReserve(budgeted),
+  );
+  const rendered = renderDiffPage(diff, budgeted, allocation);
+  const bounded = rendered.length > limit
+    ? boundSnapshotText(rendered, limit)
+    : { value: rendered, truncated: false };
+  const criticalOmitted = allocation.criticalOmitted || (bounded.truncated ? 1 : 0);
+  return {
+    value: bounded.value,
+    truncated: allocation.truncated || bounded.truncated,
+    criticalOmitted,
+    warnings: criticalOmitted
+      ? [allocation.criticalOmitted
+          ? 'Critical snapshot content was omitted; inspect the nearest [more ref=...] scope.'
+          : 'Critical snapshot content was omitted while enforcing the output ceiling.']
+      : [],
+  };
 }
 
-function renderDiffPage(diff: SnapshotDiff): string {
+type BudgetedDiff = {
+  frames: RenderedSnapshotFrame[];
+  frameDiffs: Map<RenderedSnapshotFrame, SnapshotFrameDiff>;
+  nodeDiffs: Map<RenderedSnapshotNode, SnapshotNodeDiff>;
+  textDiffs: Map<TextNode, SnapshotTextDiff>;
+};
+
+function emptyRenderResult(value: string): SnapshotRenderResult {
+  return { value, truncated: false, criticalOmitted: 0, warnings: [] };
+}
+
+function boundedRenderResult(value: string, maxChars?: number): SnapshotRenderResult {
+  const bounded = Number.isFinite(maxChars)
+    ? boundSnapshotText(value, maxChars!)
+    : { value, truncated: false };
+  return { ...bounded, criticalOmitted: 0, warnings: [] };
+}
+
+function renderDiffPage(
+  diff: SnapshotDiff,
+  budgeted: BudgetedDiff,
+  allocation: SnapshotAllocation,
+): string {
   const lines = [renderPageOpen(diff.after, '')];
-  for (const frameDiff of diff.frames) renderFrameDiff(frameDiff, 1, lines);
+  const renderedMarkers = new Set<string>();
+  for (const frame of budgeted.frames)
+    renderBudgetedFrame(frame, budgeted, allocation, renderedMarkers, 1, lines);
   lines.push('</page>');
   return lines.join('\n');
 }
@@ -92,11 +173,18 @@ function diffFrames(beforeFrames: RenderedSnapshotFrame[], afterFrames: Rendered
     if (before && !after) diffs.push({ type: 'removed', frame: before });
     else if (!before && after) diffs.push({ type: 'added', frame: after });
     else if (before && after) {
+      if (before.status === 'ok' && after.status === 'ok' && before.scope !== after.scope) {
+        diffs.push({ type: 'scope-change', beforeScope: before.scope, frame: after });
+        continue;
+      }
       const diff = diffFrame(before, after);
       if (diff) diffs.push(diff);
     }
   }
-  return diffs;
+  const scopeChanges = diffs.filter(
+    (diff): diff is Extract<SnapshotFrameDiff, { type: 'scope-change' }> => diff.type === 'scope-change',
+  );
+  return scopeChanges.length ? scopeChanges : diffs;
 }
 
 function diffFrame(before: RenderedSnapshotFrame, after: RenderedSnapshotFrame): SnapshotFrameDiff | null {
@@ -167,7 +255,7 @@ function diffChild(before: RenderedSnapshotChild, after: RenderedSnapshotChild):
   const selfChanged = comparableNode(before) !== comparableNode(after);
   const directTextChanged = children.some((child) => child.kind === 'text');
   if (!selfChanged && children.length === 0) return null;
-  return selfChanged || (sameRef(before, after) && directTextChanged)
+  return selfChanged || directTextChanged
     ? { kind: 'node', type: 'modified', before, after, children }
     : { kind: 'node', type: 'context', node: after, children };
 }
@@ -184,76 +272,308 @@ function arePositionallySimilarChildren(before: RenderedSnapshotChild, after: Re
   return before.kind === 'node' && after.kind === 'node' && (before.key === after.key || before.role === after.role);
 }
 
-function renderFrameDiff(diff: SnapshotFrameDiff, depth: number, lines: string[]): void {
-  if (diff.type === 'added') renderFrame(diff.frame, depth, lines, '+ ');
-  else if (diff.type === 'removed') renderFrame(diff.frame, depth, lines, '- ');
-  else if (diff.type === 'modified') {
-    renderFrame(diff.before, depth, lines, '- ');
-    renderFrame(diff.after, depth, lines, '+ ');
-  } else if (diff.frame.status === 'ok') {
-    lines.push(renderFrameLine(diff.frame, depth, '', false));
-    if (diff.frame.roots.length > diff.children.length && diff.children.length > 0) lines.push(`${indent(depth + 1)}...`);
-    renderChildDiffs(diff.children, depth + 1, lines);
-    lines.push(`${indent(depth)}</frame>`);
+function budgetDiffFrames(diffs: SnapshotFrameDiff[]): BudgetedDiff {
+  const budgeted: BudgetedDiff = {
+    frames: [],
+    frameDiffs: new Map(),
+    nodeDiffs: new Map(),
+    textDiffs: new Map(),
+  };
+  for (const diff of diffs) {
+    if (diff.type === 'scope-change') continue;
+    const source = diff.type === 'modified' ? diff.after : diff.frame;
+    if (source.status === 'unavailable') {
+      budgeted.frames.push(source);
+      budgeted.frameDiffs.set(source, diff);
+      continue;
+    }
+    const roots = diff.type === 'context'
+      ? diff.children.flatMap((child) => cloneDiffChild(child, budgeted)).filter(isRenderedNode)
+      : diff.type === 'modified'
+        ? []
+        : source.roots.map((root) => cloneWholeNode(root, diff.type, budgeted));
+    const frame = { ...source, roots };
+    budgeted.frames.push(frame);
+    budgeted.frameDiffs.set(frame, diff);
   }
+  return budgeted;
 }
 
-function renderChildDiffs(diffs: SnapshotDiffChild[], depth: number, lines: string[]): void {
-  for (const diff of diffs.slice(0, MAX_DIFF_CHILDREN_PER_PARENT)) renderChildDiff(diff, depth, lines);
-  if (diffs.length > MAX_DIFF_CHILDREN_PER_PARENT) {
-    const truncated = diffs.slice(MAX_DIFF_CHILDREN_PER_PARENT);
-    lines.push(`${diffPrefixForSummary(truncated)}${indent(depth)}${renderChildrenTruncationNotice(diffSummaryChildren(truncated))}`);
-  }
-}
-
-function renderChildDiff(diff: SnapshotDiffChild, depth: number, lines: string[]): void {
+function cloneDiffChild(diff: SnapshotDiffChild, budgeted: BudgetedDiff): RenderedSnapshotChild[] {
   if (diff.kind === 'text') {
-    if (diff.type === 'added') lines.push(renderTextNode(diff.node, depth, '+ '));
-    else if (diff.type === 'removed') lines.push(renderTextNode(diff.node, depth, '- '));
-    else {
-      lines.push(renderTextNode(diff.before, depth, '- '));
-      lines.push(renderTextNode(diff.after, depth, '+ '));
-    }
-  } else renderNodeDiff(diff, depth, lines);
+    const source = diff.type === 'removed' ? diff.node : diff.type === 'added' ? diff.node : diff.after;
+    const text = { ...source };
+    budgeted.textDiffs.set(text, diff);
+    return [text];
+  }
+  const source = diff.type === 'modified' ? diff.after : diff.node;
+  let children = diff.type === 'added' || diff.type === 'removed'
+    ? source.children.map((child) => cloneWholeChild(child, diff.type, budgeted))
+    : diff.children.flatMap((child) => cloneDiffChild(child, budgeted));
+  if (diff.type === 'modified' && !diff.children.some((child) => child.kind === 'text'))
+    children = [...source.children.filter((child) => child.kind === 'text').map((child) => ({ ...child })), ...children];
+  const node = cloneNode(source, children, diff.type !== 'context');
+  budgeted.nodeDiffs.set(node, diff);
+  return [node];
 }
 
-function renderNodeDiff(diff: SnapshotNodeDiff, depth: number, lines: string[]): void {
-  if (diff.type === 'added') renderNode(diff.node, depth, lines, '+ ');
-  else if (diff.type === 'removed') renderRemovedNode(diff.node, depth, lines);
-  else if (diff.type === 'modified') {
-    if (sameRef(diff.before, diff.after)) renderModifiedSameRefNode(diff, depth, lines);
-    else {
-      renderRemovedNode(diff.before, depth, lines);
-      renderNode(diff.after, depth, lines, '+ ');
+function cloneWholeChild(
+  child: RenderedSnapshotChild,
+  type: 'added' | 'removed',
+  budgeted: BudgetedDiff,
+): RenderedSnapshotChild {
+  if (child.kind === 'node') return cloneWholeNode(child, type, budgeted);
+  const text = { ...child };
+  budgeted.textDiffs.set(text, { kind: 'text', type, node: child });
+  return text;
+}
+
+function cloneWholeNode(
+  source: RenderedSnapshotNode,
+  type: 'added' | 'removed',
+  budgeted: BudgetedDiff,
+): RenderedSnapshotNode {
+  const children = source.children.map((child) => cloneWholeChild(child, type, budgeted));
+  const node = cloneNode(source, children, true);
+  budgeted.nodeDiffs.set(node, { kind: 'node', type, node: source });
+  return node;
+}
+
+function cloneNode(
+  source: RenderedSnapshotNode,
+  children: RenderedSnapshotChild[],
+  changed: boolean,
+): RenderedSnapshotNode {
+  const priority = changed ? 0 : source.priority;
+  return {
+    ...source,
+    children,
+    priority,
+    summary: summarizeDiffNode(source, children, priority, changed),
+  };
+}
+
+function summarizeDiffNode(
+  source: RenderedSnapshotNode,
+  children: RenderedSnapshotChild[],
+  priority: RenderedSnapshotNode['priority'],
+  changed: boolean,
+): SnapshotSubtreeSummary {
+  const sourceChildSummary = sumNodeSummaries(source.children);
+  const summary: SnapshotSubtreeSummary = {
+    nodes: 1,
+    actions: Math.max(0, source.summary.actions - sourceChildSummary.actions),
+    records: source.record ? 1 : 0,
+    textChars: 0,
+    changed: changed ? 1 : 0,
+    critical: priority === 0 ? 1 : 0,
+  };
+  for (const child of children) {
+    if (child.kind === 'text') summary.textChars += child.text.length;
+    else addSummary(summary, child.summary);
+  }
+  return summary;
+}
+
+function sumNodeSummaries(children: RenderedSnapshotChild[]): SnapshotSubtreeSummary {
+  const summary = emptySummary();
+  for (const child of children) if (child.kind === 'node') addSummary(summary, child.summary);
+  return summary;
+}
+
+function addSummary(target: SnapshotSubtreeSummary, source: SnapshotSubtreeSummary): void {
+  target.nodes += source.nodes;
+  target.actions += source.actions;
+  target.records += source.records;
+  target.textChars += source.textChars;
+  target.changed += source.changed;
+  target.critical += source.critical;
+}
+
+function emptySummary(): SnapshotSubtreeSummary {
+  return { nodes: 0, actions: 0, records: 0, textChars: 0, changed: 0, critical: 0 };
+}
+
+function isRenderedNode(child: RenderedSnapshotChild): child is RenderedSnapshotNode {
+  return child.kind === 'node';
+}
+
+function diffEnvelopeChars(snapshot: AiSnapshot, budgeted: BudgetedDiff): number {
+  const lines = [renderPageOpen(snapshot, '')];
+  for (const frame of budgeted.frames) {
+    const diff = budgeted.frameDiffs.get(frame)!;
+    if (diff.type === 'modified') {
+      lines.push(renderFrameLine(diff.before, 1, '- ', true));
+      lines.push(renderFrameLine(diff.after, 1, '+ ', true));
+    } else {
+      const prefix = diff.type === 'added' ? '+ ' : diff.type === 'removed' ? '- ' : '';
+      lines.push(renderFrameLine(frame, 1, prefix, frame.status === 'unavailable'));
+      if (frame.status === 'ok') lines.push(`${prefix}${indent(1)}</frame>`);
     }
-  } else if (diff.node.children.length === 0) lines.push(`${indent(depth)}${formatTag(diff.node.role, diff.node.attrs, false)}`);
+  }
+  lines.push('</page>');
+  return lines.join('\n').length;
+}
+
+function diffSyntaxReserve(budgeted: BudgetedDiff): number {
+  let chars = 0;
+  const visit = (node: RenderedSnapshotNode, depth: number): void => {
+    const diff = budgeted.nodeDiffs.get(node)!;
+    const compact = singleTextChild(node) !== null;
+    if (diff.type !== 'context' && !compact) chars += 4;
+    if (diff.type === 'modified' && !sameRef(diff.before, diff.after))
+      chars += renderRemovedNodeLine(diff.before, depth).length + 1;
+    if (!compact)
+      for (const child of node.children) {
+        if (child.kind === 'node') continue;
+        const textDiff = budgeted.textDiffs.get(child);
+        chars += textDiff?.type === 'modified'
+          ? renderTextNode(textDiff.before, depth + 1, '- ').length + 3
+          : diff.type === 'context' && !textDiff ? 0 : 2;
+      }
+    for (const child of node.children)
+      if (child.kind === 'node') visit(child, depth + 1);
+  };
+  for (const frame of budgeted.frames)
+    if (frame.status === 'ok')
+      for (const root of frame.roots) visit(root, 2);
+  return chars;
+}
+
+function renderBudgetedFrame(
+  frame: RenderedSnapshotFrame,
+  budgeted: BudgetedDiff,
+  allocation: SnapshotAllocation,
+  renderedMarkers: Set<string>,
+  depth: number,
+  lines: string[],
+): void {
+  const diff = budgeted.frameDiffs.get(frame)!;
+  if (diff.type === 'modified') {
+    lines.push(renderFrameLine(diff.before, depth, '- ', true));
+    lines.push(renderFrameLine(diff.after, depth, '+ ', true));
+    return;
+  }
+  const prefix = diff.type === 'added' ? '+ ' : diff.type === 'removed' ? '- ' : '';
+  lines.push(renderFrameLine(frame, depth, prefix, frame.status === 'unavailable'));
+  if (frame.status === 'unavailable') return;
+  for (const root of frame.roots)
+    renderBudgetedNode(root, budgeted, allocation, renderedMarkers, depth + 1, lines);
+  lines.push(`${prefix}${indent(depth)}</frame>`);
+}
+
+function renderBudgetedNode(
+  node: RenderedSnapshotNode,
+  budgeted: BudgetedDiff,
+  allocation: SnapshotAllocation,
+  renderedMarkers: Set<string>,
+  depth: number,
+  lines: string[],
+): void {
+  const representation = allocation.selected.get(node);
+  if (!representation) {
+    renderBudgetMarker(node.scopeRef, depth, lines, allocation, renderedMarkers);
+    for (const child of node.children)
+      if (child.kind === 'node')
+        renderBudgetedNode(child, budgeted, allocation, renderedMarkers, depth, lines);
+    return;
+  }
+  const diff = budgeted.nodeDiffs.get(node)!;
+  if (diff.type === 'modified' && !sameRef(diff.before, diff.after)) {
+    renderRemovedNode(diff.before, depth, lines);
+    renderBudgetedNodeValue(node, '+ ', representation, budgeted, allocation, renderedMarkers, depth, lines);
+    return;
+  }
+  renderBudgetedNodeValue(
+    node,
+    diff.type === 'added' ? '+ ' : diff.type === 'removed' ? '- ' : diff.type === 'modified' ? '~ ' : '',
+    representation,
+    budgeted,
+    allocation,
+    renderedMarkers,
+    depth,
+    lines,
+  );
+}
+
+function renderBudgetedNodeValue(
+  node: RenderedSnapshotNode,
+  prefix: string,
+  representation: SnapshotRepresentation,
+  budgeted: BudgetedDiff,
+  allocation: SnapshotAllocation,
+  renderedMarkers: Set<string>,
+  depth: number,
+  lines: string[],
+): void {
+  const attrs = representation === 'identity' ? snapshotIdentityAttrs(node) : node.attrs;
+  const identityLabel = representation === 'identity' ? snapshotIdentityLabel(node) : null;
+  const singleText = representation === 'full' ? singleTextChild(node) : null;
+  const hasSelectedNodeChild = node.children.some((child) => child.kind === 'node' && allocation.selected.has(child));
+  const hasMarker = node.scopeRef ? hasOmittedSummary(allocation.omittedByScope.get(node.scopeRef)) : false;
+  const label = identityLabel ?? singleText;
+  if (label !== null && !hasSelectedNodeChild && !hasMarker) {
+    lines.push(`${prefix}${indent(depth)}${formatTag(node.role, attrs, true)}${escapeText(label)}</${node.role}>`);
+    return;
+  }
+  lines.push(`${prefix}${indent(depth)}${formatTag(node.role, attrs, true)}`);
+  if (identityLabel) lines.push(`${prefix}${indent(depth + 1)}${escapeText(identityLabel)}`);
+  for (const child of node.children) {
+    if (child.kind === 'node')
+      renderBudgetedNode(child, budgeted, allocation, renderedMarkers, depth + 1, lines);
+    else if (representation === 'full') renderBudgetedText(child, budgeted, depth + 1, lines, prefix);
+  }
+  renderBudgetMarker(node.scopeRef, depth + 1, lines, allocation, renderedMarkers);
+  lines.push(`${prefix}${indent(depth)}</${node.role}>`);
+}
+
+function renderBudgetedText(
+  node: TextNode,
+  budgeted: BudgetedDiff,
+  depth: number,
+  lines: string[],
+  inheritedPrefix: string,
+): void {
+  const diff = budgeted.textDiffs.get(node);
+  if (!diff || diff.type === 'added') lines.push(renderTextNode(node, depth, diff ? '+ ' : inheritedPrefix));
+  else if (diff.type === 'removed') lines.push(renderTextNode(node, depth, '- '));
   else {
-    lines.push(`${indent(depth)}${formatTag(diff.node.role, diff.node.attrs, true)}`);
-    if (diff.node.children.length > diff.children.length) lines.push(`${indent(depth + 1)}...`);
-    renderChildDiffs(diff.children, depth + 1, lines);
-    lines.push(`${indent(depth)}</${diff.node.role}>`);
+    lines.push(renderTextNode(diff.before, depth, '- '));
+    lines.push(renderTextNode(diff.after, depth, '+ '));
   }
 }
 
-function renderModifiedSameRefNode(diff: Extract<SnapshotNodeDiff, { type: 'modified' }>, depth: number, lines: string[]): void {
-  if (diff.children.length === 0 || singleTextChild(diff.after) !== null) renderNode(diff.after, depth, lines, '~ ');
-  else if (diff.after.children.length === 0) lines.push(`~ ${indent(depth)}${formatTag(diff.after.role, diff.after.attrs, false)}`);
-  else {
-    lines.push(`~ ${indent(depth)}${formatTag(diff.after.role, diff.after.attrs, true)}`);
-    if (diff.after.children.length > diff.children.length) lines.push(`~ ${indent(depth + 1)}...`);
-    renderChildDiffs(diff.children, depth + 1, lines);
-    lines.push(`~ ${indent(depth)}</${diff.after.role}>`);
-  }
+function renderBudgetMarker(
+  ref: string | null,
+  depth: number,
+  lines: string[],
+  allocation: SnapshotAllocation,
+  renderedMarkers: Set<string>,
+): void {
+  if (!ref || renderedMarkers.has(ref)) return;
+  const summary = allocation.omittedByScope.get(ref);
+  if (!hasOmittedSummary(summary)) return;
+  lines.push(`${indent(depth)}${renderSnapshotMarker(ref, summary!)}`);
+  renderedMarkers.add(ref);
+}
+
+function hasOmittedSummary(summary: SnapshotSubtreeSummary | undefined): boolean {
+  return Boolean(summary && Object.values(summary).some((value) => value > 0));
 }
 
 function renderRemovedNode(node: RenderedSnapshotNode, depth: number, lines: string[]): void {
+  lines.push(renderRemovedNodeLine(node, depth));
+}
+
+function renderRemovedNodeLine(node: RenderedSnapshotNode, depth: number): string {
   const attrs = node.attrs.filter(([name]) => name === 'ref');
-  if (node.children.length === 0) lines.push(`- ${indent(depth)}${formatTag(node.role, attrs, false)}`);
-  else lines.push(`- ${indent(depth)}${formatTag(node.role, attrs, true)}...</${node.role}>`);
+  return node.children.length === 0
+    ? `- ${indent(depth)}${formatTag(node.role, attrs, false)}`
+    : `- ${indent(depth)}${formatTag(node.role, attrs, true)}...</${node.role}>`;
 }
 
 function comparableFrame(frame: RenderedSnapshotFrame): string {
-  return JSON.stringify({ status: frame.status, id: frame.id, index: frame.index, url: frame.url, name: frame.name, parentId: frame.parentId, error: frame.status === 'unavailable' ? frame.error : undefined });
+  return JSON.stringify({ status: frame.status, scope: frame.status === 'ok' ? frame.scope : undefined, id: frame.id, index: frame.index, url: frame.url, name: frame.name, parentId: frame.parentId, error: frame.status === 'unavailable' ? frame.error : undefined });
 }
 function comparableNode(node: RenderedSnapshotNode): string {
   return JSON.stringify({ role: node.role, attrs: comparableAttrs(node.attrs) });
@@ -292,6 +612,7 @@ function renderPageOpen(snapshot: Pick<AiSnapshot, 'title' | 'url'>, prefix: str
 }
 function renderFrameLine(frame: RenderedSnapshotFrame, depth: number, prefix: string, selfClosing: boolean): string {
   const attrs: Array<[string, string]> = [['index', String(frame.index)], ['url', normalizeText(frame.url, MAX_LABEL_CHARS)]];
+  if (frame.status === 'ok') attrs.push(['scope', frame.scope]);
   if (frame.name) attrs.push(['name', normalizeText(frame.name, MAX_LABEL_CHARS)]);
   if (frame.parentId) attrs.push(['parent', frame.parentId]);
   if (frame.status === 'unavailable') attrs.push(['error', normalizeText(frame.error, 180)]);
@@ -317,10 +638,3 @@ function normalizeRawText(value: string): string { return value.replace(/\s+/g, 
 function truncate(value: string, maxChars: number): string { return value.length > maxChars ? `${value.slice(0, maxChars - 1)}…` : value; }
 function escapeText(value: string): string { return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function escapeAttribute(value: string): string { return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
-function diffPrefixForSummary(diffs: SnapshotDiffChild[]): string {
-  if (diffs.every((diff) => diff.type === 'added')) return '+ ';
-  return diffs.every((diff) => diff.type === 'removed') ? '- ' : '';
-}
-function diffSummaryChildren(diffs: SnapshotDiffChild[]): RenderedSnapshotChild[] {
-  return diffs.map((diff) => diff.type === 'modified' ? diff.after : diff.node);
-}
