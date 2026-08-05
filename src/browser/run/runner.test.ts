@@ -196,6 +196,17 @@ describe('runBrowserProgram', () => {
       .toBe('./dist/src/browser/run/index.js');
   });
 
+  it('publishes the supported shared browser subpaths', () => {
+    const packageJson = JSON.parse(
+      fs.readFileSync(new URL('../../../package.json', import.meta.url), 'utf8'),
+    ) as { exports?: Record<string, string> };
+
+    expect(packageJson.exports?.['./browser/snapshot'])
+      .toBe('./dist/src/browser/snapshot/index.js');
+    expect(packageJson.exports?.['./browser/article-extract'])
+      .toBe('./dist/src/browser/article-extract.js');
+  });
+
   it('runs locators, frame locators, keyboard, and mouse calls', async () => {
     const output = await run(`
       await page.getByRole('button', { name: 'Save' }).click();

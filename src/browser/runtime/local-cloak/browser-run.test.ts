@@ -2,6 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright-core';
 import { dispatchCloakAction } from './actions.js';
 import { CloakSessionManager, type LaunchPersistentContext } from './session-manager.js';
+import * as snapshot from '../../snapshot/index.js';
 
 let browser: Browser;
 let context: BrowserContext;
@@ -117,6 +118,30 @@ describe('local Cloak browser run', () => {
     expect(data.tree).toContain('benchmark evidence');
     expect(data.tree).not.toContain('Ignore chrome');
     expect(data.article?.source).toMatch(/readability|fallback/);
+  });
+
+  it('keeps failed read snapshots in the article pipeline', async () => {
+    const capture = vi.spyOn(snapshot, 'captureSnapshot');
+    const pageWithSnapshot = initialPage as Page & { snapshot?: () => Promise<string> };
+    const pageSnapshot = vi.fn<() => Promise<string>>().mockResolvedValue('AX fallback');
+    pageWithSnapshot.snapshot = pageSnapshot;
+    await initialPage.setContent('');
+    await manager.getPage({ profileId: 'default', session: 'work', surface: 'browser' });
+
+    const result = await dispatchCloakAction(manager, command('snapshot-read-miss', 'snapshot', {
+      snapshotMode: 'read',
+    }));
+
+    expect(result).toMatchObject({
+      ok: true,
+      data: {
+        tree: 'No readable article content found. Use --snapshot-mode tree to inspect the page structure.',
+        article: null,
+      },
+    });
+    expect(capture).not.toHaveBeenCalled();
+    expect(pageSnapshot).not.toHaveBeenCalled();
+    capture.mockRestore();
   });
 
   it('does not create a browser session for snapshot inspection', async () => {
