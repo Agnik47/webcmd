@@ -7312,8 +7312,43 @@
   },
   {
     "site": "pypi",
+    "name": "downloads",
+    "description": "PyPI download stats for a package (recent totals or full daily history)",
+    "access": "read",
+    "domain": "pypistats.org",
+    "strategy": "public",
+    "browser": false,
+    "args": [
+      {
+        "name": "name",
+        "type": "str",
+        "required": true,
+        "positional": true,
+        "help": "PyPI package name (e.g. \"requests\", \"pandas\")"
+      },
+      {
+        "name": "period",
+        "type": "str",
+        "default": "recent",
+        "required": false,
+        "help": "recent (default — 1 row, last day/week/month) or overall (1 row per day)"
+      }
+    ],
+    "columns": [
+      "rank",
+      "package",
+      "period",
+      "date",
+      "downloads"
+    ],
+    "type": "js",
+    "modulePath": "plugins/pypi/downloads.js",
+    "sourceFile": "plugins/pypi/downloads.js"
+  },
+  {
+    "site": "pypi",
     "name": "package",
-    "description": "Inspect public PyPI package metadata",
+    "description": "Single PyPI package metadata (latest version, license, homepage, classifiers)",
     "access": "read",
     "domain": "pypi.org",
     "strategy": "public",
@@ -7321,23 +7356,26 @@
     "args": [
       {
         "name": "name",
-        "type": "string",
+        "type": "str",
         "required": true,
         "positional": true,
-        "help": "Python package name, for example django"
+        "help": "PyPI package name (e.g. \"requests\", \"pandas\")"
       }
     ],
     "columns": [
       "name",
-      "version",
+      "latestVersion",
       "summary",
       "author",
       "license",
-      "requiresPython",
-      "uploadedAt",
-      "projectUrl",
       "homepage",
-      "repository"
+      "repository",
+      "requiresPython",
+      "keywords",
+      "releases",
+      "firstReleased",
+      "lastReleased",
+      "url"
     ],
     "type": "js",
     "modulePath": "plugins/pypi/package.js",

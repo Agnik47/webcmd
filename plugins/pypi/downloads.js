@@ -1,10 +1,4 @@
-// pypi downloads — fetch download counts for a single PyPI package via
-// pypistats.org's public JSON API.
-//
-// Default endpoint is `/api/packages/<pkg>/recent` which returns last-day /
-// last-week / last-month totals as a single row. Pass `--period overall` to
-// hit `/api/packages/<pkg>/overall` for the full daily history (one row per
-// day).
+// pypi downloads — fetch package download counts from pypistats.org.
 import { cli, Strategy } from '@agentrhq/webcmd/registry';
 import { ArgumentError, EmptyResultError } from '@agentrhq/webcmd/errors';
 import { PYPISTATS_BASE, pypiFetch, requirePackageName } from './utils.js';
@@ -12,14 +6,14 @@ import { PYPISTATS_BASE, pypiFetch, requirePackageName } from './utils.js';
 const PERIODS = new Set(['recent', 'overall']);
 
 function requirePeriod(value) {
-    const s = String(value ?? 'recent').trim().toLowerCase();
-    if (!PERIODS.has(s)) {
+    const period = String(value ?? 'recent').trim().toLowerCase();
+    if (!PERIODS.has(period)) {
         throw new ArgumentError(
             `pypi downloads period "${value}" is invalid`,
             'Allowed values: recent (default — last day/week/month totals) or overall (full daily history).',
         );
     }
-    return s;
+    return period;
 }
 
 cli({
@@ -55,8 +49,8 @@ cli({
         if (!days.length) {
             throw new EmptyResultError('pypi downloads', `pypistats has no overall download history for "${name}".`);
         }
-        return days.map((row, i) => ({
-            rank: i + 1,
+        return days.map((row, index) => ({
+            rank: index + 1,
             package: String(body.package ?? name),
             period: 'daily',
             date: String(row.date ?? ''),
