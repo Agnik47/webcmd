@@ -198,6 +198,18 @@ describe("renderSnapshot", () => {
     expect(result.truncated).toBe(true);
   });
 
+  it("bounds output when required markers exceed the remaining ceiling", () => {
+    for (const maxChars of [129, 168, 207]) {
+      const result = renderSnapshotResult(wideSnapshot({ lateFocused: true }), {
+        mode: "act",
+        maxChars,
+      });
+      expect(result.value.length).toBeLessThanOrEqual(maxChars);
+      expect(result.truncated).toBe(true);
+      expect(result.criticalOmitted).toBeGreaterThan(0);
+    }
+  });
+
   it("summarizes critical state, actions, records, and text during rendering", () => {
     const frames = renderSnapshotFrames(snap([node({
       role: "list", ref: "l10", children: [

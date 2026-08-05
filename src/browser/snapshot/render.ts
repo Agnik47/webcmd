@@ -147,8 +147,6 @@ export function renderSnapshotResult(
   const allocation = allocateSnapshot(frames, maxChars, envelopeChars);
   const value = renderAllocatedSnapshot(scoped, frames, allocation);
   if (value.length > maxChars) {
-    if (envelopeChars <= maxChars)
-      throw new Error("snapshot allocator exceeded its hard character ceiling");
     const bounded = boundSnapshotText(value, maxChars);
     return {
       ...bounded,
