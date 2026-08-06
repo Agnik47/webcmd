@@ -217,6 +217,42 @@ describe('webcmd skills content', () => {
     expect(siteReconReference).not.toMatch(/webcmd browser \S+ (?:open|state|click|type|select|find|extract|network|wait|eval)/i);
   });
 
+  it('keeps browser behavioral policy while pruning removed command instructions', () => {
+    const browser = bundledSkill('webcmd-browser');
+
+    for (const heading of [
+      '## Adapter fallback gate',
+      '## Prerequisites',
+      '## Session lifecycle',
+      '## Mental model',
+      '## Chaining rules',
+      '### Authentication and human handoff',
+      '## Pitfalls',
+      '## Troubleshooting',
+    ]) {
+      expect(browser).toContain(heading);
+    }
+
+    for (const required of [
+      'Absence from truncated output never proves that no adapter exists',
+      'Use the same session name for a multi-step flow',
+      'fresh JavaScript scope',
+      'persistent browser state',
+      'Never ask for or type passwords',
+      'CAPTCHA',
+      "The user's report alone is not verification",
+      'Do not submit forms via',
+      'Do not reuse observations across a page transition',
+      'Screenshots are for humans, not for agents',
+      'timeout warns that side effects may have occurred',
+    ]) {
+      expect(browser).toContain(required);
+    }
+
+    expect(browser).not.toMatch(/webcmd browser \S+ (?:open|state|click|type|select|find|extract|network|wait|eval|frames|screenshot|scroll|back|keys)\b/i);
+    expect(browser).not.toMatch(/^### (?:Inspect|Get|Interact|Wait|Extract|Network)$/m);
+  });
+
   it('adds bundled skills once and refreshes them after package updates', () => {
     const firstRoot = makePackageRoot('first');
     const secondRoot = makePackageRoot('second');
