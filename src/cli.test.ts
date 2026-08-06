@@ -813,7 +813,7 @@ name: 'search',
         usage: 'webcmd plugin update [name] [options]',
         positionals: [{ name: 'name' }],
       });
-      expect(update.command_options.map((option: any) => option.name)).toEqual(['all']);
+      expect(update.command_options.map((option: any) => option.name)).toEqual(['all', 'force']);
     } finally {
       process.argv = argv;
     }

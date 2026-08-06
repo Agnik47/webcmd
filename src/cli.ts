@@ -1160,7 +1160,8 @@ cli({
     .description('Update a plugin (or all plugins) to the latest version')
     .argument('[name]', 'Plugin name (required unless --all is passed)')
     .option('--all', 'Update all installed plugins')
-    .action(async (name: string | undefined, opts: { all?: boolean }) => {
+    .option('--force', 'Discard uncommitted changes in the plugin directory')
+    .action(async (name: string | undefined, opts: { all?: boolean; force?: boolean }) => {
       if (!name && !opts.all) {
         console.error('Error: Please specify a plugin name or use the --all flag.');
         process.exitCode = EXIT_CODES.USAGE_ERROR;
@@ -1175,7 +1176,7 @@ cli({
       const { updatePlugin, updateAllPlugins } = await import('./plugin.js');
       const { discoverPlugins } = await import('./discovery.js');
       if (opts.all) {
-        const results = updateAllPlugins();
+        const results = updateAllPlugins({ force: opts.force === true });
         if (results.length > 0) {
           await discoverPlugins();
         }
@@ -1207,7 +1208,7 @@ cli({
       }
 
       try {
-        updatePlugin(name!);
+        updatePlugin(name!, { force: opts.force === true });
         await discoverPlugins();
         console.log(`✅ Plugin "${name}" updated successfully.`);
       } catch (err) {

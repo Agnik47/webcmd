@@ -1522,3 +1522,240 @@ describe('updatePlugin transactional staging', () => {
     });
   });
 });
+
+describe('updatePlugin dirty-checkout guard', () => {
+  const standaloneName = '__test-dirty-standalone__';
+  const standaloneDir = path.join(PLUGINS_DIR, standaloneName);
+  const monorepoName = '__test-dirty-mono__';
+  const monorepoRepoDir = path.join(_getMonoreposDir(), monorepoName);
+  const monorepoPluginName = 'alpha-dirty';
+  const monorepoLink = path.join(PLUGINS_DIR, monorepoPluginName);
+
+  beforeEach(() => {
+    mockExecFileSync.mockClear();
+    mockExecSync.mockClear();
+  });
+
+  afterEach(() => {
+    try { fs.unlinkSync(monorepoLink); } catch {}
+    try { fs.rmSync(monorepoLink, { recursive: true, force: true }); } catch {}
+    try { fs.rmSync(monorepoRepoDir, { recursive: true, force: true }); } catch {}
+    try { fs.rmSync(standaloneDir, { recursive: true, force: true }); } catch {}
+    const lock = _readLockFile();
+    delete lock[standaloneName];
+    delete lock[monorepoPluginName];
+    _writeLockFile(lock);
+    vi.clearAllMocks();
+  });
+
+  function mockStandaloneUpdate(dirtyStatus: string) {
+    mockExecFileSync.mockImplementation((cmd, args, opts) => {
+      if (cmd === 'git' && Array.isArray(args) && args[0] === 'status') {
+        return opts?.cwd === standaloneDir ? dirtyStatus : '';
+      }
+      if (cmd === 'git' && Array.isArray(args) && args[0] === 'clone') {
+        const cloneDir = String(args[4]);
+        fs.mkdirSync(cloneDir, { recursive: true });
+        fs.writeFileSync(path.join(cloneDir, 'hello.js'), 'cli({ site: "test", name: "hello", access: "read" })');
+        fs.writeFileSync(path.join(cloneDir, 'package.json'), JSON.stringify({ name: standaloneName }));
+        return '';
+      }
+      if (cmd === 'git' && Array.isArray(args) && args[0] === 'rev-parse' && args[1] === 'HEAD') {
+        return '1234567890abcdef1234567890abcdef12345678\n';
+      }
+      return '';
+    });
+  }
+
+  it('refuses to update a standalone plugin with uncommitted changes', () => {
+    fs.mkdirSync(standaloneDir, { recursive: true });
+    fs.writeFileSync(path.join(standaloneDir, 'old.js'), 'cli({ site: "old", name: "old", access: "read" })');
+    const lock = _readLockFile();
+    lock[standaloneName] = {
+      source: { kind: 'git', url: 'https://github.com/user/webcmd-plugin-__test-dirty-standalone__.git' },
+      commitHash: 'oldhasholdhasholdhasholdhasholdhasholdh',
+      installedAt: '2025-01-01T00:00:00.000Z',
+    };
+    _writeLockFile(lock);
+
+    mockStandaloneUpdate(' M old.js\n');
+
+    expect(() => updatePlugin(standaloneName)).toThrow(/uncommitted/i);
+    expect(mockExecFileSync.mock.calls.some(([cmd, args]) => cmd === 'git' && Array.isArray(args) && args[0] === 'clone')).toBe(false);
+  });
+
+  it('updates a standalone plugin with uncommitted changes when forced', () => {
+    fs.mkdirSync(standaloneDir, { recursive: true });
+    fs.writeFileSync(path.join(standaloneDir, 'old.js'), 'cli({ site: "old", name: "old", access: "read" })');
+    const lock = _readLockFile();
+    lock[standaloneName] = {
+      source: { kind: 'git', url: 'https://github.com/user/webcmd-plugin-__test-dirty-standalone__.git' },
+      commitHash: 'oldhasholdhasholdhasholdhasholdhasholdh',
+      installedAt: '2025-01-01T00:00:00.000Z',
+    };
+    _writeLockFile(lock);
+
+    mockStandaloneUpdate(' M old.js\n');
+
+    expect(() => updatePlugin(standaloneName, { force: true })).not.toThrow();
+  });
+
+  it('updates a clean standalone plugin without force', () => {
+    fs.mkdirSync(standaloneDir, { recursive: true });
+    fs.writeFileSync(path.join(standaloneDir, 'old.js'), 'cli({ site: "old", name: "old", access: "read" })');
+    const lock = _readLockFile();
+    lock[standaloneName] = {
+      source: { kind: 'git', url: 'https://github.com/user/webcmd-plugin-__test-dirty-standalone__.git' },
+      commitHash: 'oldhasholdhasholdhasholdhasholdhasholdh',
+      installedAt: '2025-01-01T00:00:00.000Z',
+    };
+    _writeLockFile(lock);
+
+    mockStandaloneUpdate('');
+
+    expect(() => updatePlugin(standaloneName)).not.toThrow();
+  });
+
+  it('refuses to update a monorepo plugin when the shared clone has uncommitted changes, before touching the clone', () => {
+    const subDir = path.join(monorepoRepoDir, 'packages', monorepoPluginName);
+    fs.mkdirSync(subDir, { recursive: true });
+    fs.writeFileSync(path.join(subDir, 'old.js'), 'cli({ site: "old", name: "old", access: "read" })');
+    fs.mkdirSync(PLUGINS_DIR, { recursive: true });
+    fs.symlinkSync(subDir, monorepoLink, 'dir');
+
+    const lock = _readLockFile();
+    lock[monorepoPluginName] = {
+      source: {
+        kind: 'monorepo',
+        url: 'https://github.com/user/webcmd-plugins-__test-dirty-mono__.git',
+        repoName: monorepoName,
+        subPath: `packages/${monorepoPluginName}`,
+      },
+      commitHash: 'oldmonooldmonooldmonooldmonooldmonoold',
+      installedAt: '2025-01-01T00:00:00.000Z',
+    };
+    _writeLockFile(lock);
+
+    mockExecFileSync.mockImplementation((cmd, args, opts) => {
+      if (cmd === 'git' && Array.isArray(args) && args[0] === 'status') {
+        return opts?.cwd === monorepoRepoDir ? ' M packages/alpha-dirty/old.js\n' : '';
+      }
+      return '';
+    });
+
+    expect(() => updatePlugin(monorepoPluginName)).toThrow(/uncommitted/i);
+    expect(mockExecFileSync.mock.calls.some(([cmd, args]) => cmd === 'git' && Array.isArray(args) && args[0] === 'clone')).toBe(false);
+    expect(fs.readFileSync(path.join(subDir, 'old.js'), 'utf-8')).toContain('site: "old"');
+  });
+
+  it('updates a monorepo plugin with uncommitted changes in the shared clone when forced', () => {
+    const subDir = path.join(monorepoRepoDir, 'packages', monorepoPluginName);
+    fs.mkdirSync(subDir, { recursive: true });
+    fs.writeFileSync(path.join(subDir, 'old.js'), 'cli({ site: "old", name: "old", access: "read" })');
+    fs.mkdirSync(PLUGINS_DIR, { recursive: true });
+    fs.symlinkSync(subDir, monorepoLink, 'dir');
+
+    const lock = _readLockFile();
+    lock[monorepoPluginName] = {
+      source: {
+        kind: 'monorepo',
+        url: 'https://github.com/user/webcmd-plugins-__test-dirty-mono__.git',
+        repoName: monorepoName,
+        subPath: `packages/${monorepoPluginName}`,
+      },
+      commitHash: 'oldmonooldmonooldmonooldmonooldmonoold',
+      installedAt: '2025-01-01T00:00:00.000Z',
+    };
+    _writeLockFile(lock);
+
+    mockExecFileSync.mockImplementation((cmd, args, opts) => {
+      if (cmd === 'git' && Array.isArray(args) && args[0] === 'status') {
+        return opts?.cwd === monorepoRepoDir ? ' M packages/alpha-dirty/old.js\n' : '';
+      }
+      if (cmd === 'git' && Array.isArray(args) && args[0] === 'clone') {
+        const cloneDir = String(args[4]);
+        const alphaDir = path.join(cloneDir, 'packages', monorepoPluginName);
+        fs.mkdirSync(alphaDir, { recursive: true });
+        fs.writeFileSync(path.join(cloneDir, 'package.json'), JSON.stringify({
+          name: 'webcmd-plugins-__test-dirty-mono__',
+          private: true,
+        }));
+        fs.writeFileSync(path.join(cloneDir, 'webcmd-plugin.json'), JSON.stringify({
+          plugins: {
+            [monorepoPluginName]: { path: `packages/${monorepoPluginName}` },
+          },
+        }));
+        fs.writeFileSync(path.join(alphaDir, 'hello.js'), 'cli({ site: "test", name: "hello", access: "read" })');
+        return '';
+      }
+      if (cmd === 'git' && Array.isArray(args) && args[0] === 'rev-parse' && args[1] === 'HEAD') {
+        return '1234567890abcdef1234567890abcdef12345678\n';
+      }
+      return '';
+    });
+
+    expect(() => updatePlugin(monorepoPluginName, { force: true })).not.toThrow();
+  });
+
+  it('local (symlinked) plugin updates are not blocked by the dirty-checkout guard', () => {
+    const localTarget = fs.mkdtempSync(path.join(os.tmpdir(), 'webcmd-local-dirty-'));
+    const linkPath = path.join(PLUGINS_DIR, '__test-local-dirty__');
+
+    fs.mkdirSync(PLUGINS_DIR, { recursive: true });
+    fs.writeFileSync(path.join(localTarget, 'hello.js'), 'cli({ site: "test", name: "hello", access: "read" })');
+    fs.symlinkSync(localTarget, linkPath, 'dir');
+
+    const lock = _readLockFile();
+    lock['__test-local-dirty__'] = {
+      source: { kind: 'local', path: localTarget },
+      commitHash: 'local',
+      installedAt: '2025-01-01T00:00:00.000Z',
+    };
+    _writeLockFile(lock);
+
+    // Even if `git status` would report the checkout as dirty, local installs
+    // are symlinked to the user's own dev checkout and never go through
+    // beginReplaceDir, so the guard must not fire for them.
+    mockExecFileSync.mockImplementation((cmd, args) => {
+      if (cmd === 'git' && Array.isArray(args) && args[0] === 'status') {
+        return ' M hello.js\n';
+      }
+      return '';
+    });
+
+    expect(() => updatePlugin('__test-local-dirty__')).not.toThrow();
+
+    try { fs.unlinkSync(linkPath); } catch {}
+    try { fs.rmSync(localTarget, { recursive: true, force: true }); } catch {}
+    const finalLock = _readLockFile();
+    delete finalLock['__test-local-dirty__'];
+    _writeLockFile(finalLock);
+  });
+});
+
+describe('getDirtyFiles', () => {
+  beforeEach(() => {
+    mockExecFileSync.mockClear();
+  });
+
+  it('returns an empty array when git invocation fails (non-git directory or missing git binary)', () => {
+    mockExecFileSync.mockImplementation(() => {
+      throw new Error('not a git repository');
+    });
+    expect(pluginModule.getDirtyFiles('/nonexistent/dir')).toEqual([]);
+  });
+
+  it('parses tracked-file modifications from porcelain output', () => {
+    mockExecFileSync.mockImplementation(() => ' M foo.js\n?? untracked.js\n');
+    expect(pluginModule.getDirtyFiles('/some/dir')).toEqual(['M foo.js', '?? untracked.js']);
+  });
+
+  it('passes --untracked-files=no so new untracked files never block an update', () => {
+    mockExecFileSync.mockImplementation((cmd, args) => {
+      expect(args).toContain('--untracked-files=no');
+      return '';
+    });
+    pluginModule.getDirtyFiles('/some/dir');
+    expect(mockExecFileSync).toHaveBeenCalled();
+  });
+});

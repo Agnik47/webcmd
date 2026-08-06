@@ -510,6 +510,35 @@ export function getCommitHash(dir: string): string | undefined {
 }
 
 /**
+ * Report tracked-file modifications in a git checkout.
+ *
+ * Returns an empty array for a non-git directory: a plugin installed without
+ * git history has no baseline to compare against, so there is nothing to protect.
+ */
+export function getDirtyFiles(dir: string): string[] {
+  try {
+    const out = execFileSync('git', ['status', '--porcelain', '--untracked-files=no'], {
+      cwd: dir,
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    return out.split('\n').map((line) => line.trim()).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function assertPluginNotDirty(name: string, dir: string, force: boolean): void {
+  if (force) return;
+  const dirty = getDirtyFiles(dir);
+  if (dirty.length === 0) return;
+  throw new PluginError(
+    `Plugin "${name}" has uncommitted changes that updating would destroy:\n  ${dirty.slice(0, 10).join('\n  ')}`,
+    'Commit or stash them, re-run with --force to discard them, or develop against a symlinked checkout with "webcmd plugin install file:///path".',
+  );
+}
+
+/**
  * Validate that a downloaded plugin directory is a structurally valid plugin.
  * Checks for at least one command file (.ts, .js) and a valid
  * package.json if it contains .ts files.
@@ -1097,17 +1126,18 @@ function isSymlinkSync(p: string): boolean {
  * For monorepo sub-plugins: pulls the monorepo root and re-runs lifecycle
  * for all sub-plugins from the same monorepo.
  */
-export function updatePlugin(name: string): void {
+export function updatePlugin(name: string, options: { force?: boolean } = {}): void {
   const targetDir = path.join(PLUGINS_DIR, name);
   if (!fs.existsSync(targetDir)) {
     throw new Error(`Plugin "${name}" is not installed.`);
   }
-
   const lock = readLockFile();
   const lockEntry = lock[name];
   const source = resolvePluginSource(lockEntry, targetDir);
 
   if (source?.kind === 'local') {
+    // Local installs are symlinked to the user's own checkout, not replaced
+    // wholesale, so dirty edits there are the intended workflow, not a hazard.
     updateLocalPlugin(name, targetDir, lock, lockEntry);
     return;
   }
@@ -1116,6 +1146,7 @@ export function updatePlugin(name: string): void {
     const monoDir = path.join(getMonoreposDir(), source.repoName);
     const monoName = source.repoName;
     const cloneUrl = source.url;
+    assertPluginNotDirty(monoName, monoDir, options.force === true);
     withTempClone(cloneUrl, (tmpCloneDir) => {
       const manifest = readPluginManifest(tmpCloneDir);
       if (!manifest || !isMonorepo(manifest)) {
@@ -1157,6 +1188,8 @@ export function updatePlugin(name: string): void {
     return;
   }
 
+  assertPluginNotDirty(name, targetDir, options.force === true);
+
   const cloneUrl = resolveRemotePluginSource(lockEntry, targetDir);
   withTempClone(cloneUrl, (tmpCloneDir) => {
     const manifest = readPluginManifest(tmpCloneDir);
@@ -1190,10 +1223,10 @@ export interface UpdateResult {
  * Update all installed plugins.
  * Continues even if individual plugin updates fail.
  */
-export function updateAllPlugins(): UpdateResult[] {
+export function updateAllPlugins(options: { force?: boolean } = {}): UpdateResult[] {
   return listPlugins().map((plugin): UpdateResult => {
     try {
-      updatePlugin(plugin.name);
+      updatePlugin(plugin.name, options);
       return { name: plugin.name, success: true };
     } catch (err) {
       return {
