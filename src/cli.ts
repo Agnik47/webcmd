@@ -917,7 +917,7 @@ export function createProgram(BUILTIN_CLIS: string, USER_CLIS: string): Command 
     .description('Update webcmd to the latest version and refresh bundled skills')
     .option('--skip-skills', 'Skip refreshing bundled skill links after updating', false)
     .action(async (opts) => {
-      const { buildUpgradeCommand, upgradePackage } = await import('./update.js');
+      const { buildUpgradeCommand, upgradePackage, getRuntimeUpdateNotice } = await import('./update.js');
       const { cmd, args } = buildUpgradeCommand();
       console.log(`Updating ${PACKAGE_NAME}: ${cmd} ${args.join(' ')}`);
       try {
@@ -937,6 +937,9 @@ export function createProgram(BUILTIN_CLIS: string, USER_CLIS: string): Command 
           console.error('Hint: run "webcmd skills update" once the new version is active.');
         }
       }
+      // The Cloak runtime/extension ships separately from npm; surface it if stale.
+      const runtimeNotice = getRuntimeUpdateNotice();
+      if (runtimeNotice) process.stdout.write(runtimeNotice);
       console.log('Update complete.');
     });
 

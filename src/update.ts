@@ -8,6 +8,8 @@
 
 import { execFileSync } from 'node:child_process';
 import { PACKAGE_NAME } from './brand.js';
+import { PKG_VERSION } from './version.js';
+import { _buildUpdateNotices, readUpdateCache } from './update-check.js';
 
 export interface UpgradeCommand {
   cmd: string;
@@ -20,6 +22,19 @@ export function buildUpgradeCommand(spec: string = `${PACKAGE_NAME}@latest`): Up
   return isBun
     ? { cmd: 'bun', args: ['add', '-g', spec] }
     : { cmd: 'npm', args: ['install', '-g', spec] };
+}
+
+/**
+ * Notice for the separately-shipped Cloak runtime/extension, which `npm install -g`
+ * does NOT update. Returns the notice text when a newer runtime is known, else
+ * undefined. Currently dormant until update-check URLs are enabled upstream.
+ */
+export function getRuntimeUpdateNotice(): string | undefined {
+  return _buildUpdateNotices({
+    cliVersion: PKG_VERSION,
+    cache: readUpdateCache(),
+    now: Date.now(),
+  }).extension;
 }
 
 /** Run the global install, streaming package-manager output. Throws on failure. */
