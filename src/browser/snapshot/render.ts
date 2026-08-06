@@ -74,6 +74,7 @@ const CRITICAL_ROLES = new Set(["alert", "alertdialog", "dialog", "status"]);
 const RECORD_ROLES = new Set(["listitem", "row", "treeitem", "article"]);
 const RECORD_PARENT_ROLES = new Set(["list", "table", "grid", "tree", "feed"]);
 const RECORD_IDENTITY_STATE_ATTRS = new Set([
+  "focused",
   "checked",
   "selected",
   "expanded",
@@ -121,6 +122,7 @@ const BLOCK_FLATTEN_ROLES = new Set([
   "figure",
 ]);
 const RENDERED_STATE_PROPERTIES = [
+  "focused",
   "disabled",
   "checked",
   "expanded",
@@ -518,7 +520,10 @@ function identityForNode(
   children: RenderedSnapshotChild[],
 ): SnapshotRecordIdentity {
   return {
-    name: firstNonEmpty(node.name),
+    name: firstNonEmpty(
+      node.name,
+      CRITICAL_ROLES.has(role) ? normalizedText(children) : null,
+    ),
     action: ACTION_ROLES.has(role)
       ? actionLabelFromContent(attrs, children)
       : firstActionLabel(children),

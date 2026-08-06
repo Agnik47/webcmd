@@ -50,6 +50,7 @@ const representationSummaries = new WeakMap<
 >();
 const STATE_ATTRS = new Set([
   "ref",
+  "focused",
   "checked",
   "disabled",
   "expanded",
@@ -61,6 +62,7 @@ const STATE_ATTRS = new Set([
   "selected",
   "value",
 ]);
+const CRITICAL_IDENTITY_ROLES = new Set(["alert", "alertdialog", "dialog", "status"]);
 
 export function allocateSnapshot(
   frames: RenderedSnapshotFrame[],
@@ -364,6 +366,7 @@ function trySelectComplete(
 }
 
 function preferredRepresentation(node: RenderedSnapshotNode): SnapshotRepresentation {
+  if (CRITICAL_IDENTITY_ROLES.has(node.role)) return "full";
   let childChanges = 0;
   for (const child of node.children)
     if (child.kind === "node") childChanges += child.summary.changed;
@@ -483,7 +486,7 @@ function renderAttrs(attrs: Array<[string, string]>): string {
 }
 
 function identityLabel(node: RenderedSnapshotNode): string | null {
-  return node.record
+  return node.record || CRITICAL_IDENTITY_ROLES.has(node.role)
     ? node.recordIdentity.name ?? node.recordIdentity.action
     : ownActions(node) > 0 ? node.recordIdentity.action : null;
 }

@@ -4,12 +4,14 @@ import {
   DEFAULT_ACT_SNAPSHOT_CHARS,
   DEFAULT_TREE_SNAPSHOT_CHARS,
   allocateSnapshot,
+  captureSnapshot,
   diffSnapshots,
   renderSnapshotDiff,
   renderSnapshotFrames,
   renderSnapshotResult,
 } from "../src/browser/snapshot/index.js";
 import type { AiSnapshot, AiSnapshotFrame, AiSnapshotNode } from "../src/browser/snapshot/types.js";
+import type { Page } from "playwright-core";
 
 const CANDIDATES = [4_096, 6_144, 8_192, 12_288, 16_384, 24_576, 32_768] as const;
 const LIBRETTO_ACT_TOKENS = {
@@ -30,6 +32,7 @@ const CRITICAL_ROLES = new Set(["alert", "alertdialog", "dialog", "status"]);
 
 type Fixture = { id: string; snapshot: AiSnapshot };
 type Distribution = { median: number; p95: number };
+type CriticalIdentity = { ref: string; role: string; contentAndState: string[] };
 
 function fixture(id: string, build: (node: NodeFactory) => AiSnapshotFrame[]): Fixture {
   let nextId = 0;
@@ -228,10 +231,14 @@ function allNodes(snapshot: AiSnapshot): Array<{ node: AiSnapshotNode; parentRol
   return result;
 }
 
-function identities(fixtureValue: Fixture): { actions: string[]; records: string[]; critical: string[] } {
+function identities(fixtureValue: Fixture): {
+  actions: string[];
+  records: string[];
+  critical: CriticalIdentity[];
+} {
   const actions: string[] = [];
   const records: string[] = [];
-  const critical: string[] = [];
+  const critical: CriticalIdentity[] = [];
   for (const { node, parentRole } of allNodes(fixtureValue.snapshot)) {
     if (!node.ref) continue;
     if (ACTION_ROLES.has(node.role)) actions.push(node.ref);
@@ -239,7 +246,16 @@ function identities(fixtureValue: Fixture): { actions: string[]; records: string
     if (
       node.properties.focused === true || node.properties.invalid === true ||
       node.properties.invalid === "true" || CRITICAL_ROLES.has(node.role)
-    ) critical.push(node.ref);
+    ) {
+      const contentAndState = [node.name, node.description]
+        .filter((value): value is string => Boolean(value));
+      for (const child of node.children)
+        if (child.role === "StaticText" && child.name) contentAndState.push(child.name);
+      for (const property of ["focused", "invalid", "checked", "selected", "expanded", "disabled", "pressed"])
+        if (node.properties[property] !== undefined)
+          contentAndState.push(`${property}="${String(node.properties[property])}"`);
+      critical.push({ ref: node.ref, role: node.role, contentAndState });
+    }
   }
   return { actions, records, critical };
 }
@@ -247,6 +263,23 @@ function identities(fixtureValue: Fixture): { actions: string[]; records: string
 function recalled(output: string, refs: string[]): number {
   if (refs.length === 0) return 1;
   return refs.filter((ref) => output.includes(`ref="${ref}"`)).length / refs.length;
+}
+
+function criticalRecalled(output: string, identities: CriticalIdentity[]): number {
+  if (identities.length === 0) return 1;
+  return identities.filter(({ ref, role, contentAndState }) => {
+    const refIndex = output.indexOf(`ref="${ref}"`);
+    if (refIndex === -1) return false;
+    const blockStart = output.lastIndexOf("<", refIndex);
+    const closingTag = `</${role}>`;
+    const closingIndex = output.indexOf(closingTag, refIndex);
+    const lineEnd = output.indexOf("\n", refIndex);
+    const blockEnd = closingIndex === -1
+      ? (lineEnd === -1 ? output.length : lineEnd)
+      : closingIndex + closingTag.length;
+    const block = output.slice(blockStart, blockEnd);
+    return contentAndState.every((value) => block.includes(value));
+  }).length / identities.length;
 }
 
 function corpusStats(mode: "act" | "tree", maxChars: number): {
@@ -275,29 +308,32 @@ const treeCandidates = CANDIDATES.filter((value) => value > recommendedActChars)
   const stats = corpusStats("tree", maxChars);
   const fixtureRecall = expected.map((ids, index) => ({
     fixture: corpus[index]!.id,
-    actionRecall: recalled(stats.outputs[index]!, ids.actions),
-    recordRecall: recalled(stats.outputs[index]!, ids.records),
+    treeActionRecall: recalled(stats.outputs[index]!, ids.actions),
+    treeRecordRecall: recalled(stats.outputs[index]!, ids.records),
   }));
   return {
     maxChars,
-    actionRecall: fixtureRecall.reduce((sum, value) => sum + value.actionRecall, 0) / corpus.length,
-    recordRecall: fixtureRecall.reduce((sum, value) => sum + value.recordRecall, 0) / corpus.length,
-    preservesAll: fixtureRecall.every(({ actionRecall, recordRecall }) => actionRecall === 1 && recordRecall === 1),
+    treeActionRecall: fixtureRecall.reduce((sum, value) => sum + value.treeActionRecall, 0) / corpus.length,
+    treeRecordRecall: fixtureRecall.reduce((sum, value) => sum + value.treeRecordRecall, 0) / corpus.length,
+    preservesAll: fixtureRecall.every(({ treeActionRecall, treeRecordRecall }) =>
+      treeActionRecall === 1 && treeRecordRecall === 1),
   };
 });
 const recommendedTreeChars = treeCandidates.find(({ preservesAll }) => preservesAll)?.maxChars ?? 0;
 
 const act = corpusStats("act", recommendedActChars);
 const tree = corpusStats("tree", recommendedTreeChars);
-const totalRecall = (outputs: string[], key: keyof (typeof expected)[number]): number => {
+const totalRefRecall = (outputs: string[], key: "actions" | "records"): number => {
   const total = expected.reduce((sum, value) => sum + value[key].length, 0);
   if (total === 0) return 1;
   return expected.reduce((sum, value, index) =>
     sum + value[key].filter((ref) => outputs[index]!.includes(`ref="${ref}"`)).length, 0) / total;
 };
-const actionRecall = totalRecall(act.outputs, "actions");
-const recordRecall = totalRecall(tree.outputs, "records");
-const criticalRecall = totalRecall(act.outputs, "critical");
+const actActionRecall = totalRefRecall(act.outputs, "actions");
+const treeRecordRecall = totalRefRecall(tree.outputs, "records");
+const criticalTotal = expected.reduce((sum, value) => sum + value.critical.length, 0);
+const actCriticalRecall = criticalTotal === 0 ? 1 : expected.reduce((sum, value, index) =>
+  sum + criticalRecalled(act.outputs[index]!, value.critical) * value.critical.length, 0) / criticalTotal;
 const criticalOmitted = corpus.reduce((sum, { snapshot }) =>
   sum + renderSnapshotResult(snapshot, { mode: "act", maxChars: recommendedActChars }).criticalOmitted, 0);
 
@@ -331,6 +367,29 @@ const priorityTiming = timed(() => allocateSnapshot(renderedNodes10000, recommen
 const outputOverruns = candidates.reduce((sum, candidate) => sum + candidate.outputOverruns, 0) +
   act.outputOverruns + tree.outputOverruns;
 const localCloudParityHash = createHash("sha256").update([...act.outputs, ...tree.outputs].join("\0")).digest("hex");
+let countedBrowserCalls = 0;
+const countedPage = {
+  context: () => ({
+    newCDPSession: async () => ({
+      send: async (method: string): Promise<unknown> => {
+        countedBrowserCalls += 1;
+        if (method === "Page.getFrameTree")
+          return { frameTree: { frame: { id: "counted-frame", url: "https://fixtures.test/counted" } } };
+        if (method === "Accessibility.getFullAXTree")
+          return { nodes: [{ nodeId: "counted-root", role: { value: "RootWebArea" } }] };
+        return {};
+      },
+      detach: async () => undefined,
+    }),
+  }),
+  title: async () => "Counted capture",
+  url: () => "https://fixtures.test/counted",
+};
+const capturedForAllocation = await captureSnapshot(countedPage as unknown as Page);
+const captureBrowserCalls = countedBrowserCalls;
+const callsBeforeAllocation = countedBrowserCalls;
+renderSnapshotResult(capturedForAllocation, { mode: "act", maxChars: recommendedActChars });
+const additionalBrowserCalls = countedBrowserCalls - callsBeforeAllocation;
 
 const metrics = {
   corpus: corpus.map(({ id }) => id),
@@ -351,22 +410,24 @@ const metrics = {
     priorityMedianMs: priorityTiming.median,
     priorityP95Ms: priorityTiming.p95,
   },
-  actionRecall: Number(actionRecall.toFixed(6)),
-  recordRecall: Number(recordRecall.toFixed(6)),
-  criticalRecall: Number(criticalRecall.toFixed(6)),
+  actActionRecall: Number(actActionRecall.toFixed(6)),
+  treeRecordRecall: Number(treeRecordRecall.toFixed(6)),
+  actCriticalRecall: Number(actCriticalRecall.toFixed(6)),
   criticalOmitted,
   diffMedianTokens,
   correspondingFullMedianTokens,
   diffToFullMedianRatio,
   outputOverruns,
   localCloudParityHash,
-  additionalBrowserCalls: 0,
+  captureBrowserCalls,
+  additionalBrowserCalls,
+  browserCallAssertion: "one counted capture followed by render-only allocation",
   parityEvidence: "shared package output target; hosted infrastructure timing pending",
   gates: {
     tokens: recommendedActChars === DEFAULT_ACT_SNAPSHOT_CHARS &&
       recommendedTreeChars === DEFAULT_TREE_SNAPSHOT_CHARS &&
       act.tokens.median <= LIBRETTO_ACT_TOKENS.median && act.tokens.p95 <= LIBRETTO_ACT_TOKENS.p95,
-    recall: recordRecall === 1 && (criticalRecall === 1 || criticalOmitted > 0),
+    recall: treeRecordRecall === 1 && (actCriticalRecall === 1 || criticalOmitted > 0),
     latency: renderTiming.p95 < 30 && priorityTiming.p95 < 5,
   },
 };
@@ -379,8 +440,10 @@ console.log(JSON.stringify(metrics, null, 2));
 
 if (metrics.nodes10000.renderP95Ms >= 30) fail("10k render P95");
 if (metrics.nodes10000.priorityP95Ms >= 5) fail("10k priority P95");
-if (metrics.criticalRecall < 1 && metrics.criticalOmitted === 0) fail("silent critical loss");
+if (metrics.actCriticalRecall < 1 && metrics.criticalOmitted === 0) fail("silent critical loss");
 if (metrics.diffToFullMedianRatio > 0.5) fail("diff/full token ratio");
 if (metrics.outputOverruns !== 0) fail("hard ceiling");
+if (metrics.additionalBrowserCalls !== 0) fail("additional browser calls");
+if (metrics.captureBrowserCalls === 0) fail("capture call counter");
 if (!metrics.recommendedActChars || !metrics.recommendedTreeChars) fail("budget recommendation");
 if (!Object.values(metrics.gates).every(Boolean)) fail("acceptance gates");
