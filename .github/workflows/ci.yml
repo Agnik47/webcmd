@@ -61,7 +61,7 @@ jobs:
 
       - name: Check all generated artifacts are committed
         if: runner.os == 'Linux'
-        run: git diff --exit-code -- cli-manifest.json hosted-contract.json plugin-command-manifest.json webcmd-plugin.json README.md
+        run: git diff --exit-code -- cli-manifest.json hosted-contract.json webcmd-plugin.json README.md
 
       - name: Verify packed CLI executables
         run: npm run check:package-bin

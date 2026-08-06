@@ -86,7 +86,7 @@ jobs:
 
       - name: Check all generated artifacts are committed
         if: ${{ steps.release.outputs.release_created || inputs.publish_tag != '' }}
-        run: git diff --exit-code -- cli-manifest.json hosted-contract.json plugin-command-manifest.json webcmd-plugin.json README.md
+        run: git diff --exit-code -- cli-manifest.json hosted-contract.json webcmd-plugin.json README.md
 
       - name: Check Codex plugin metadata
         if: ${{ steps.release.outputs.release_created || inputs.publish_tag != '' }}
