@@ -123,7 +123,7 @@ jobs:
         run: npm ci
 
       - name: Run unit tests under Bun
-        run: bun vitest run --project unit --reporter=verbose --exclude 'src/browser/**'
+        run: bun vitest run --project unit --reporter=verbose
 
   smoke-test:
     name: Scheduled smoke tests

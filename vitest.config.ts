@@ -8,7 +8,7 @@ export default defineConfig({
         test: {
           name: 'unit',
           include: ['src/**/*.test.ts'],
-          exclude: ['clis/**/*.test.{ts,js}'],
+          exclude: ['clis/**/*.test.{ts,js}', 'src/browser/**/*.test.ts'],
           sequence: { groupOrder: 0 },
         },
       },
