@@ -7,7 +7,8 @@ import { scopeSnapshotToRef } from "./capture.js";
 import {
   allocateSnapshot,
   renderSnapshotMarker,
-  snapshotCriticalFullLabel,
+  snapshotCriticalSupplementalText,
+  snapshotCriticalSupplementalValues,
   snapshotIdentityAttrs,
   snapshotIdentityLabel,
   type SnapshotAllocation,
@@ -283,7 +284,7 @@ function renderAllocatedNode(
   const attrs = representation === "identity"
     ? snapshotIdentityAttrs(node)
     : node.attrs;
-  const label = representation === "identity" ? snapshotIdentityLabel(node) : snapshotCriticalFullLabel(node);
+  const label = representation === "identity" ? snapshotIdentityLabel(node) : criticalSupplementalText(node, allocation);
   const hasMarker = node.scopeRef
     ? hasOmittedSummary(allocation.omittedByScope.get(node.scopeRef))
     : false;
@@ -305,6 +306,53 @@ function renderAllocatedNode(
     renderedMarkers,
   );
   lines.push(`${indent(depth)}</${node.role}>`);
+}
+
+function criticalSupplementalText(
+  node: RenderedSnapshotNode,
+  allocation: SnapshotAllocation,
+): string | null {
+  const values = snapshotCriticalSupplementalValues(node);
+  if (!values.length) return null;
+  const covered = new Map<string, number>();
+  for (const child of node.children)
+    if (child.kind === "node")
+      for (const value of renderedTextValues(child, allocation))
+        covered.set(value, (covered.get(value) ?? 0) + 1);
+  const missing = values.filter((value) => {
+    const count = covered.get(value) ?? 0;
+    if (count <= 0) return true;
+    covered.set(value, count - 1);
+    return false;
+  });
+  return missing.length ? missing.join(" ") : null;
+}
+
+function renderedTextValues(
+  node: RenderedSnapshotNode,
+  allocation: SnapshotAllocation,
+): string[] {
+  const representation = allocation.selected.get(node);
+  if (!representation)
+    return node.children.flatMap((child) =>
+      child.kind === "node" ? renderedTextValues(child, allocation) : [],
+    );
+  const values: string[] = [];
+  if (representation === "identity") {
+    const label = snapshotIdentityLabel(node);
+    if (label) values.push(label);
+  } else {
+    for (const child of node.children)
+      if (child.kind === "text") values.push(child.text);
+  }
+  for (const child of node.children)
+    if (child.kind === "node")
+      values.push(...renderedTextValues(child, allocation));
+  if (representation === "full") {
+    const supplemental = criticalSupplementalText(node, allocation);
+    if (supplemental) values.push(supplemental);
+  }
+  return values;
 }
 
 function renderAllocatedMarker(

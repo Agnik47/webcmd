@@ -434,7 +434,7 @@ function representedTextChars(
 ): number {
   const direct = directTextChars(node.children);
   if (representation === "full")
-    return direct + (snapshotCriticalFullLabel(node)?.length ?? 0);
+    return direct + (snapshotCriticalSupplementalText(node)?.length ?? 0);
   const label = identityLabel(node);
   return label ? Math.min(direct, label.length) : 0;
 }
@@ -448,7 +448,7 @@ export function snapshotRepresentationCost(
     ? identityAttrs(node)
     : renderAttrs(node.attrs);
   const prefix = "\t".repeat(depth);
-  const label = representation === "identity" ? identityLabel(node) : snapshotCriticalFullLabel(node);
+  const label = representation === "identity" ? identityLabel(node) : snapshotCriticalSupplementalText(node);
   if (representation === "identity" && label && !node.record)
     return `${prefix}<${node.role}${attrs}>${escapeText(label)}</${node.role}>\n`.length;
   let cost = `${prefix}<${node.role}${attrs}>\n${prefix}</${node.role}>\n`.length;
@@ -476,10 +476,22 @@ export function snapshotIdentityLabel(node: RenderedSnapshotNode): string | null
   return identityLabel(node);
 }
 
-export function snapshotCriticalFullLabel(node: RenderedSnapshotNode): string | null {
-  return CRITICAL_IDENTITY_ROLES.has(node.role) && directTextChars(node.children) === 0
-    ? identityLabel(node)
-    : null;
+export function snapshotCriticalSupplementalValues(node: RenderedSnapshotNode): string[] {
+  if (!CRITICAL_IDENTITY_ROLES.has(node.role)) return [];
+  const values: string[] = [];
+  const visit = (current: RenderedSnapshotNode): void => {
+    for (const child of current.children)
+      if (child.kind === "text") values.push(child.text);
+      else visit(child);
+  };
+  for (const child of node.children)
+    if (child.kind === "node") visit(child);
+  return values;
+}
+
+export function snapshotCriticalSupplementalText(node: RenderedSnapshotNode): string | null {
+  const values = snapshotCriticalSupplementalValues(node);
+  return values.length ? values.join(" ") : null;
 }
 
 function identityAttrs(node: RenderedSnapshotNode): string {

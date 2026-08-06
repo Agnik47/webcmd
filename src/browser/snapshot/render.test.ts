@@ -175,6 +175,44 @@ describe("renderSnapshot", () => {
     expect(result.value.length).toBeLessThanOrEqual(420);
   });
 
+  it("renders nested critical text alongside direct critical text", () => {
+    const result = renderSnapshotResult(snap([
+      node({ role: "main", ref: "l1", children: [
+        node({ role: "alert", ref: "payment-alert", children: [
+          node({ role: "StaticText", name: "ERROR" }),
+          node({ role: "list", ref: "payment-list", children: [
+            node({ role: "listitem", ref: "payment-item", children: [
+              node({ role: "StaticText", name: "PAYMENT FAILED" }),
+            ] }),
+          ] }),
+        ] }),
+        ...Array.from({ length: 20 }, (_, index) =>
+          node({ role: "button", name: `Payment action ${index + 1}`, ref: `pay-${index + 1}` }),
+        ),
+      ] }),
+    ]), { mode: "act", maxChars: 420 });
+
+    expect(result.value).toContain("ERROR");
+    expect(result.value).toContain("PAYMENT FAILED");
+    expect(result.criticalOmitted).toBe(0);
+    expect(result.value.length).toBeLessThanOrEqual(420);
+  });
+
+  it("does not duplicate nested critical text when structural descendants render", () => {
+    const result = renderSnapshotResult(snap([
+      node({ role: "main", ref: "l1", children: [
+        node({ role: "alert", ref: "payment-alert", children: [
+          node({ role: "main", ref: "payment-main", children: [
+            node({ role: "StaticText", name: "PAYMENT FAILED" }),
+          ] }),
+        ] }),
+      ] }),
+    ]), { mode: "act", maxChars: 12000 });
+
+    expect(result.value.match(/PAYMENT FAILED/g)).toHaveLength(1);
+    expect(result.criticalOmitted).toBe(0);
+  });
+
   it('uses the full scoped budget without a per-parent cap', () => {
     const result = renderSnapshotResult(recordSnapshot(10), { mode: 'tree', ref: 'l12', maxChars: 12000 });
     for (let index = 1; index <= 10; index += 1) expect(result.value).toContain(`Result ${index}`);

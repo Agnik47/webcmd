@@ -152,6 +152,7 @@ const corpus: Fixture[] = [
       node("alert", {
         ref: "payment-alert",
         children: [
+          text(node, "ERROR"),
           node("list", {
             ref: "payment-alert-list",
             children: [
