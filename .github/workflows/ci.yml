@@ -122,6 +122,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install Playwright browsers
+        run: npx playwright install
+
       - name: Run unit tests under Bun
         run: bun vitest run --project unit --reporter=verbose
 
