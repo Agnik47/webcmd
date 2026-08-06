@@ -282,7 +282,8 @@ export type AdapterKind = 'site' | 'app';
 
 function isLocalIpDomain(domain: string): boolean {
   if (domain === '::1' || domain === '[::1]') return true;
-  const parts = domain.split('.');
+  const ipPart = domain.split(':')[0];
+  const parts = ipPart.split('.');
   if (parts.length !== 4) return false;
   return parts.every((part) => /^\d+$/.test(part) && Number(part) >= 0 && Number(part) <= 255)
     && Number(parts[0]) === 127;
