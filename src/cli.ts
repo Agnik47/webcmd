@@ -806,7 +806,7 @@ cli({
         fs.mkdirSync(dir, { recursive: true });
         fs.writeFileSync(filePath, template, 'utf-8');
         console.log(`Created: ${filePath}`);
-        console.log('First time on this site? Run: webcmd browser analyze <url>');
+        console.log('First time on this site? Run: webcmd browser recon run --stdin');
         console.log(`Edit the file to implement your adapter, then run: webcmd browser verify ${name}`);
       } catch (err) {
         console.error(`Error: ${err instanceof Error ? err.message : String(err)}`);
@@ -1743,8 +1743,8 @@ cli({
   // When an ancestor command declares a leading positional via `.usage(...)`
   // (e.g. `browser` -> `<session> <command> [options]`), inject the positional
   // between that ancestor's name and the next path segment so the help Usage
-  // line is accurate: `Usage: webcmd browser <session> click [target] [options]`
-  // instead of `webcmd browser click [target] [options]`. Commander does NOT
+  // line is accurate: `Usage: webcmd browser <session> run [options]`
+  // instead of `webcmd browser run [options]`. Commander does NOT
   // inherit configureHelp into subcommands, so we walk the descendant tree and
   // apply the override on each.
   const ancestorAwareCommandUsage = (cmd: Command): string => {

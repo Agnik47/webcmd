@@ -115,8 +115,9 @@ describe('webcmd skills content', () => {
     const usage = bundledSkill('webcmd-usage');
     const autofix = bundledSkill('webcmd-autofix');
     const author = bundledSkill('webcmd-adapter-author');
-    const skills = [usage, autofix, author];
-    const handoffSkills = [usage, autofix];
+    const browser = bundledSkill('webcmd-browser');
+    const skills = [usage, autofix, author, browser];
+    const handoffSkills = [usage, autofix, browser];
     const autofixAuthRequired = autofix.match(/^- \*\*`AUTH_REQUIRED`\*\*[\s\S]*?(?=\n- \*\*)/m)?.[0] ?? '';
     const autofixAuthRequiredRow = autofix.split('\n')
       .find((line) => line.startsWith('| AUTH_REQUIRED |')) ?? '';

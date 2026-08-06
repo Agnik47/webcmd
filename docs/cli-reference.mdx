@@ -68,7 +68,7 @@ webcmd browser work run --stdin --no-snapshot-diff
 ```
 
 Use `snapshot` for explicit page inspection. `act` is the default
-action-first mode; `read` preserves more content text. Exactly one of `--file
+action-first mode, `tree` preserves fuller page structure, and `read` extracts readable article/content text. Exactly one of `--file
 <path>` or `--stdin` is required for `run`. The CLI reads files locally and
 sends source—not the path—to the local daemon. `--timeout` is in seconds and
 `--max-output` bounds returned results and logs. Successful runs return a
@@ -83,10 +83,10 @@ CDP endpoints, browser launch/connect APIs, or browser-context ownership.
 Screenshot bytes are written to a Webcmd-owned cache directory and returned as
 a receipt.
 
-This command is currently local-only. Existing primitive browser commands are
-unchanged, and reusable adapters continue to use the existing `IPage` API.
-Playwright-style programs are for reconnaissance and ad-hoc multi-step work;
-they are not pasted into adapter modules.
+The public browser surface is `tabs`, `bind`, `run`, `snapshot`, and `close`.
+Reusable adapters continue to use the existing `IPage` API. Playwright-style
+programs are for reconnaissance and ad-hoc multi-step work; they are not pasted
+into adapter modules.
 
 ## Top-Level Commands
 

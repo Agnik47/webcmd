@@ -4,32 +4,53 @@
 
 This file only classifies sites. It does not explain how to discover endpoints.
 
-## One-Step Diagnosis
+## Browser-Run Diagnosis
 
-Preferred command:
+Preferred flow:
 
 ```bash
-webcmd browser analyze <url>
+webcmd browser recon run --stdin --snapshot-mode tree <<'JS'
+const responses = [];
+page.on('response', response => {
+  const contentType = response.headers()['content-type'] || '';
+  if (/json|text\/event-stream/i.test(contentType) || /\/api\/|graphql/i.test(response.url())) {
+    responses.push({
+      url: response.url(),
+      status: response.status(),
+      contentType,
+    });
+  }
+});
+
+await page.goto('<url>');
+await page.waitForLoadState('domcontentloaded');
+await page.waitForTimeout(1500);
+
+return {
+  url: page.url(),
+  title: await page.title(),
+  globals: await page.evaluate(() => ({
+    react: Boolean(window.React || window.__REACT_DEVTOOLS_GLOBAL_HOOK__),
+    next: Boolean(window.__NEXT_DATA__),
+    nuxt: Boolean(window.__NUXT__),
+  })),
+  responses: responses.slice(0, 20),
+};
+JS
 ```
 
-The command returns JSON with:
+Then inspect page structure when needed:
 
-```json
-{
-  "pattern": "A|B|C|D|E",
-  "anti_bot": [],
-  "api_candidates": [],
-  "nearest_adapters": [],
-  "recommended_next_step": "..."
-}
+```bash
+webcmd browser recon snapshot --snapshot-mode tree
 ```
 
-`analyze` gives Pattern classification, anti-bot signals, nearest-adapter matches, and the next step in one pass. Follow `recommended_next_step` directly in most cases.
+Use this evidence to choose Pattern A/B/C/D/E. Do not paste the Playwright-style program into the adapter.
 
-## Manual Three-Step Diagnosis
+## Existing-Page Diagnosis
 
-Use this only when `analyze` is ambiguous. List pages, bind the chosen page,
-then run the dependent recon steps together:
+Use this when the user already has a relevant tab open. List pages, bind the chosen page,
+then run dependent recon steps together:
 
 ```bash
 webcmd browser recon tabs
@@ -88,7 +109,7 @@ program into an adapter.
 
 **Important:** Pattern A does not automatically mean `PAGE_FETCH`.
 
-- First inspect `api_candidates[]` from `webcmd browser analyze`: only `verdict=likely_data` entries are real candidates. `verdict=noise` entries such as analytics, beacons, or personalization do not count as API signals.
+- First inspect the response evidence collected by `browser run`; analytics, beacons, or personalization responses do not count as API signals.
 - The booking #1680 counterexample had many JSON XHRs that looked like Pattern A, but they were analytics side-channels; the final strategy was `DOM_STATE` / `UI_SELECTOR`.
 - After replaying a candidate endpoint, choose strategy through `strategy-selection.md`. Consider `PAGE_FETCH` only after `PUBLIC_API` and `COOKIE_API` fail.
 

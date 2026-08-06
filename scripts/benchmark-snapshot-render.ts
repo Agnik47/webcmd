@@ -14,11 +14,11 @@ import type { AiSnapshot, AiSnapshotFrame, AiSnapshotNode } from "../src/browser
 import type { Page } from "playwright-core";
 
 const CANDIDATES = [4_096, 6_144, 8_192, 12_288, 16_384, 24_576, 32_768] as const;
-const LIBRETTO_ACT_TOKENS = {
+const BASELINE_ACT_TOKENS = {
   median: 3_072,
   p95: 3_072,
   corpus: "snapshot-calibration-v1",
-  source: "frozen 2026-08-06 isolated Libretto measurement; competitor not rerun",
+  source: "frozen 2026-08-06 isolated baseline measurement",
 } as const;
 const WARM_ITERATIONS = 200;
 const MEASURED_ITERATIONS = 1_000;
@@ -333,7 +333,7 @@ function corpusStats(mode: "act" | "tree", maxChars: number): {
 
 const candidates = CANDIDATES.map((maxChars) => ({ maxChars, ...corpusStats("act", maxChars) }));
 const recommendedActChars = candidates.filter(({ tokens }) =>
-  tokens.median <= LIBRETTO_ACT_TOKENS.median && tokens.p95 <= LIBRETTO_ACT_TOKENS.p95
+  tokens.median <= BASELINE_ACT_TOKENS.median && tokens.p95 <= BASELINE_ACT_TOKENS.p95
 ).at(-1)?.maxChars ?? 0;
 
 const expected = corpus.map(identities);
@@ -436,7 +436,7 @@ const additionalBrowserCalls = countedBrowserCalls - callsBeforeAllocation;
 const metrics = {
   corpus: corpus.map(({ id }) => id),
   iterations: { warm: WARM_ITERATIONS, measured: MEASURED_ITERATIONS },
-  librettoActTokens: LIBRETTO_ACT_TOKENS,
+  baselineActTokens: BASELINE_ACT_TOKENS,
   candidates: candidates.map(({ maxChars, characters, tokens }) => ({ maxChars, characters, tokens })),
   treeCandidates,
   recommendedActChars,
@@ -469,7 +469,7 @@ const metrics = {
   gates: {
     tokens: recommendedActChars === DEFAULT_ACT_SNAPSHOT_CHARS &&
       recommendedTreeChars === DEFAULT_TREE_SNAPSHOT_CHARS &&
-      act.tokens.median <= LIBRETTO_ACT_TOKENS.median && act.tokens.p95 <= LIBRETTO_ACT_TOKENS.p95,
+      act.tokens.median <= BASELINE_ACT_TOKENS.median && act.tokens.p95 <= BASELINE_ACT_TOKENS.p95,
     recall: treeRecordRecall === 1 && (actCriticalRecall === 1 || criticalOmitted > 0),
     latency: renderTiming.p95 < 30 && priorityTiming.p95 < 5,
   },
