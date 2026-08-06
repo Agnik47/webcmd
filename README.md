@@ -5,9 +5,6 @@
   <a href="https://www.npmjs.com/package/@agentrhq/webcmd">
     <img alt="NPM version" src="https://img.shields.io/npm/v/@agentrhq/webcmd.svg?style=for-the-badge&color=1E88E5&labelColor=000000">
   </a>
-  <a href="https://www.npmjs.com/package/@agentrhq/webcmd">
-    <img alt="NPM downloads" src="https://img.shields.io/npm/dt/@agentrhq/webcmd.svg?style=for-the-badge&color=1E88E5&labelColor=000000">
-  </a>
   <a href="https://webcmd.dev/docs">
     <img alt="Documentation" src="https://img.shields.io/badge/docs-webcmd.dev-7C3AED.svg?style=for-the-badge&labelColor=000000">
   </a>
@@ -133,21 +130,8 @@ Webcmd Cloud can run supported commands and browser sessions on hosted infrastru
 
 | Plugin | Description | Author |
 | --- | --- | --- |
-| [`bmwblog`](./plugins/bmwblog/) | BMWBLOG article discovery commands for Webcmd | [WebCMD Agent](https://github.com/agentrhq) |
-| [`cincinnati`](./plugins/cincinnati/) | University of Cincinnati postgraduate course export adapter | [WebCMD Agent](https://github.com/agentrhq) |
-| [`concordia`](./plugins/concordia/) | Concordia University Montréal postgraduate course export adapter | [WebCMD Agent](https://github.com/agentrhq) |
-| [`goettingen`](./plugins/goettingen/) | University of Göttingen postgraduate course export adapter | [WebCMD Agent](https://github.com/agentrhq) |
-| [`heidelberg`](./plugins/heidelberg/) | Heidelberg University postgraduate course export adapter | [WebCMD Agent](https://github.com/agentrhq) |
-| [`hft`](./plugins/hft/) | HFT Stuttgart postgraduate course export adapter | [WebCMD Agent](https://github.com/agentrhq) |
-| [`iit`](./plugins/iit/) | Illinois Institute of Technology postgraduate course export adapter | [WebCMD Agent](https://github.com/agentrhq) |
-| [`jhu`](./plugins/jhu/) | Johns Hopkins University postgraduate course export adapter | [WebCMD Agent](https://github.com/agentrhq) |
-| [`luma`](./plugins/luma/) | Manage hosted Luma events, registration questions, and guests | [Webcmd](https://github.com/webcmd) |
 | [`pypi`](./plugins/pypi/) | Inspect public Python package metadata and releases from PyPI | [Kemal Kaya](https://github.com/yoldaolmak) |
 | [`skyscanner`](./plugins/skyscanner/) | Skyscanner flight search commands for Webcmd | [Rishabh](https://github.com/rishabhraj36) |
-| [`techcrunch`](./plugins/techcrunch/) | Search and read TechCrunch stories from its public API | [WebCMD Agent](https://github.com/agentrhq) |
-| [`ualberta`](./plugins/ualberta/) | University of Alberta postgraduate course export adapter | [WebCMD Agent](https://github.com/agentrhq) |
-| [`yale`](./plugins/yale/) | Yale University postgraduate course export adapter | [WebCMD Agent](https://github.com/agentrhq) |
-| [`ycombinator`](./plugins/ycombinator/) | Read-only Y Combinator startup directory commands for WebCMD | [WebCMD Agent](https://github.com/agentrhq) |
 <!-- webcmd-community-plugins:end -->
 
 ## Contributing

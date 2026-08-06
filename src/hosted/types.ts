@@ -213,6 +213,7 @@ export interface HostedBrowserRunResponse {
       displayName: string;
     };
     liveViewUrl?: string;
+    expiresAt?: string;
   };
 }
 

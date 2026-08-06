@@ -88,10 +88,10 @@
       "path": "plugins/luma",
       "version": "0.1.0",
       "description": "Manage hosted Luma events, registration questions, and guests",
-      "webcmd": ">=0.5.3",
+      "webcmd": ">=0.5.2",
       "author": {
-        "name": "Webcmd",
-        "handle": "webcmd"
+        "name": "WebCMD Agent",
+        "handle": "agentrhq"
       }
     },
     "pypi": {

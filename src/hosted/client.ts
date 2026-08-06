@@ -570,11 +570,12 @@ function isHostedBrowserRunResponse(value: unknown, requestedSession: string): v
 
 function isHostedBrowserRunPayload(value: unknown, requestedSession: string): value is HostedBrowserRunResponse['run'] {
   const run = value;
-  if (!hasOnlyKeys(run, ['executionId', 'session', 'profile', 'liveViewUrl'])) return false;
+  if (!hasOnlyKeys(run, ['executionId', 'session', 'profile', 'liveViewUrl', 'expiresAt'])) return false;
   if (typeof run.executionId !== 'string' || run.session !== requestedSession) return false;
   if (!hasExactKeys(run.profile, ['id', 'displayName'])) return false;
   if (typeof run.profile.id !== 'string' || typeof run.profile.displayName !== 'string') return false;
-  return run.liveViewUrl === undefined || typeof run.liveViewUrl === 'string';
+  if (run.liveViewUrl !== undefined && typeof run.liveViewUrl !== 'string') return false;
+  return run.expiresAt === undefined || typeof run.expiresAt === 'string';
 }
 
 function isHostedBrowserActionResponse(value: unknown): value is HostedBrowserActionResponse {
