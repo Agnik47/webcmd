@@ -312,8 +312,16 @@ function criticalSupplementalText(
   node: RenderedSnapshotNode,
   allocation: SnapshotAllocation,
 ): string | null {
+  const values = criticalSupplementalValues(node, allocation);
+  return values.length ? values.join(" ") : null;
+}
+
+function criticalSupplementalValues(
+  node: RenderedSnapshotNode,
+  allocation: SnapshotAllocation,
+): string[] {
   const values = snapshotCriticalSupplementalValues(node);
-  if (!values.length) return null;
+  if (!values.length) return [];
   const covered = new Map<string, number>();
   for (const child of node.children)
     if (child.kind === "node")
@@ -325,7 +333,7 @@ function criticalSupplementalText(
     covered.set(value, count - 1);
     return false;
   });
-  return missing.length ? missing.join(" ") : null;
+  return missing;
 }
 
 function renderedTextValues(
@@ -348,10 +356,8 @@ function renderedTextValues(
   for (const child of node.children)
     if (child.kind === "node")
       values.push(...renderedTextValues(child, allocation));
-  if (representation === "full") {
-    const supplemental = criticalSupplementalText(node, allocation);
-    if (supplemental) values.push(supplemental);
-  }
+  if (representation === "full")
+    values.push(...criticalSupplementalValues(node, allocation));
   return values;
 }
 

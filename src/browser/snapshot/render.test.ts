@@ -213,6 +213,36 @@ describe("renderSnapshot", () => {
     expect(result.criticalOmitted).toBe(0);
   });
 
+  it("does not duplicate multi-value critical supplements rendered by descendants", () => {
+    const snapshot = snap([
+      node({ role: "main", ref: "l1", children: [
+        node({ role: "alert", ref: "l2", children: [
+          node({ role: "alert", ref: "l3", children: [
+            node({ role: "list", ref: "l4", children: [
+              node({ role: "listitem", ref: "l5", children: [
+                node({ role: "StaticText", name: "PAYMENT" }),
+              ] }),
+              node({ role: "listitem", ref: "l6", children: [
+                node({ role: "StaticText", name: "FAILED" }),
+              ] }),
+            ] }),
+          ] }),
+        ] }),
+        ...Array.from({ length: 20 }, (_, index) =>
+          node({ role: "button", name: `Action ${index + 1}`, ref: `l${index + 7}` }),
+        ),
+      ] }),
+    ]);
+    snapshot.title = "";
+    snapshot.url = "";
+    if (snapshot.frames[0]?.status === "ok") snapshot.frames[0].url = "";
+    const result = renderSnapshotResult(snapshot, { mode: "act", maxChars: 371 });
+
+    expect(result.value.match(/PAYMENT FAILED/g) ?? [], result.value).toHaveLength(1);
+    expect(result.criticalOmitted).toBe(0);
+    expect(result.value.length).toBeLessThanOrEqual(371);
+  });
+
   it('uses the full scoped budget without a per-parent cap', () => {
     const result = renderSnapshotResult(recordSnapshot(10), { mode: 'tree', ref: 'l12', maxChars: 12000 });
     for (let index = 1; index <= 10; index += 1) expect(result.value).toContain(`Result ${index}`);
