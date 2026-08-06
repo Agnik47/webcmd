@@ -339,6 +339,13 @@ function formatGroupedCommandList(
     + `${externalClis.length} external CLIs`,
     '',
   );
+  if (sitesBySite.size === 0) {
+    lines.push(
+      `  No site plugins installed. Find one with '${CLI_COMMAND} plugin search <site>'`
+      + ` and install it with '${CLI_COMMAND} plugin install <installSource>'.`,
+      '',
+    );
+  }
   return lines;
 }
 
