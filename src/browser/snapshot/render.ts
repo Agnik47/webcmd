@@ -7,6 +7,7 @@ import { scopeSnapshotToRef } from "./capture.js";
 import {
   allocateSnapshot,
   renderSnapshotMarker,
+  snapshotCriticalFullLabel,
   snapshotIdentityAttrs,
   snapshotIdentityLabel,
   type SnapshotAllocation,
@@ -282,11 +283,11 @@ function renderAllocatedNode(
   const attrs = representation === "identity"
     ? snapshotIdentityAttrs(node)
     : node.attrs;
-  const label = representation === "identity" ? snapshotIdentityLabel(node) : null;
+  const label = representation === "identity" ? snapshotIdentityLabel(node) : snapshotCriticalFullLabel(node);
   const hasMarker = node.scopeRef
     ? hasOmittedSummary(allocation.omittedByScope.get(node.scopeRef))
     : false;
-  if (label && !node.record && !hasMarker) {
+  if (representation === "identity" && label && !node.record && !hasMarker) {
     lines.push(`${indent(depth)}${formatTag(node.role, attrs, true)}${escapeText(label)}</${node.role}>`);
     return;
   }

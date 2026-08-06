@@ -146,6 +146,29 @@ const corpus: Fixture[] = [
       })),
     ],
   })])]),
+  fixture("nested-critical-v1", (node) => [frame("nested-critical", [node("main", {
+    ref: "nested-critical-root",
+    children: [
+      node("alert", {
+        ref: "payment-alert",
+        children: [
+          node("list", {
+            ref: "payment-alert-list",
+            children: [
+              node("listitem", {
+                ref: "payment-alert-item",
+                children: [text(node, "PAYMENT FAILED")],
+              }),
+            ],
+          }),
+        ],
+      }),
+      ...Array.from({ length: 20 }, (_, index) => node("button", {
+        name: `Payment action ${index + 1}`,
+        ref: `payment-action-${index + 1}`,
+      })),
+    ],
+  })])]),
   fixture("iframes-v1", (node) => Array.from({ length: 4 }, (_, frameIndex) => frame(
     `iframe-${frameIndex}`,
     [node("main", {
@@ -231,6 +254,16 @@ function allNodes(snapshot: AiSnapshot): Array<{ node: AiSnapshotNode; parentRol
   return result;
 }
 
+function descendantStaticText(node: AiSnapshotNode): string[] {
+  const values: string[] = [];
+  const visit = (current: AiSnapshotNode): void => {
+    if (current.role === "StaticText" && current.name) values.push(current.name);
+    for (const child of current.children) visit(child);
+  };
+  for (const child of node.children) visit(child);
+  return values;
+}
+
 function identities(fixtureValue: Fixture): {
   actions: string[];
   records: string[];
@@ -249,8 +282,7 @@ function identities(fixtureValue: Fixture): {
     ) {
       const contentAndState = [node.name, node.description]
         .filter((value): value is string => Boolean(value));
-      for (const child of node.children)
-        if (child.role === "StaticText" && child.name) contentAndState.push(child.name);
+      contentAndState.push(...descendantStaticText(node));
       for (const property of ["focused", "invalid", "checked", "selected", "expanded", "disabled", "pressed"])
         if (node.properties[property] !== undefined)
           contentAndState.push(`${property}="${String(node.properties[property])}"`);
@@ -336,6 +368,15 @@ const actCriticalRecall = criticalTotal === 0 ? 1 : expected.reduce((sum, value,
   sum + criticalRecalled(act.outputs[index]!, value.critical) * value.critical.length, 0) / criticalTotal;
 const criticalOmitted = corpus.reduce((sum, { snapshot }) =>
   sum + renderSnapshotResult(snapshot, { mode: "act", maxChars: recommendedActChars }).criticalOmitted, 0);
+const nestedCriticalRegression = (() => {
+  const fixtureValue = corpus.find(({ id }) => id === "nested-critical-v1")!;
+  const result = renderSnapshotResult(fixtureValue.snapshot, { mode: "act", maxChars: 240 });
+  return {
+    contentRecalled: result.value.includes("PAYMENT FAILED"),
+    criticalOmitted: result.criticalOmitted,
+    characters: result.value.length,
+  };
+})();
 
 const diffTokens: number[] = [];
 const correspondingFullTokens: number[] = [];
@@ -414,6 +455,7 @@ const metrics = {
   treeRecordRecall: Number(treeRecordRecall.toFixed(6)),
   actCriticalRecall: Number(actCriticalRecall.toFixed(6)),
   criticalOmitted,
+  nestedCriticalRegression,
   diffMedianTokens,
   correspondingFullMedianTokens,
   diffToFullMedianRatio,
@@ -441,6 +483,8 @@ console.log(JSON.stringify(metrics, null, 2));
 if (metrics.nodes10000.renderP95Ms >= 30) fail("10k render P95");
 if (metrics.nodes10000.priorityP95Ms >= 5) fail("10k priority P95");
 if (metrics.actCriticalRecall < 1 && metrics.criticalOmitted === 0) fail("silent critical loss");
+if (!metrics.nestedCriticalRegression.contentRecalled &&
+  metrics.nestedCriticalRegression.criticalOmitted === 0) fail("nested critical loss");
 if (metrics.diffToFullMedianRatio > 0.5) fail("diff/full token ratio");
 if (metrics.outputOverruns !== 0) fail("hard ceiling");
 if (metrics.additionalBrowserCalls !== 0) fail("additional browser calls");

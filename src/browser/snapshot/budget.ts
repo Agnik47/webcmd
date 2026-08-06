@@ -433,7 +433,8 @@ function representedTextChars(
   representation: SnapshotRepresentation,
 ): number {
   const direct = directTextChars(node.children);
-  if (representation === "full") return direct;
+  if (representation === "full")
+    return direct + (snapshotCriticalFullLabel(node)?.length ?? 0);
   const label = identityLabel(node);
   return label ? Math.min(direct, label.length) : 0;
 }
@@ -447,8 +448,8 @@ export function snapshotRepresentationCost(
     ? identityAttrs(node)
     : renderAttrs(node.attrs);
   const prefix = "\t".repeat(depth);
-  const label = representation === "identity" ? identityLabel(node) : null;
-  if (label && !node.record)
+  const label = representation === "identity" ? identityLabel(node) : snapshotCriticalFullLabel(node);
+  if (representation === "identity" && label && !node.record)
     return `${prefix}<${node.role}${attrs}>${escapeText(label)}</${node.role}>\n`.length;
   let cost = `${prefix}<${node.role}${attrs}>\n${prefix}</${node.role}>\n`.length;
   if (label) cost += `${prefix}\t${escapeText(label)}\n`.length;
@@ -473,6 +474,12 @@ export function snapshotIdentityAttrs(node: RenderedSnapshotNode): Array<[string
 
 export function snapshotIdentityLabel(node: RenderedSnapshotNode): string | null {
   return identityLabel(node);
+}
+
+export function snapshotCriticalFullLabel(node: RenderedSnapshotNode): string | null {
+  return CRITICAL_IDENTITY_ROLES.has(node.role) && directTextChars(node.children) === 0
+    ? identityLabel(node)
+    : null;
 }
 
 function identityAttrs(node: RenderedSnapshotNode): string {
