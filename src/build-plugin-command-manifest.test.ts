@@ -213,6 +213,11 @@ describe('plugin command manifest', () => {
   });
 
   it('requires the plugin-runtime release for LinkedIn', () => {
+    // The floor must match the webcmd version that actually ships
+    // plugin-runtime, not a hardcoded literal that drifts from package.json.
+    const { version } = JSON.parse(fs.readFileSync('package.json', 'utf8')) as { version: string };
+    const expectedRange = `>=${version}`;
+
     const packageManifest = JSON.parse(fs.readFileSync('plugins/linkedin/package.json', 'utf8')) as {
       peerDependencies?: Record<string, string>;
     };
@@ -223,9 +228,9 @@ describe('plugin command manifest', () => {
       plugins?: Record<string, { webcmd?: string }>;
     };
 
-    expect(packageManifest.peerDependencies?.['@agentrhq/webcmd']).toBe('>=0.6.0');
-    expect(pluginManifest.webcmd).toBe('>=0.6.0');
-    expect(rootManifest.plugins?.linkedin?.webcmd).toBe('>=0.6.0');
+    expect(packageManifest.peerDependencies?.['@agentrhq/webcmd']).toBe(expectedRange);
+    expect(pluginManifest.webcmd).toBe(expectedRange);
+    expect(rootManifest.plugins?.linkedin?.webcmd).toBe(expectedRange);
   });
 
   it.each([

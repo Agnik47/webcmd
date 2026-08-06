@@ -8,7 +8,7 @@
       "path": "plugins/amazon",
       "version": "0.1.0",
       "description": "Webcmd commands for amazon",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -18,7 +18,7 @@
       "path": "plugins/amazon-in",
       "version": "0.1.0",
       "description": "Webcmd commands for amazon-in",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -28,7 +28,7 @@
       "path": "plugins/antigravity",
       "version": "0.1.0",
       "description": "Webcmd commands for antigravity",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -38,7 +38,7 @@
       "path": "plugins/apple-podcasts",
       "version": "0.1.0",
       "description": "Webcmd commands for apple-podcasts",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -48,7 +48,7 @@
       "path": "plugins/archive",
       "version": "0.1.0",
       "description": "Webcmd commands for archive",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -58,7 +58,7 @@
       "path": "plugins/arxiv",
       "version": "0.1.0",
       "description": "Webcmd commands for arxiv",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -68,7 +68,7 @@
       "path": "plugins/band",
       "version": "0.1.0",
       "description": "Webcmd commands for band",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -78,7 +78,7 @@
       "path": "plugins/barchart",
       "version": "0.1.0",
       "description": "Webcmd commands for barchart",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -88,7 +88,7 @@
       "path": "plugins/bbc",
       "version": "0.1.0",
       "description": "Webcmd commands for bbc",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -98,7 +98,7 @@
       "path": "plugins/bigbasket",
       "version": "0.1.0",
       "description": "Webcmd commands for bigbasket",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -108,7 +108,7 @@
       "path": "plugins/binance",
       "version": "0.1.0",
       "description": "Webcmd commands for binance",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -118,7 +118,7 @@
       "path": "plugins/blinkit",
       "version": "0.1.0",
       "description": "Webcmd commands for blinkit",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -128,7 +128,7 @@
       "path": "plugins/bloomberg",
       "version": "0.1.0",
       "description": "Webcmd commands for bloomberg",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -138,7 +138,7 @@
       "path": "plugins/bluesky",
       "version": "0.1.0",
       "description": "Webcmd commands for bluesky",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -158,7 +158,7 @@
       "path": "plugins/booking",
       "version": "0.1.0",
       "description": "Webcmd commands for booking",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -168,7 +168,7 @@
       "path": "plugins/brave",
       "version": "0.1.0",
       "description": "Webcmd commands for brave",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -178,7 +178,7 @@
       "path": "plugins/chatgpt",
       "version": "0.1.0",
       "description": "Webcmd commands for chatgpt",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -188,7 +188,7 @@
       "path": "plugins/chatgpt-app",
       "version": "0.1.0",
       "description": "Webcmd commands for chatgpt-app",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -198,7 +198,7 @@
       "path": "plugins/chatwise",
       "version": "0.1.0",
       "description": "Webcmd commands for chatwise",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -208,7 +208,7 @@
       "path": "plugins/chess",
       "version": "0.1.0",
       "description": "Webcmd commands for chess",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -228,7 +228,7 @@
       "path": "plugins/claude",
       "version": "0.1.0",
       "description": "Webcmd commands for claude",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -238,7 +238,7 @@
       "path": "plugins/codex",
       "version": "0.1.0",
       "description": "Webcmd commands for codex",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -248,7 +248,7 @@
       "path": "plugins/coingecko",
       "version": "0.1.0",
       "description": "Webcmd commands for coingecko",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -268,7 +268,7 @@
       "path": "plugins/confluence",
       "version": "0.1.0",
       "description": "Webcmd commands for confluence",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -278,7 +278,7 @@
       "path": "plugins/coupang",
       "version": "0.1.0",
       "description": "Webcmd commands for coupang",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -288,7 +288,7 @@
       "path": "plugins/crates",
       "version": "0.1.0",
       "description": "Webcmd commands for crates",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -298,7 +298,7 @@
       "path": "plugins/cursor",
       "version": "0.1.0",
       "description": "Webcmd commands for cursor",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -308,7 +308,7 @@
       "path": "plugins/dblp",
       "version": "0.1.0",
       "description": "Webcmd commands for dblp",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -318,7 +318,7 @@
       "path": "plugins/defillama",
       "version": "0.1.0",
       "description": "Webcmd commands for defillama",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -328,7 +328,7 @@
       "path": "plugins/devto",
       "version": "0.1.0",
       "description": "Webcmd commands for devto",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -338,7 +338,7 @@
       "path": "plugins/dictionary",
       "version": "0.1.0",
       "description": "Webcmd commands for dictionary",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -348,7 +348,7 @@
       "path": "plugins/discord-app",
       "version": "0.1.0",
       "description": "Webcmd commands for discord-app",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -358,7 +358,7 @@
       "path": "plugins/district",
       "version": "0.1.0",
       "description": "Webcmd commands for district",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -368,7 +368,7 @@
       "path": "plugins/dockerhub",
       "version": "0.1.0",
       "description": "Webcmd commands for dockerhub",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -378,7 +378,7 @@
       "path": "plugins/duckduckgo",
       "version": "0.1.0",
       "description": "Webcmd commands for duckduckgo",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -388,7 +388,7 @@
       "path": "plugins/endoflife",
       "version": "0.1.0",
       "description": "Webcmd commands for endoflife",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -398,7 +398,7 @@
       "path": "plugins/facebook",
       "version": "0.1.0",
       "description": "Webcmd commands for facebook",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -408,7 +408,7 @@
       "path": "plugins/flathub",
       "version": "0.1.0",
       "description": "Webcmd commands for flathub",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -418,7 +418,7 @@
       "path": "plugins/gemini",
       "version": "0.1.0",
       "description": "Webcmd commands for gemini",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -428,7 +428,7 @@
       "path": "plugins/geogebra",
       "version": "0.1.0",
       "description": "Webcmd commands for geogebra",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -438,7 +438,7 @@
       "path": "plugins/github",
       "version": "0.1.0",
       "description": "Webcmd commands for github",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -448,7 +448,7 @@
       "path": "plugins/github-trending",
       "version": "0.1.0",
       "description": "Webcmd commands for github-trending",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -468,7 +468,7 @@
       "path": "plugins/google",
       "version": "0.1.0",
       "description": "Webcmd commands for google",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -478,7 +478,7 @@
       "path": "plugins/google-scholar",
       "version": "0.1.0",
       "description": "Webcmd commands for google-scholar",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -488,7 +488,7 @@
       "path": "plugins/goproxy",
       "version": "0.1.0",
       "description": "Webcmd commands for goproxy",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -498,7 +498,7 @@
       "path": "plugins/grok",
       "version": "0.1.0",
       "description": "Webcmd commands for grok",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -508,7 +508,7 @@
       "path": "plugins/hackernews",
       "version": "0.1.0",
       "description": "Webcmd commands for hackernews",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -528,7 +528,7 @@
       "path": "plugins/hf",
       "version": "0.1.0",
       "description": "Webcmd commands for hf",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -548,7 +548,7 @@
       "path": "plugins/homebrew",
       "version": "0.1.0",
       "description": "Webcmd commands for homebrew",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -568,7 +568,7 @@
       "path": "plugins/imdb",
       "version": "0.1.0",
       "description": "Webcmd commands for imdb",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -578,7 +578,7 @@
       "path": "plugins/indeed",
       "version": "0.1.0",
       "description": "Webcmd commands for indeed",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -588,7 +588,7 @@
       "path": "plugins/instagram",
       "version": "0.1.0",
       "description": "Webcmd commands for instagram",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -608,7 +608,7 @@
       "path": "plugins/jira",
       "version": "0.1.0",
       "description": "Webcmd commands for jira",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -618,7 +618,7 @@
       "path": "plugins/lesswrong",
       "version": "0.1.0",
       "description": "Webcmd commands for lesswrong",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -628,7 +628,7 @@
       "path": "plugins/lichess",
       "version": "0.1.0",
       "description": "Webcmd commands for lichess",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -638,7 +638,7 @@
       "path": "plugins/linkedin",
       "version": "0.1.0",
       "description": "LinkedIn profile, network, messaging, job, and Sales Navigator commands for WebCMD",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -648,7 +648,7 @@
       "path": "plugins/linkedin-learning",
       "version": "0.1.0",
       "description": "Webcmd commands for linkedin-learning",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -658,7 +658,7 @@
       "path": "plugins/lobsters",
       "version": "0.1.0",
       "description": "Webcmd commands for lobsters",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -678,7 +678,7 @@
       "path": "plugins/manus",
       "version": "0.1.0",
       "description": "Webcmd commands for manus",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -688,7 +688,7 @@
       "path": "plugins/maven",
       "version": "0.1.0",
       "description": "Webcmd commands for maven",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -698,7 +698,7 @@
       "path": "plugins/mdn",
       "version": "0.1.0",
       "description": "Webcmd commands for mdn",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -708,7 +708,7 @@
       "path": "plugins/medium",
       "version": "0.1.0",
       "description": "Webcmd commands for medium",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -718,7 +718,7 @@
       "path": "plugins/mercury",
       "version": "0.1.0",
       "description": "Webcmd commands for mercury",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -728,7 +728,7 @@
       "path": "plugins/notebooklm",
       "version": "0.1.0",
       "description": "Webcmd commands for notebooklm",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -738,7 +738,7 @@
       "path": "plugins/npm",
       "version": "0.1.0",
       "description": "Webcmd commands for npm",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -748,7 +748,7 @@
       "path": "plugins/nuget",
       "version": "0.1.0",
       "description": "Webcmd commands for nuget",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -758,7 +758,7 @@
       "path": "plugins/nvd",
       "version": "0.1.0",
       "description": "Webcmd commands for nvd",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -768,7 +768,7 @@
       "path": "plugins/oeis",
       "version": "0.1.0",
       "description": "Webcmd commands for oeis",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -778,7 +778,7 @@
       "path": "plugins/openalex",
       "version": "0.1.0",
       "description": "Webcmd commands for openalex",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -788,7 +788,7 @@
       "path": "plugins/openfda",
       "version": "0.1.0",
       "description": "Webcmd commands for openfda",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -798,7 +798,7 @@
       "path": "plugins/openreview",
       "version": "0.1.0",
       "description": "Webcmd commands for openreview",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -808,7 +808,7 @@
       "path": "plugins/osv",
       "version": "0.1.0",
       "description": "Webcmd commands for osv",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -818,7 +818,7 @@
       "path": "plugins/packagist",
       "version": "0.1.0",
       "description": "Webcmd commands for packagist",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -828,7 +828,7 @@
       "path": "plugins/paperreview",
       "version": "0.1.0",
       "description": "Webcmd commands for paperreview",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -838,7 +838,7 @@
       "path": "plugins/pixiv",
       "version": "0.1.0",
       "description": "Webcmd commands for pixiv",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -848,7 +848,7 @@
       "path": "plugins/practo",
       "version": "0.1.0",
       "description": "Webcmd commands for practo",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -858,7 +858,7 @@
       "path": "plugins/producthunt",
       "version": "0.1.0",
       "description": "Webcmd commands for producthunt",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -868,7 +868,7 @@
       "path": "plugins/pubmed",
       "version": "0.1.0",
       "description": "Webcmd commands for pubmed",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -888,7 +888,7 @@
       "path": "plugins/qoder",
       "version": "0.1.0",
       "description": "Webcmd commands for qoder",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -898,7 +898,7 @@
       "path": "plugins/reddit",
       "version": "0.1.0",
       "description": "Webcmd commands for reddit",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -908,7 +908,7 @@
       "path": "plugins/rest-countries",
       "version": "0.1.0",
       "description": "Webcmd commands for rest-countries",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -918,7 +918,7 @@
       "path": "plugins/reuters",
       "version": "0.1.0",
       "description": "Webcmd commands for reuters",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -928,7 +928,7 @@
       "path": "plugins/rfc",
       "version": "0.1.0",
       "description": "Webcmd commands for rfc",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -938,7 +938,7 @@
       "path": "plugins/rubygems",
       "version": "0.1.0",
       "description": "Webcmd commands for rubygems",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -948,7 +948,7 @@
       "path": "plugins/semanticscholar",
       "version": "0.1.0",
       "description": "Webcmd commands for semanticscholar",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -968,7 +968,7 @@
       "path": "plugins/slock",
       "version": "0.1.0",
       "description": "Webcmd commands for slock",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -978,7 +978,7 @@
       "path": "plugins/spotify",
       "version": "0.1.0",
       "description": "Webcmd commands for spotify",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -988,7 +988,7 @@
       "path": "plugins/stackoverflow",
       "version": "0.1.0",
       "description": "Webcmd commands for stackoverflow",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -998,7 +998,7 @@
       "path": "plugins/steam",
       "version": "0.1.0",
       "description": "Webcmd commands for steam",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -1008,7 +1008,7 @@
       "path": "plugins/substack",
       "version": "0.1.0",
       "description": "Webcmd commands for substack",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -1018,7 +1018,7 @@
       "path": "plugins/suno",
       "version": "0.1.0",
       "description": "Webcmd commands for suno",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -1038,7 +1038,7 @@
       "path": "plugins/tiktok",
       "version": "0.1.0",
       "description": "Webcmd commands for tiktok",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -1048,7 +1048,7 @@
       "path": "plugins/trae-solo",
       "version": "0.1.0",
       "description": "Webcmd commands for trae-solo",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -1058,7 +1058,7 @@
       "path": "plugins/trip",
       "version": "0.1.0",
       "description": "Webcmd commands for trip",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -1068,7 +1068,7 @@
       "path": "plugins/tvmaze",
       "version": "0.1.0",
       "description": "Webcmd commands for tvmaze",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -1078,7 +1078,7 @@
       "path": "plugins/twitter",
       "version": "0.1.0",
       "description": "Webcmd commands for twitter",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -1098,7 +1098,7 @@
       "path": "plugins/uiverse",
       "version": "0.1.0",
       "description": "Webcmd commands for uiverse",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -1108,7 +1108,7 @@
       "path": "plugins/upwork",
       "version": "0.1.0",
       "description": "Webcmd commands for upwork",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -1118,7 +1118,7 @@
       "path": "plugins/web",
       "version": "0.1.0",
       "description": "Webcmd commands for web",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -1128,7 +1128,7 @@
       "path": "plugins/wikidata",
       "version": "0.1.0",
       "description": "Webcmd commands for wikidata",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -1138,7 +1138,7 @@
       "path": "plugins/wikipedia",
       "version": "0.1.0",
       "description": "Webcmd commands for wikipedia",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -1148,7 +1148,7 @@
       "path": "plugins/wttr",
       "version": "0.1.0",
       "description": "Webcmd commands for wttr",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -1158,7 +1158,7 @@
       "path": "plugins/yahoo",
       "version": "0.1.0",
       "description": "Webcmd commands for yahoo",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -1168,7 +1168,7 @@
       "path": "plugins/yahoo-finance",
       "version": "0.1.0",
       "description": "Webcmd commands for yahoo-finance",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -1198,7 +1198,7 @@
       "path": "plugins/yollomi",
       "version": "0.1.0",
       "description": "Webcmd commands for yollomi",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -1208,7 +1208,7 @@
       "path": "plugins/youtube",
       "version": "0.1.0",
       "description": "Webcmd commands for youtube",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -1218,7 +1218,7 @@
       "path": "plugins/zepto",
       "version": "0.1.0",
       "description": "Webcmd commands for zepto",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"
@@ -1228,7 +1228,7 @@
       "path": "plugins/zlibrary",
       "version": "0.1.0",
       "description": "Webcmd commands for zlibrary",
-      "webcmd": ">=0.6.0",
+      "webcmd": ">=0.5.3",
       "author": {
         "name": "WebCMD Agent",
         "handle": "agentrhq"

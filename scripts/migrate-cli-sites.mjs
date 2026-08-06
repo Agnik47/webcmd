@@ -5,6 +5,9 @@ import * as path from 'node:path';
 
 const root = process.cwd();
 const sites = process.argv.slice(2);
+const webcmdVersion = readJson(path.join(root, 'package.json'), {}).version;
+if (!webcmdVersion) fail('Could not read version from package.json');
+const webcmdRange = `>=${webcmdVersion}`;
 const sharedRuntime = /((?:\.\.\/)+)_shared\/(?:common|desktop-commands|search-adapter|site-auth)\.js/g;
 
 if (sites.length === 0) fail('Usage: node scripts/migrate-cli-sites.mjs <site...>');
@@ -66,7 +69,7 @@ function migrate(site, commands) {
       version: '0.1.0',
       type: 'module',
       description,
-      peerDependencies: { '@agentrhq/webcmd': '>=0.6.0' },
+      peerDependencies: { '@agentrhq/webcmd': webcmdRange },
     });
   }
   const pluginManifest = path.join(plugin, 'webcmd-plugin.json');
@@ -75,7 +78,7 @@ function migrate(site, commands) {
       name: site,
       version: '0.1.0',
       description,
-      webcmd: '>=0.6.0',
+      webcmd: webcmdRange,
       author: { name: 'WebCMD Agent', handle: 'agentrhq' },
     });
   }

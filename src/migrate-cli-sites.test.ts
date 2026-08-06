@@ -29,6 +29,7 @@ function fixture(): string {
     import { requireSearchQuery } from '../_shared/common.js';
   `);
   fs.writeFileSync(path.join(root, 'plugins', 'sibling', 'keep.txt'), 'unchanged\n');
+  fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ name: '@agentrhq/webcmd', version: '9.9.9' }));
   fs.writeFileSync(path.join(root, 'cli-manifest.json'), JSON.stringify([
     { site: 'zeta', name: 'last', description: 'Last', sourceFile: 'zeta/last.js' },
     { site: 'example', name: 'search', description: 'Search examples', sourceFile: 'example/search.js' },
@@ -61,13 +62,13 @@ describe('migrate-cli-sites', () => {
       version: '0.1.0',
       type: 'module',
       description: 'Webcmd commands for example',
-      peerDependencies: { '@agentrhq/webcmd': '>=0.6.0' },
+      peerDependencies: { '@agentrhq/webcmd': '>=9.9.9' },
     });
     expect(JSON.parse(fs.readFileSync(path.join(plugin, 'webcmd-plugin.json'), 'utf8'))).toEqual({
       name: 'example',
       version: '0.1.0',
       description: 'Webcmd commands for example',
-      webcmd: '>=0.6.0',
+      webcmd: '>=9.9.9',
       author: { name: 'WebCMD Agent', handle: 'agentrhq' },
     });
     const readme = fs.readFileSync(path.join(plugin, 'README.md'), 'utf8');
