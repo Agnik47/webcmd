@@ -46,11 +46,6 @@ printf 'const page = await browser.currentPage(); return await page.title();' \
   | webcmd browser work run --stdin
 ```
 
-`browser run` is additive: the existing `state`, `click`, `type`, `get`, and
-other primitive commands keep their current behavior. Reusable site adapters
-also keep using Webcmd's existing `IPage` contract; a browser-run program is
-reconnaissance or ad-hoc automation, not adapter source code.
-
 ## Demo
 
 https://github.com/user-attachments/assets/04eceadc-d398-4303-984d-ae3197bfa664
