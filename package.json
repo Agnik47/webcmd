@@ -31,7 +31,8 @@
     "./download/progress": "./dist/src/download/progress.js",
     "./fetch/command": "./dist/src/fetch/command.js",
     "./pipeline": "./dist/src/pipeline/index.js",
-    "./plugin-runtime": "./dist/src/plugin-runtime.js"
+    "./plugin-runtime": "./dist/src/plugin-runtime.js",
+    "./hosted/availability": "./dist/src/hosted/availability.js"
   },
   "files": [
     "dist/src/",

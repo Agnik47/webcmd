@@ -202,3 +202,29 @@ describe('hosted availability', () => {
     expect(desktopApps).toHaveLength(111);
   });
 });
+
+describe('deriveHostedAvailability classification table', () => {
+  it('treats a dotted domain as hosted', () => {
+    expect(deriveHostedAvailability({ strategy: 'PUBLIC', domain: 'news.ycombinator.com' }))
+      .toEqual({ mode: 'hosted' });
+  });
+
+  it('treats a dotless domain as a desktop app', () => {
+    expect(deriveHostedAvailability({ strategy: 'UI', domain: 'chatgpt-app' }))
+      .toEqual({ mode: 'local-only', reason: 'desktop-app' });
+  });
+
+  it('treats a local IP domain as a desktop app', () => {
+    expect(deriveHostedAvailability({ strategy: 'UI', domain: '127.0.0.1:3000' }))
+      .toEqual({ mode: 'local-only', reason: 'desktop-app' });
+  });
+
+  it('treats an absent domain as hosted', () => {
+    expect(deriveHostedAvailability({ strategy: 'PUBLIC' })).toEqual({ mode: 'hosted' });
+  });
+
+  it('treats LOCAL strategy as a local tool regardless of domain', () => {
+    expect(deriveHostedAvailability({ strategy: 'local', domain: 'example.com' }))
+      .toEqual({ mode: 'local-only', reason: 'local-tool' });
+  });
+});
