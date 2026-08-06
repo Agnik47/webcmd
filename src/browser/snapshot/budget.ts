@@ -345,6 +345,7 @@ function trySelectComplete(
   for (const candidate of candidates) {
     const representation = preferredRepresentation(candidate.node);
     contentChars += representationCostFor(candidate.node, representation, candidate.depth);
+    if (contentChars > maxChars) return false;
     const scope = state.scopeByNode.get(candidate.node);
     const summary = scope ? projected.get(scope) : undefined;
     if (summary) subtractSummary(summary, representationSummaryFor(candidate.node, representation));
