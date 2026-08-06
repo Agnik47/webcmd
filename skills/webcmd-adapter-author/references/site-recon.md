@@ -51,7 +51,7 @@ JS
 Then inspect the current page when a snapshot is needed:
 
 ```bash
-webcmd browser recon snapshot --snapshot-mode read
+webcmd browser recon snapshot --snapshot-mode tree
 ```
 
 Use the snapshot and any response evidence collected in the run to classify the site:

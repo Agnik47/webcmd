@@ -10,7 +10,7 @@ Use an existing adapter command first. Otherwise, run Playwright against a named
 
 1. `webcmd browser work tabs` lists existing pages and is read-only.
 2. `webcmd browser work bind --page page-123` is an explicit bind that selects one page for `work`.
-3. `webcmd browser work snapshot --snapshot-mode act` inspects the current page. Use `--snapshot-mode read` for content-heavy extraction.
+3. `webcmd browser work snapshot --snapshot-mode act` inspects actionable controls. Use `--snapshot-mode tree` for fuller page structure, or `--snapshot-mode read` for readable article/content text.
 4. `webcmd browser work run --stdin` runs one JavaScript program. Every run has a fresh JavaScript scope, while persistent browser state in the bound page survives between runs. Use the normal Playwright globals `page`, `context`, `browser`, and `console` directly.
 5. `webcmd browser work close` detaches and closes the session when finished.
 

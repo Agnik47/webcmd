@@ -14,7 +14,7 @@ Artifacts written by Playwright must use a relative logical filename. Webcmd ret
 
 ## Snapshot behavior
 
-Use `webcmd browser <session> snapshot --snapshot-mode act` to inspect the current page, or `--snapshot-mode read` for content-heavy extraction. Successful runs return `snapshotDiff` automatically. Pass `--no-snapshot-diff` only for pure read-only code when its result already contains the needed state. A failed post-run snapshot becomes a warning, not a successful result change.
+Use `webcmd browser <session> snapshot --snapshot-mode act` to inspect actionable controls, `--snapshot-mode tree` for fuller page structure, or `--snapshot-mode read` for readable article/content text. Successful runs return `snapshotDiff` automatically and support `--snapshot-mode act|tree`; pass `--no-snapshot-diff` only for pure read-only code when its result already contains the needed state. A failed post-run snapshot becomes a warning, not a successful result change.
 
 ## Timing
 
