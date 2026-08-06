@@ -244,7 +244,7 @@ Check these off step by step:
 | `references/site-memory.md` | Overview: in-repo seeds plus local `~/.webcmd/sites/` two-layer structure |
 | `references/site-memory/<site>.md` | Step 2: public site knowledge when a seed file exists |
 | `references/success-rate-pitfalls.md` | Step 7 / 11: eleven silent failure modes where verify can pass with wrong data, including aria-label locale dependence |
-| `references/jsdom-fixture-pattern.md` | When adapter uses DOM extraction inside `page.evaluate` and mocked-evaluate unit tests miss silent bugs; freeze HTML into `clis/<site>/__fixtures__/` and run JSDOM with the mandatory `awk 'NF>0'` tightening plus reverse-validation discipline |
+| `references/jsdom-fixture-pattern.md` | When adapter uses DOM extraction inside `page.evaluate` and mocked-evaluate unit tests miss silent bugs; freeze HTML into `plugins/<site>/__fixtures__/` and run JSDOM with the mandatory `awk 'NF>0'` tightening plus reverse-validation discipline |
 | `references/typed-errors.md` | Read before writing `func`: five typed error classes (`ArgumentError`, `EmptyResultError`, `CommandExecutionError`, `AuthRequiredError`, `TimeoutError`) plus fixes for silent anti-patterns (`silent-clamp`, `sentinel-row`, `generic CliError`) |
 
 ---
@@ -260,8 +260,8 @@ Check these off step by step:
 - For private iteration, write `~/.webcmd/clis/<site>/<name>.js` to avoid a build. When the user says to promote a CLI, create a main-repo plugin with `webcmd plugin create <site> --dir plugins/<site>`, copy the real command files into it, delete scaffold sample commands, register it in root `webcmd-plugin.json`, remove the local `~/.webcmd/clis/<site>` shadow, install the plugin, then run `webcmd validate <site>` and smoke commands. See `references/adapter-template.md` for details.
 - Write site memory every round: no memory -> use skill -> produce memory -> next time becomes a five-minute task.
 - **After a site's first command passes verify, stop and ask the user for their use cases before recommending next set of commands.** See Runbook Step 13.
-- **Raw dumps, packet captures, and HTML samples from debugging may only be written to `~/.webcmd/sites/<site>/fixtures/` or `/tmp/`. Never leave `.dbg-*.html`, `raw-*.json`, `sample.*`, or similar temporary files in the repo root, `clis/<site>/`, or the current working directory.**
-- **JSDOM unit-test fixtures (`clis/<site>/__fixtures__/<command>.html`) are the exception.** They are intentional review artifacts committed to the repo, not temporary dumps. Because of that, the quality bar is higher: complete the five steps in `references/jsdom-fixture-pattern.md`, including the mandatory `awk 'NF>0'` blank-line tightening, and reverse-validate once to prove the regression guard can fail.
+- **Raw dumps, packet captures, and HTML samples from debugging may only be written to `~/.webcmd/sites/<site>/fixtures/` or `/tmp/`. Never leave `.dbg-*.html`, `raw-*.json`, `sample.*`, or similar temporary files in the repo root, `plugins/<site>/`, or the current working directory.**
+- **JSDOM unit-test fixtures (`plugins/<site>/__fixtures__/<command>.html`) are the exception.** They are intentional review artifacts committed to the repo, not temporary dumps. Because of that, the quality bar is higher: complete the five steps in `references/jsdom-fixture-pattern.md`, including the mandatory `awk 'NF>0'` blank-line tightening, and reverse-validate once to prove the regression guard can fail.
 
 ---
 
