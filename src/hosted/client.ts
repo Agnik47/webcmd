@@ -6,6 +6,7 @@ import type {
   HostedBrowserFinishResponse,
   HostedBrowserRunActionInput,
   HostedBrowserRunActionResponse,
+  HostedBrowserSnapshotActionResponse,
   HostedBrowserRunRequest,
   HostedBrowserRunResponse,
   HostedArtifactReceipt,
@@ -273,16 +274,16 @@ export class HostedClient {
     return body;
   }
 
-  async runBrowserAction(session: string, input: HostedBrowserRunActionInput): Promise<HostedBrowserRunActionResponse> {
+  async runBrowserAction(session: string, input: HostedBrowserRunActionInput): Promise<HostedBrowserRunActionResponse | HostedBrowserSnapshotActionResponse> {
     return this.executeBrowserCommand(session, input);
   }
 
-  async executeBrowserCommand(session: string, input: HostedBrowserRunActionInput): Promise<HostedBrowserRunActionResponse> {
+  async executeBrowserCommand(session: string, input: HostedBrowserRunActionInput): Promise<HostedBrowserRunActionResponse | HostedBrowserSnapshotActionResponse> {
     const body = await this.request(`/v1/browser/${encodeURIComponent(session)}/commands`, {
       method: 'POST',
       body: JSON.stringify(input),
     });
-    if (!isHostedBrowserRunActionResponse(body, session)) {
+    if (!isHostedBrowserRunActionResponse(body, session) && !(input.action === 'snapshot' && isHostedBrowserSnapshotActionResponse(body, session))) {
       throw protocolError('Webcmd Cloud returned an invalid browser action response.');
     }
     return body;
@@ -592,6 +593,12 @@ function isHostedBrowserRunActionResponse(value: unknown, requestedSession: stri
     && typeof value.execution.id === 'string'
     && value.execution.id === value.run.executionId
     && (value.execution.status === 'succeeded' || value.execution.status === 'failed' || value.execution.status === 'timed_out');
+}
+
+function isHostedBrowserSnapshotActionResponse(value: unknown, requestedSession: string): value is HostedBrowserSnapshotActionResponse {
+  return hasExactKeys(value, ['ok', 'run', 'result'])
+    && value.ok === true
+    && isHostedBrowserRunPayload(value.run, requestedSession);
 }
 
 function isHostedBrowserActionTrace(value: unknown): boolean {
