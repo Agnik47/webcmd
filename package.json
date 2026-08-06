@@ -44,7 +44,7 @@
   "scripts": {
     "dev": "tsx src/main.ts",
     "dev:bun": "bun src/main.ts",
-    "build": "npm run clean-dist && npm run copy-yaml && npm run compile && npm run build-manifest",
+    "build": "npm run clean-dist && npm run copy-yaml && npm run compile && npm run build-manifest && npm run build-plugin-manifest",
     "compile": "tsc --build && node -e \"require('fs').chmodSync('dist/src/main.js', 0o755)\"",
     "build-manifest": "tsx src/build-manifest.ts",
     "build-plugin-manifest": "tsx src/build-plugin-command-manifest.ts",
