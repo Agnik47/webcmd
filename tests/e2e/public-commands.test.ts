@@ -44,6 +44,17 @@ describe('public command restriction detectors', () => {
   });
 });
 
+describe('browser public command surface', () => {
+  it('advertises the four raw browser commands', async () => {
+    const { stdout, code } = await runCli(['browser', '--help']);
+    expect(code).toBe(0);
+    expect(stdout).toMatch(/\btabs\b/);
+    expect(stdout).toMatch(/\bbind\b/);
+    expect(stdout).toMatch(/\brun\b/);
+    expect(stdout).toMatch(/\bclose\b/);
+  });
+});
+
 describe('public commands E2E', () => {
   beforeAll(() => {
     for (const site of FIXTURE_SITES) installFixturePlugin(TEST_HOME, site);
