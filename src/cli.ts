@@ -9,7 +9,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import * as readline from 'node:readline/promises';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Command, Option } from 'commander';
 import { findPackageRoot, getBuiltEntryCandidates } from './package-paths.js';
 import { type CliCommand, getRegistry } from './registry.js';
@@ -47,6 +47,7 @@ import { CLI_COMMAND, PACKAGE_NAME } from './brand.js';
 import type { BrowserDownloadWaitResult, IPage, ScreenshotOptions } from './types.js';
 import type { BrowserWindowMode } from './runtime.js';
 import { configureRootCommandSurface } from './root-command-surface.js';
+import { missingPluginGuidance, PLUGINS_DIR } from './discovery.js';
 import { loadBrowserRunSource } from './browser/run/input.js';
 import { BrowserRunError } from './browser/run/types.js';
 
@@ -567,7 +568,7 @@ function applyRootSubcommandSummaries(program: Command): void {
   }
 }
 
-export function createProgram(BUILTIN_CLIS: string, USER_CLIS: string): Command {
+export function createProgram(BUILTIN_CLIS: string, USER_CLIS: string, pluginsDir: string = PLUGINS_DIR): Command {
   const program = new Command();
   // enablePositionalOptions: prevents parent from consuming flags meant for subcommands;
   // prerequisite for passThroughOptions to forward --help/--version to external binaries
@@ -1159,7 +1160,8 @@ cli({
     .description('Update a plugin (or all plugins) to the latest version')
     .argument('[name]', 'Plugin name (required unless --all is passed)')
     .option('--all', 'Update all installed plugins')
-    .action(async (name: string | undefined, opts: { all?: boolean }) => {
+    .option('--force', 'Discard uncommitted changes in the plugin directory')
+    .action(async (name: string | undefined, opts: { all?: boolean; force?: boolean }) => {
       if (!name && !opts.all) {
         console.error('Error: Please specify a plugin name or use the --all flag.');
         process.exitCode = EXIT_CODES.USAGE_ERROR;
@@ -1174,7 +1176,7 @@ cli({
       const { updatePlugin, updateAllPlugins } = await import('./plugin.js');
       const { discoverPlugins } = await import('./discovery.js');
       if (opts.all) {
-        const results = updateAllPlugins();
+        const results = updateAllPlugins({ force: opts.force === true });
         if (results.length > 0) {
           await discoverPlugins();
         }
@@ -1206,7 +1208,7 @@ cli({
       }
 
       try {
-        updatePlugin(name!);
+        updatePlugin(name!, { force: opts.force === true });
         await discoverPlugins();
         console.log(`✅ Plugin "${name}" updated successfully.`);
       } catch (err) {
@@ -1428,89 +1430,41 @@ cli({
 
   adapterCmd
     .command('status')
-    .description('Show which sites have local overrides vs using official baseline')
+    .description('List legacy local adapters in ~/.webcmd/clis/')
     .action(async () => {
-      const os = await import('node:os');
-      const userClisDir = path.join(os.homedir(), '.webcmd', 'clis');
-      const builtinClisDir = BUILTIN_CLIS;
       try {
-        const userEntries = await fs.promises.readdir(userClisDir, { withFileTypes: true });
+        const userEntries = await fs.promises.readdir(USER_CLIS, { withFileTypes: true });
         const userSites = userEntries.filter(e => e.isDirectory()).map(e => e.name).sort();
-        let builtinSites: string[] = [];
-        try {
-          const builtinEntries = await fs.promises.readdir(builtinClisDir, { withFileTypes: true });
-          builtinSites = builtinEntries.filter(e => e.isDirectory()).map(e => e.name).sort();
-        } catch { /* no builtin dir */ }
-
         if (userSites.length === 0) {
-          console.log('No local adapter overrides. All sites use the official baseline.');
+          console.log('No legacy local adapters installed.');
           return;
         }
 
-        console.log(`Local overrides in ~/.webcmd/clis/ (${userSites.length} sites):\n`);
-        for (const site of userSites) {
-          const isOfficial = builtinSites.includes(site);
-          const label = isOfficial ? 'override' : 'custom';
-          console.log(`  ${site} [${label}]`);
-        }
-        console.log(`\nOfficial baseline: ${builtinSites.length} sites in package`);
+        console.log(`Legacy local adapters in ~/.webcmd/clis/ (${userSites.length} sites):\n`);
+        for (const site of userSites) console.log(`  ${site}`);
       } catch {
-        console.log('No local adapter overrides. All sites use the official baseline.');
+        console.log('No legacy local adapters installed.');
       }
-    });
-
-  adapterCmd
-    .command('eject')
-    .description('Copy an official adapter to ~/.webcmd/clis/ for local editing')
-    .argument('<site>', 'Site name (e.g. twitter, youtube)')
-    .action(async (site: string) => {
-      const os = await import('node:os');
-      const userClisDir = path.join(os.homedir(), '.webcmd', 'clis');
-      const builtinSiteDir = path.join(BUILTIN_CLIS, site);
-      const userSiteDir = path.join(userClisDir, site);
-
-      try {
-        await fs.promises.access(builtinSiteDir);
-      } catch {
-        console.error(`Error: Site "${site}" not found in official adapters.`);
-        process.exitCode = EXIT_CODES.USAGE_ERROR;
-        return;
-      }
-
-      try {
-        await fs.promises.access(userSiteDir);
-        console.error(`Site "${site}" already exists in ~/.webcmd/clis/. Use "webcmd adapter reset ${site}" first to restore official version.`);
-        process.exitCode = EXIT_CODES.USAGE_ERROR;
-        return;
-      } catch { /* good, doesn't exist yet */ }
-
-      fs.cpSync(builtinSiteDir, userSiteDir, { recursive: true });
-      console.log(`✅ Ejected "${site}" to ~/.webcmd/clis/${site}/`);
-      console.log('You can now edit the adapter files. Changes take effect immediately.');
-      console.log('Note: Official updates to this adapter will overwrite your changes.');
     });
 
   adapterCmd
     .command('reset')
-    .description('Remove local override and restore official adapter version')
+    .description('Remove a legacy local adapter')
     .argument('[site]', 'Site name (e.g. twitter, youtube)')
     .option('--all', 'Reset all local overrides')
     .action(async (site: string | undefined, opts: { all?: boolean }) => {
-      const os = await import('node:os');
-      const userClisDir = path.join(os.homedir(), '.webcmd', 'clis');
-
       if (opts.all) {
         try {
-          const userEntries = await fs.promises.readdir(userClisDir, { withFileTypes: true });
+          const userEntries = await fs.promises.readdir(USER_CLIS, { withFileTypes: true });
           const dirs = userEntries.filter(e => e.isDirectory());
           if (dirs.length === 0) {
             console.log('No local sites to reset.');
             return;
           }
           for (const dir of dirs) {
-            fs.rmSync(path.join(userClisDir, dir.name), { recursive: true, force: true });
+            fs.rmSync(path.join(USER_CLIS, dir.name), { recursive: true, force: true });
           }
-          console.log(`✅ Reset ${dirs.length} site(s). All adapters now use official baseline.`);
+          console.log(`✅ Removed ${dirs.length} legacy local adapter(s).`);
         } catch {
           console.log('No local sites to reset.');
         }
@@ -1523,7 +1477,7 @@ cli({
         return;
       }
 
-      const userSiteDir = path.join(userClisDir, site);
+      const userSiteDir = path.join(USER_CLIS, site);
       try {
         await fs.promises.access(userSiteDir);
       } catch {
@@ -1531,11 +1485,8 @@ cli({
         return;
       }
 
-      const isOfficial = fs.existsSync(path.join(BUILTIN_CLIS, site));
       fs.rmSync(userSiteDir, { recursive: true, force: true });
-      console.log(isOfficial
-        ? `✅ Reset "${site}". Now using official baseline.`
-        : `✅ Removed custom site "${site}".`);
+      console.log(`✅ Removed legacy local adapter "${site}".`);
     });
 
   // ── Built-in: browser profile selection ──────────────────────────────────
@@ -1720,25 +1671,26 @@ cli({
 
   // ── Antigravity serve (long-running, special case) ────────────────────────
 
-  const antigravityCmd = program.command('antigravity').description('antigravity commands');
-  antigravityCmd
-    .command('serve')
-    .description('Start Anthropic-compatible API proxy for Antigravity')
-    .option('--port <port>', 'Server port (default: 8082)', '8082')
-    .option('--timeout <seconds>', 'Maximum time to wait for a reply (default: 120s)')
-    .action(async (opts) => {
-      // @ts-expect-error JS adapter — no type declarations
-      const { startServe } = await import('../../clis/antigravity/serve.js');
-      await startServe({
-        port: parseInt(opts.port, 10),
-        timeout: opts.timeout ? parsePositiveIntOption(opts.timeout, '--timeout', 120) : undefined,
+  const siteGroups = new Map<string, Command>();
+  if (fs.existsSync(path.join(pluginsDir, 'antigravity', 'serve.js'))) {
+    const antigravityCmd = program.command('antigravity').description('antigravity commands');
+    antigravityCmd
+      .command('serve')
+      .description('Start Anthropic-compatible API proxy for Antigravity')
+      .option('--port <port>', 'Server port (default: 8082)', '8082')
+      .option('--timeout <seconds>', 'Maximum time to wait for a reply (default: 120s)')
+      .action(async (opts) => {
+        const { startServe } = await loadAntigravityServe(pluginsDir);
+        await startServe({
+          port: parseInt(opts.port, 10),
+          timeout: opts.timeout ? parsePositiveIntOption(opts.timeout, '--timeout', 120) : undefined,
+        });
       });
-    });
+    siteGroups.set('antigravity', antigravityCmd);
+  }
 
   // ── Dynamic adapter commands ──────────────────────────────────────────────
 
-  const siteGroups = new Map<string, Command>();
-  siteGroups.set('antigravity', antigravityCmd);
   const siteNames = registerAllCommands(program, siteGroups);
   applyRootSubcommandSummaries(program);
 
@@ -1804,16 +1756,19 @@ cli({
   // Only explicitly registered external CLIs are allowed.
 
   program.on('command:*', (operands: string[]) => {
-    const binary = operands[0];
-    console.error(`error: unknown command '${binary}'`);
-    if (isBinaryInstalled(binary)) {
-      console.error(`  Tip: '${binary}' exists on your PATH. Use 'webcmd external register ${binary}' to add it as an external CLI.`);
-    }
+    const binary = operands[0]!;
+    console.error(missingPluginGuidance(binary));
     program.outputHelp();
     process.exitCode = EXIT_CODES.USAGE_ERROR;
   });
 
   return program;
+}
+
+export async function loadAntigravityServe(pluginsDir: string = PLUGINS_DIR): Promise<{
+  startServe(options: { port: number; timeout?: number }): Promise<void>;
+}> {
+  return import(pathToFileURL(path.join(pluginsDir, 'antigravity', 'serve.js')).href);
 }
 
 export function runCli(BUILTIN_CLIS: string, USER_CLIS: string): void {

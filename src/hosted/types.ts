@@ -89,6 +89,15 @@ export interface HostedMarketplaceInstallation {
   installSource: string;
 }
 
+export interface HostedMarketplaceInstallationRow {
+  name: string;
+  version: string;
+  installSource: string;
+  sourceCommit: string | null;
+  installedAt: string;
+  updateAvailable: boolean;
+}
+
 export interface HostedExecution {
   id: string;
   command: string;

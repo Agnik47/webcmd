@@ -5,10 +5,13 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { afterEach, describe, expect, it } from 'vitest';
+import { browserCommandCatalog } from './browser/command-catalog.js';
+import { buildManifestArtifacts } from './build-manifest.js';
+import { PKG_VERSION } from './version.js';
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const checkerPath = path.join(packageRoot, 'scripts/check-hosted-contract.mjs');
-const committedArtifactNames = ['cli-manifest.json'] as const;
+const committedArtifactNames = ['cli-manifest.json', 'hosted-contract.json'] as const;
 const fixtureRoots: string[] = [];
 
 afterEach(() => {
@@ -20,14 +23,16 @@ afterEach(() => {
 function createCommittedArtifactFixture(): string {
   const fixtureRoot = mkdtempSync(path.join(tmpdir(), 'webcmd-contract-committed-'));
   fixtureRoots.push(fixtureRoot);
-  for (const artifactName of committedArtifactNames) {
-    copyFileSync(path.join(packageRoot, artifactName), path.join(fixtureRoot, artifactName));
-  }
+  copyFileSync(path.join(packageRoot, 'cli-manifest.json'), path.join(fixtureRoot, 'cli-manifest.json'));
+  writeFileSync(
+    path.join(fixtureRoot, 'hosted-contract.json'),
+    buildManifestArtifacts([], PKG_VERSION, browserCommandCatalog).hostedContractJson,
+  );
   return fixtureRoot;
 }
 
 function rootArtifactHashes(): Record<string, string> {
-  return Object.fromEntries(committedArtifactNames.map((artifactName) => [
+  return Object.fromEntries(['cli-manifest.json'].map((artifactName) => [
     artifactName,
     createHash('sha256').update(readFileSync(path.join(packageRoot, artifactName))).digest('hex'),
   ]));
@@ -49,10 +54,10 @@ describe('hosted contract reproducibility checker', () => {
     expect(result.stdout).toContain('hosted-contract.json generated successfully.');
   }, 10_000);
 
-  it('rejects one stale byte without mutating root artifacts', () => {
+  it.each(committedArtifactNames)('rejects one stale byte in %s without mutating root artifacts', (artifactName) => {
     const before = rootArtifactHashes();
     const fixtureRoot = createCommittedArtifactFixture();
-    const stalePath = path.join(fixtureRoot, 'cli-manifest.json');
+    const stalePath = path.join(fixtureRoot, artifactName);
     const staleBytes = readFileSync(stalePath);
     staleBytes[0] ^= 1;
     writeFileSync(stalePath, staleBytes);
@@ -60,7 +65,7 @@ describe('hosted contract reproducibility checker', () => {
     const result = runChecker(fixtureRoot);
 
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain('cli-manifest.json');
+    expect(result.stderr).toContain(artifactName);
     expect(rootArtifactHashes()).toEqual(before);
   }, 10_000);
 });

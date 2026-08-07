@@ -61,7 +61,63 @@ vi.mock('node:child_process', async () => {
   };
 });
 
-import { createProgram, findPackageRoot, normalizeVerifyRows, renderVerifyPreview, resolveBrowserVerifyInvocation, resolveSitemapAvailabilityForUrl, selectFreshByTimestamp } from './cli.js';
+import { createProgram, findPackageRoot, loadAntigravityServe, normalizeVerifyRows, renderVerifyPreview, resolveBrowserVerifyInvocation, resolveSitemapAvailabilityForUrl, selectFreshByTimestamp } from './cli.js';
+
+describe('Antigravity serve plugin loading', () => {
+  it('loads serve.js from the installed Antigravity plugin', async () => {
+    const pluginsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'webcmd-antigravity-plugins-'));
+    const pluginDir = path.join(pluginsDir, 'antigravity');
+    fs.mkdirSync(pluginDir);
+    fs.writeFileSync(path.join(pluginDir, 'package.json'), '{"type":"module"}\n');
+    fs.writeFileSync(path.join(pluginDir, 'serve.js'), 'export const loadedFrom = "installed-plugin";\n');
+    try {
+      await expect(loadAntigravityServe(pluginsDir)).resolves.toMatchObject({
+        loadedFrom: 'installed-plugin',
+      });
+    } finally {
+      fs.rmSync(pluginsDir, { recursive: true, force: true });
+    }
+  });
+
+  it('omits the serve bridge and uses missing-plugin guidance when Antigravity is absent', async () => {
+    const pluginsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'webcmd-antigravity-absent-'));
+    const registry = getRegistry();
+    const snapshot = new Map(registry);
+    const stderr = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const previousExitCode = process.exitCode;
+    registry.clear();
+    try {
+      const program = createProgram('', '', pluginsDir);
+      program.outputHelp = vi.fn();
+
+      await program.parseAsync(['antigravity', 'serve'], { from: 'user' });
+
+      expect(program.commands.some(command => command.name() === 'antigravity')).toBe(false);
+      expect(stderr.mock.calls.map(([line]) => line).join('\n')).toContain('Search: webcmd plugin search antigravity');
+      expect(process.exitCode).toBe(2);
+    } finally {
+      process.exitCode = previousExitCode;
+      stderr.mockRestore();
+      registry.clear();
+      for (const [key, value] of snapshot) registry.set(key, value);
+      fs.rmSync(pluginsDir, { recursive: true, force: true });
+    }
+  });
+
+  it('registers the serve bridge when the installed Antigravity module exists', () => {
+    const pluginsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'webcmd-antigravity-present-'));
+    const pluginDir = path.join(pluginsDir, 'antigravity');
+    fs.mkdirSync(pluginDir);
+    fs.writeFileSync(path.join(pluginDir, 'serve.js'), 'export async function startServe() {}\n');
+    try {
+      const antigravity = createProgram('', '', pluginsDir).commands.find(command => command.name() === 'antigravity');
+
+      expect(antigravity?.commands.map(command => command.name())).toContain('serve');
+    } finally {
+      fs.rmSync(pluginsDir, { recursive: true, force: true });
+    }
+  });
+});
 
 describe('createProgram root help descriptions', () => {
   function descriptionFor(program: ReturnType<typeof createProgram>, name: string): string | undefined {
@@ -76,7 +132,7 @@ describe('createProgram root help descriptions', () => {
     expect(descriptionFor(program, 'browser')).not.toContain('Browser control');
     expect(descriptionFor(program, 'auth')).toBe('refresh, status');
     expect(descriptionFor(program, 'plugin')).toBe('catalog, create, install, list, search, uninstall, update');
-    expect(descriptionFor(program, 'adapter')).toBe('eject, reset, status');
+    expect(descriptionFor(program, 'adapter')).toBe('reset, status');
     expect(descriptionFor(program, 'profile')).toBe('list, rename, use');
     expect(descriptionFor(program, 'daemon')).toBe('restart, status, stop');
     expect(descriptionFor(program, 'external')).toBe('install, list, register');
@@ -87,6 +143,13 @@ describe('createProgram root help descriptions', () => {
 
     expect(skills.commands.map((command) => command.name())).toEqual(['list', 'add', 'update', 'remove']);
     expect(skills.commands.find((command) => command.name() === 'add')?.aliases()).toEqual([]);
+  });
+
+  it('keeps legacy local adapters manageable without claiming a bundled baseline', () => {
+    const adapter = createProgram('', '').commands.find((command) => command.name() === 'adapter')!;
+
+    expect(adapter.commands.map((command) => command.name())).toEqual(['status', 'reset']);
+    expect(adapter.helpInformation()).not.toMatch(/official|baseline|eject/i);
   });
 
   it('renders auth namespace structured help', () => {
@@ -137,6 +200,35 @@ describe('createProgram root help descriptions', () => {
     expect(presentation).toBeDefined();
     expect(presentation!.baseText).toBe(commanderHelp.formatHelp(program, commanderHelp));
     expect(program.helpInformation()).toBe(formatRootHelp(presentation!));
+  });
+
+  it('guides an absent site to explicit plugin search and install without side effects', async () => {
+    const plugin = await import('./plugin.js');
+    const catalog = await import('./plugin-catalog.js');
+    const install = vi.spyOn(plugin, 'installPlugin');
+    const search = vi.spyOn(catalog, 'searchCatalogPlugins');
+    const stderr = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const previousExitCode = process.exitCode;
+    const program = createProgram('', '');
+    program.outputHelp = vi.fn();
+
+    try {
+      await program.parseAsync(['example', 'missing-command'], { from: 'user' });
+
+      expect(stderr.mock.calls.map(([line]) => line).join('\n')).toContain([
+        'Site "example" is not installed.',
+        'Search: webcmd plugin search example',
+        'Install using the installSource returned by search.',
+      ].join('\n'));
+      expect(install).not.toHaveBeenCalled();
+      expect(search).not.toHaveBeenCalled();
+      expect(process.exitCode).toBe(2);
+    } finally {
+      process.exitCode = previousExitCode;
+      stderr.mockRestore();
+      install.mockRestore();
+      search.mockRestore();
+    }
   });
 
   it('keeps site adapters out of root commands and lists sites in the root help tail', () => {
@@ -721,7 +813,7 @@ name: 'search',
         usage: 'webcmd plugin update [name] [options]',
         positionals: [{ name: 'name' }],
       });
-      expect(update.command_options.map((option: any) => option.name)).toEqual(['all']);
+      expect(update.command_options.map((option: any) => option.name)).toEqual(['all', 'force']);
     } finally {
       process.argv = argv;
     }
@@ -752,7 +844,7 @@ name: 'search',
       // applyRootSubcommandSummaries() rewrites .description() to a child-name listing;
       // structured help must surface the original product description via the snapshot.
       expect(data.description).toBe('Manage CLI adapters');
-      expect(data.commands.map((cmd: any) => cmd.name)).toEqual(['eject', 'reset', 'status']);
+      expect(data.commands.map((cmd: any) => cmd.name)).toEqual(['reset', 'status']);
       const reset = data.commands.find((cmd: any) => cmd.name === 'reset');
       expect(reset).toMatchObject({
         usage: 'webcmd adapter reset [site] [options]',

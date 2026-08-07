@@ -509,6 +509,90 @@ export function getCommitHash(dir: string): string | undefined {
   }
 }
 
+/** True only for git's "this directory has no repository at all" failure. */
+function isNotAGitRepositoryError(error: unknown): boolean {
+  const stderr = typeof (error as { stderr?: unknown })?.stderr === 'string'
+    ? (error as { stderr: string }).stderr
+    : (error as { stderr?: Buffer })?.stderr?.toString('utf-8') ?? '';
+  const message = (error as Error)?.message ?? '';
+  return /not a git repository/i.test(stderr) || /not a git repository/i.test(message);
+}
+
+function describeGitError(error: unknown): string {
+  const stderr = typeof (error as { stderr?: unknown })?.stderr === 'string'
+    ? (error as { stderr: string }).stderr
+    : (error as { stderr?: Buffer })?.stderr?.toString('utf-8') ?? '';
+  return stderr.trim() || (error as Error)?.message || String(error);
+}
+
+/**
+ * Report tracked-file modifications and untracked files within `dir` in a git checkout.
+ *
+ * Untracked files are included on purpose: `git status` already excludes
+ * gitignored paths (build output like node_modules/dist never shows up), so
+ * anything untracked that does show up is real, unsaved user work — e.g. a
+ * new command file that hasn't been `git add`ed yet — which updating would
+ * destroy just as surely as an uncommitted edit to a tracked file.
+ *
+ * The `-- .` pathspec on `git status` restricts the report to `dir` itself.
+ * Without it, git reports the *entire enclosing repository* — e.g. a plugin
+ * living inside a dotfiles repo, or any plugin directory that isn't itself a
+ * repo root, would surface unrelated dirty files from elsewhere in the repo.
+ *
+ * Returns an empty array only when `dir` is genuinely not inside a git
+ * repository: a plugin installed without git history has no baseline to
+ * compare against, so there is nothing to protect. Any other failure (git
+ * missing, "detected dubious ownership in repository", permission errors,
+ * ...) is a failure to determine dirtiness, not evidence of cleanliness, and
+ * must fail closed — this guard exists to prevent silent data loss, so an
+ * inconclusive check must refuse the update rather than proceed as if clean.
+ */
+export function getDirtyFiles(dir: string): string[] {
+  try {
+    execFileSync('git', ['rev-parse', '--git-dir'], {
+      cwd: dir,
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+  } catch (error) {
+    if (isNotAGitRepositoryError(error)) return [];
+    throw new PluginError(
+      `Could not determine whether "${dir}" has uncommitted changes: git failed with: ${describeGitError(error)}`,
+      'This can happen when git is not installed, or refuses to run here (e.g. "detected dubious ownership in repository"). Re-run with --force to update anyway — this accepts the risk of discarding uncommitted work, which is why it is not the default.',
+    );
+  }
+  try {
+    const out = execFileSync('git', ['status', '--porcelain', '--', '.'], {
+      cwd: dir,
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    return out.split('\n').map((line) => line.trim()).filter(Boolean);
+  } catch (error) {
+    throw new PluginError(
+      `Could not determine whether "${dir}" has uncommitted changes: git failed with: ${describeGitError(error)}`,
+      'This can happen when git refuses to run here (e.g. "detected dubious ownership in repository"). Re-run with --force to update anyway — this accepts the risk of discarding uncommitted work, which is why it is not the default.',
+    );
+  }
+}
+
+function describeDirtyEntry(entry: string): string {
+  const isUntracked = entry.startsWith('??');
+  const file = entry.replace(/^\?\?\s*/, '').replace(/^[MADRCU! ]+\s*/, '');
+  return isUntracked ? `${file} (new, unstaged)` : `${file} (modified)`;
+}
+
+function assertPluginNotDirty(name: string, dir: string, force: boolean): void {
+  if (force) return;
+  const dirty = getDirtyFiles(dir);
+  if (dirty.length === 0) return;
+  const described = dirty.slice(0, 10).map(describeDirtyEntry);
+  throw new PluginError(
+    `Plugin "${name}" has uncommitted changes that updating would destroy:\n  ${described.join('\n  ')}`,
+    'Commit or stash them, re-run with --force to discard them, or develop against a symlinked checkout with "webcmd plugin install file:///path".',
+  );
+}
+
 /**
  * Validate that a downloaded plugin directory is a structurally valid plugin.
  * Checks for at least one command file (.ts, .js) and a valid
@@ -1097,17 +1181,18 @@ function isSymlinkSync(p: string): boolean {
  * For monorepo sub-plugins: pulls the monorepo root and re-runs lifecycle
  * for all sub-plugins from the same monorepo.
  */
-export function updatePlugin(name: string): void {
+export function updatePlugin(name: string, options: { force?: boolean } = {}): void {
   const targetDir = path.join(PLUGINS_DIR, name);
   if (!fs.existsSync(targetDir)) {
     throw new Error(`Plugin "${name}" is not installed.`);
   }
-
   const lock = readLockFile();
   const lockEntry = lock[name];
   const source = resolvePluginSource(lockEntry, targetDir);
 
   if (source?.kind === 'local') {
+    // Local installs are symlinked to the user's own checkout, not replaced
+    // wholesale, so dirty edits there are the intended workflow, not a hazard.
     updateLocalPlugin(name, targetDir, lock, lockEntry);
     return;
   }
@@ -1116,6 +1201,7 @@ export function updatePlugin(name: string): void {
     const monoDir = path.join(getMonoreposDir(), source.repoName);
     const monoName = source.repoName;
     const cloneUrl = source.url;
+    assertPluginNotDirty(monoName, monoDir, options.force === true);
     withTempClone(cloneUrl, (tmpCloneDir) => {
       const manifest = readPluginManifest(tmpCloneDir);
       if (!manifest || !isMonorepo(manifest)) {
@@ -1157,6 +1243,8 @@ export function updatePlugin(name: string): void {
     return;
   }
 
+  assertPluginNotDirty(name, targetDir, options.force === true);
+
   const cloneUrl = resolveRemotePluginSource(lockEntry, targetDir);
   withTempClone(cloneUrl, (tmpCloneDir) => {
     const manifest = readPluginManifest(tmpCloneDir);
@@ -1190,10 +1278,10 @@ export interface UpdateResult {
  * Update all installed plugins.
  * Continues even if individual plugin updates fail.
  */
-export function updateAllPlugins(): UpdateResult[] {
+export function updateAllPlugins(options: { force?: boolean } = {}): UpdateResult[] {
   return listPlugins().map((plugin): UpdateResult => {
     try {
-      updatePlugin(plugin.name);
+      updatePlugin(plugin.name, options);
       return { name: plugin.name, success: true };
     } catch (err) {
       return {

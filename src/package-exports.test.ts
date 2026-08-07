@@ -15,10 +15,12 @@ import ts from 'typescript';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 const CLIS_DIR = path.join(ROOT, 'clis');
+const pkgJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf-8'));
 
 /** Recursively collect all JS adapter files in a directory. */
 function collectAdapterFiles(dir: string, opts?: { excludeTests?: boolean }): string[] {
   const results: string[] = [];
+  if (!fs.existsSync(dir)) return results;
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
@@ -60,8 +62,15 @@ describe('adapter imports use package exports', () => {
   const adapterFiles = collectAdapterFiles(CLIS_DIR);
   const runtimeAdapterFiles = collectAdapterFiles(CLIS_DIR, { excludeTests: true });
 
-  it('found adapter files to check', () => {
-    expect(adapterFiles.length).toBeGreaterThan(100);
+  it('has no bundled core adapter files', () => {
+    expect(adapterFiles).toEqual([]);
+  });
+
+  it('excludes adapters from package files and the install lifecycle', () => {
+    const files = pkgJson.files as string[];
+
+    expect(files.some(file => /^(?:clis|plugins)(?:\/|$)/.test(file))).toBe(false);
+    expect(pkgJson.scripts.postinstall).not.toMatch(/fetch-adapters/);
   });
 
   it('no adapter uses relative imports to src/, browser/, download/, or pipeline/', () => {
@@ -103,7 +112,6 @@ describe('adapter imports use package exports', () => {
 });
 
 describe('package.json exports resolve to real files', () => {
-  const pkgJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf-8'));
   const exports = pkgJson.exports as Record<string, string>;
 
   it('has exports defined', () => {

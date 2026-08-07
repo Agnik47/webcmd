@@ -17,7 +17,7 @@ import { getErrorMessage } from './errors.js';
 import { log } from './logger.js';
 import type { ManifestEntry } from './manifest-types.js';
 import { findPackageRoot, getCliManifestPath } from './package-paths.js';
-import { CONFIG_DIR_NAME, PACKAGE_NAME, PRODUCT_NAME } from './brand.js';
+import { CLI_COMMAND, CONFIG_DIR_NAME, PACKAGE_NAME, PRODUCT_NAME } from './brand.js';
 
 /** User runtime directory: ~/.webcmd */
 export function getUserWebcmdDir(homeDir: string = os.homedir()): string {
@@ -161,9 +161,8 @@ export async function ensureUserCliCompatShims(baseDir: string = USER_WEBCMD_DIR
 /**
  * Ensure the user adapters directory exists.
  *
- * With smart sync, ~/.webcmd/clis/ only holds files that differ from the
- * package baseline (upstream-synced cache + autofix output + user overrides).
- * Built-in adapters are loaded directly from the installed package.
+ * This legacy directory remains available for private adapters and autofix
+ * output. Official adapters are installed as plugins instead.
  */
 export async function ensureUserAdapters(): Promise<void> {
   await fs.promises.mkdir(USER_CLIS_DIR, { recursive: true });
@@ -270,14 +269,22 @@ async function discoverClisFromFs(dir: string): Promise<void> {
  * Each subdirectory is treated as a plugin (site = directory name).
  * Files inside are scanned flat (no nested site subdirs).
  */
-export async function discoverPlugins(): Promise<void> {
-  try { await fs.promises.access(PLUGINS_DIR); } catch { return; }
-  const entries = await fs.promises.readdir(PLUGINS_DIR, { withFileTypes: true });
+export async function discoverPlugins(pluginsDir: string = PLUGINS_DIR): Promise<void> {
+  try { await fs.promises.access(pluginsDir); } catch { return; }
+  const entries = await fs.promises.readdir(pluginsDir, { withFileTypes: true });
   await Promise.all(entries.map(async (entry) => {
-    const pluginDir = path.join(PLUGINS_DIR, entry.name);
+    const pluginDir = path.join(pluginsDir, entry.name);
     if (!(await isDiscoverablePluginDir(entry, pluginDir))) return;
     await discoverPluginDir(pluginDir, entry.name);
   }));
+}
+
+export function missingPluginGuidance(site: string): string {
+  return [
+    `Site "${site}" is not installed.`,
+    `Search: ${CLI_COMMAND} plugin search ${site}`,
+    'Install using the installSource returned by search.',
+  ].join('\n');
 }
 
 /**
