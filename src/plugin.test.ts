@@ -1600,6 +1600,47 @@ describe('updatePlugin dirty-checkout guard', () => {
     expect(() => updatePlugin(standaloneName, { force: true })).not.toThrow();
   });
 
+  it('refuses to update when git status fails for a reason other than "not a repository" (e.g. dubious ownership), and proceeds with --force', () => {
+    fs.mkdirSync(standaloneDir, { recursive: true });
+    fs.writeFileSync(path.join(standaloneDir, 'old.js'), 'cli({ site: "old", name: "old", access: "read" })');
+    const lock = _readLockFile();
+    lock[standaloneName] = {
+      source: { kind: 'git', url: 'https://github.com/user/webcmd-plugin-__test-dirty-standalone__.git' },
+      commitHash: 'oldhasholdhasholdhasholdhasholdhasholdh',
+      installedAt: '2025-01-01T00:00:00.000Z',
+    };
+    _writeLockFile(lock);
+
+    mockExecFileSync.mockImplementation((cmd, args, opts) => {
+      if (cmd === 'git' && Array.isArray(args) && args[0] === 'rev-parse' && args[1] === '--git-dir') {
+        if (opts?.cwd === standaloneDir) return '.git\n';
+        return '.git\n';
+      }
+      if (cmd === 'git' && Array.isArray(args) && args[0] === 'status') {
+        if (opts?.cwd === standaloneDir) {
+          const err: NodeJS.ErrnoException & { stderr?: string } = new Error('git exited with code 128');
+          err.stderr = `fatal: detected dubious ownership in repository at '${standaloneDir}'`;
+          throw err;
+        }
+        return '';
+      }
+      if (cmd === 'git' && Array.isArray(args) && args[0] === 'clone') {
+        const cloneDir = String(args[4]);
+        fs.mkdirSync(cloneDir, { recursive: true });
+        fs.writeFileSync(path.join(cloneDir, 'hello.js'), 'cli({ site: "test", name: "hello", access: "read" })');
+        fs.writeFileSync(path.join(cloneDir, 'package.json'), JSON.stringify({ name: standaloneName }));
+        return '';
+      }
+      if (cmd === 'git' && Array.isArray(args) && args[0] === 'rev-parse' && args[1] === 'HEAD') {
+        return '1234567890abcdef1234567890abcdef12345678\n';
+      }
+      return '';
+    });
+
+    expect(() => updatePlugin(standaloneName)).toThrow(/could not determine|dubious ownership|--force/i);
+    expect(() => updatePlugin(standaloneName, { force: true })).not.toThrow();
+  });
+
   it('updates a clean standalone plugin without force', () => {
     fs.mkdirSync(standaloneDir, { recursive: true });
     fs.writeFileSync(path.join(standaloneDir, 'old.js'), 'cli({ site: "old", name: "old", access: "read" })');
@@ -1793,15 +1834,41 @@ describe('getDirtyFiles', () => {
     mockExecFileSync.mockClear();
   });
 
-  it('returns an empty array when git invocation fails (non-git directory or missing git binary)', () => {
+  it('returns an empty array for a genuine non-git directory', () => {
     mockExecFileSync.mockImplementation(() => {
-      throw new Error('not a git repository');
+      const err: NodeJS.ErrnoException & { stderr?: string } = new Error(
+        "fatal: not a git repository (or any of the parent directories): .git",
+      );
+      err.stderr = err.message;
+      throw err;
     });
     expect(pluginModule.getDirtyFiles('/nonexistent/dir')).toEqual([]);
   });
 
+  it('refuses (fails closed) when git status fails for a reason other than "not a repository", e.g. dubious ownership', () => {
+    mockExecFileSync.mockImplementation((cmd, args) => {
+      if (Array.isArray(args) && args[0] === 'rev-parse') return '.git\n';
+      const err: NodeJS.ErrnoException & { stderr?: string } = new Error('git exited with code 128');
+      err.stderr = 'fatal: detected dubious ownership in repository at \'/some/dir\'';
+      throw err;
+    });
+    expect(() => pluginModule.getDirtyFiles('/some/dir')).toThrow(/could not determine|dubious ownership/i);
+  });
+
+  it('refuses (fails closed) when the git binary itself is missing', () => {
+    mockExecFileSync.mockImplementation(() => {
+      const err: NodeJS.ErrnoException = new Error('spawnSync git ENOENT');
+      err.code = 'ENOENT';
+      throw err;
+    });
+    expect(() => pluginModule.getDirtyFiles('/some/dir')).toThrow(/could not determine/i);
+  });
+
   it('parses tracked-file modifications from porcelain output', () => {
-    mockExecFileSync.mockImplementation(() => ' M foo.js\n?? untracked.js\n');
+    mockExecFileSync.mockImplementation((cmd, args) => {
+      if (Array.isArray(args) && args[0] === 'rev-parse') return '.git\n';
+      return ' M foo.js\n?? untracked.js\n';
+    });
     expect(pluginModule.getDirtyFiles('/some/dir')).toEqual(['M foo.js', '?? untracked.js']);
   });
 
@@ -1812,5 +1879,19 @@ describe('getDirtyFiles', () => {
     });
     pluginModule.getDirtyFiles('/some/dir');
     expect(mockExecFileSync).toHaveBeenCalled();
+  });
+
+  it('scopes git status to the plugin directory with "-- .", not the whole enclosing repo', () => {
+    mockExecFileSync.mockImplementation((cmd, args) => {
+      if (Array.isArray(args) && args[0] === 'rev-parse') return '.git\n';
+      // Simulate real git: only the pathspec-scoped call excludes files
+      // outside the plugin directory. This is the regression test for the
+      // bug where `git status --porcelain` (no pathspec) reported dirty
+      // files from anywhere in the enclosing repository (e.g. repo/top.txt)
+      // when cwd was repo/sub/plug.
+      const scoped = Array.isArray(args) && args.includes('--') && args[args.length - 1] === '.';
+      return scoped ? '?? sub/plug/new.txt\n' : '?? top.txt\n?? sub/plug/new.txt\n';
+    });
+    expect(pluginModule.getDirtyFiles('/repo/sub/plug')).toEqual(['?? sub/plug/new.txt']);
   });
 });

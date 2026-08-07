@@ -509,8 +509,24 @@ export function getCommitHash(dir: string): string | undefined {
   }
 }
 
+/** True only for git's "this directory has no repository at all" failure. */
+function isNotAGitRepositoryError(error: unknown): boolean {
+  const stderr = typeof (error as { stderr?: unknown })?.stderr === 'string'
+    ? (error as { stderr: string }).stderr
+    : (error as { stderr?: Buffer })?.stderr?.toString('utf-8') ?? '';
+  const message = (error as Error)?.message ?? '';
+  return /not a git repository/i.test(stderr) || /not a git repository/i.test(message);
+}
+
+function describeGitError(error: unknown): string {
+  const stderr = typeof (error as { stderr?: unknown })?.stderr === 'string'
+    ? (error as { stderr: string }).stderr
+    : (error as { stderr?: Buffer })?.stderr?.toString('utf-8') ?? '';
+  return stderr.trim() || (error as Error)?.message || String(error);
+}
+
 /**
- * Report tracked-file modifications and untracked files in a git checkout.
+ * Report tracked-file modifications and untracked files within `dir` in a git checkout.
  *
  * Untracked files are included on purpose: `git status` already excludes
  * gitignored paths (build output like node_modules/dist never shows up), so
@@ -518,19 +534,45 @@ export function getCommitHash(dir: string): string | undefined {
  * new command file that hasn't been `git add`ed yet — which updating would
  * destroy just as surely as an uncommitted edit to a tracked file.
  *
- * Returns an empty array for a non-git directory: a plugin installed without
- * git history has no baseline to compare against, so there is nothing to protect.
+ * The `-- .` pathspec on `git status` restricts the report to `dir` itself.
+ * Without it, git reports the *entire enclosing repository* — e.g. a plugin
+ * living inside a dotfiles repo, or any plugin directory that isn't itself a
+ * repo root, would surface unrelated dirty files from elsewhere in the repo.
+ *
+ * Returns an empty array only when `dir` is genuinely not inside a git
+ * repository: a plugin installed without git history has no baseline to
+ * compare against, so there is nothing to protect. Any other failure (git
+ * missing, "detected dubious ownership in repository", permission errors,
+ * ...) is a failure to determine dirtiness, not evidence of cleanliness, and
+ * must fail closed — this guard exists to prevent silent data loss, so an
+ * inconclusive check must refuse the update rather than proceed as if clean.
  */
 export function getDirtyFiles(dir: string): string[] {
   try {
-    const out = execFileSync('git', ['status', '--porcelain'], {
+    execFileSync('git', ['rev-parse', '--git-dir'], {
+      cwd: dir,
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+  } catch (error) {
+    if (isNotAGitRepositoryError(error)) return [];
+    throw new PluginError(
+      `Could not determine whether "${dir}" has uncommitted changes: git failed with: ${describeGitError(error)}`,
+      'This can happen when git is not installed, or refuses to run here (e.g. "detected dubious ownership in repository"). Re-run with --force to update anyway — this accepts the risk of discarding uncommitted work, which is why it is not the default.',
+    );
+  }
+  try {
+    const out = execFileSync('git', ['status', '--porcelain', '--', '.'], {
       cwd: dir,
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
     });
     return out.split('\n').map((line) => line.trim()).filter(Boolean);
-  } catch {
-    return [];
+  } catch (error) {
+    throw new PluginError(
+      `Could not determine whether "${dir}" has uncommitted changes: git failed with: ${describeGitError(error)}`,
+      'This can happen when git refuses to run here (e.g. "detected dubious ownership in repository"). Re-run with --force to update anyway — this accepts the risk of discarding uncommitted work, which is why it is not the default.',
+    );
   }
 }
 
