@@ -1,4 +1,5 @@
 import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { ArgumentError, AuthRequiredError, CommandExecutionError, EmptyResultError } from './errors.js';
 import { cli, Strategy, type CommandArgs, type CliOptions } from './registry-api.js';
 import type { IPage } from './types.js';
@@ -108,6 +109,8 @@ export function makeScreenshotCommand(site: string, displayName?: string, extra:
       const html = await page.evaluate('document.documentElement.outerHTML');
       const htmlPath = String(outputPath).replace(/\.\w+$/, '') + '-dom.html';
       const snapPath = String(outputPath).replace(/\.\w+$/, '') + '-a11y.txt';
+      fs.mkdirSync(path.dirname(htmlPath), { recursive: true });
+      fs.mkdirSync(path.dirname(snapPath), { recursive: true });
       fs.writeFileSync(htmlPath, html);
       fs.writeFileSync(snapPath, typeof snap === 'string' ? snap : JSON.stringify(snap, null, 2));
       return [{ Status: 'Success', File: htmlPath }, { Status: 'Success', File: snapPath }];
@@ -169,9 +172,13 @@ export function makeDumpCommand(site: string) {
     args: [],
     columns: ['action', 'files'],
     func: async (page: IPage) => {
-      fs.writeFileSync(`/tmp/${site}-dom.html`, await page.evaluate('document.body.innerHTML'));
-      fs.writeFileSync(`/tmp/${site}-snapshot.json`, JSON.stringify(await page.snapshot({ interactive: false }), null, 2));
-      return [{ action: 'Dom extraction finished', files: `/tmp/${site}-dom.html, /tmp/${site}-snapshot.json` }];
+      const domPath = `/tmp/${site}-dom.html`;
+      const snapPath = `/tmp/${site}-snapshot.json`;
+      fs.mkdirSync(path.dirname(domPath), { recursive: true });
+      fs.mkdirSync(path.dirname(snapPath), { recursive: true });
+      fs.writeFileSync(domPath, await page.evaluate('document.body.innerHTML'));
+      fs.writeFileSync(snapPath, JSON.stringify(await page.snapshot({ interactive: false }), null, 2));
+      return [{ action: 'Dom extraction finished', files: `${domPath}, ${snapPath}` }];
     },
   });
 }
