@@ -510,14 +510,20 @@ export function getCommitHash(dir: string): string | undefined {
 }
 
 /**
- * Report tracked-file modifications in a git checkout.
+ * Report tracked-file modifications and untracked files in a git checkout.
+ *
+ * Untracked files are included on purpose: `git status` already excludes
+ * gitignored paths (build output like node_modules/dist never shows up), so
+ * anything untracked that does show up is real, unsaved user work — e.g. a
+ * new command file that hasn't been `git add`ed yet — which updating would
+ * destroy just as surely as an uncommitted edit to a tracked file.
  *
  * Returns an empty array for a non-git directory: a plugin installed without
  * git history has no baseline to compare against, so there is nothing to protect.
  */
 export function getDirtyFiles(dir: string): string[] {
   try {
-    const out = execFileSync('git', ['status', '--porcelain', '--untracked-files=no'], {
+    const out = execFileSync('git', ['status', '--porcelain'], {
       cwd: dir,
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -528,12 +534,19 @@ export function getDirtyFiles(dir: string): string[] {
   }
 }
 
+function describeDirtyEntry(entry: string): string {
+  const isUntracked = entry.startsWith('??');
+  const file = entry.replace(/^\?\?\s*/, '').replace(/^[MADRCU! ]+\s*/, '');
+  return isUntracked ? `${file} (new, unstaged)` : `${file} (modified)`;
+}
+
 function assertPluginNotDirty(name: string, dir: string, force: boolean): void {
   if (force) return;
   const dirty = getDirtyFiles(dir);
   if (dirty.length === 0) return;
+  const described = dirty.slice(0, 10).map(describeDirtyEntry);
   throw new PluginError(
-    `Plugin "${name}" has uncommitted changes that updating would destroy:\n  ${dirty.slice(0, 10).join('\n  ')}`,
+    `Plugin "${name}" has uncommitted changes that updating would destroy:\n  ${described.join('\n  ')}`,
     'Commit or stash them, re-run with --force to discard them, or develop against a symlinked checkout with "webcmd plugin install file:///path".',
   );
 }

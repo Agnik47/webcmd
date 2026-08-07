@@ -1616,6 +1616,61 @@ describe('updatePlugin dirty-checkout guard', () => {
     expect(() => updatePlugin(standaloneName)).not.toThrow();
   });
 
+  it('refuses to update a standalone plugin that has only an untracked new file', () => {
+    fs.mkdirSync(standaloneDir, { recursive: true });
+    fs.writeFileSync(path.join(standaloneDir, 'old.js'), 'cli({ site: "old", name: "old", access: "read" })');
+    const lock = _readLockFile();
+    lock[standaloneName] = {
+      source: { kind: 'git', url: 'https://github.com/user/webcmd-plugin-__test-dirty-standalone__.git' },
+      commitHash: 'oldhasholdhasholdhasholdhasholdhasholdh',
+      installedAt: '2025-01-01T00:00:00.000Z',
+    };
+    _writeLockFile(lock);
+
+    // Simulates a command file the user is mid-writing that hasn't been `git add`ed yet.
+    mockStandaloneUpdate('?? new-command.js\n');
+
+    expect(() => updatePlugin(standaloneName)).toThrow(/uncommitted/i);
+    expect(mockExecFileSync.mock.calls.some(([cmd, args]) => cmd === 'git' && Array.isArray(args) && args[0] === 'clone')).toBe(false);
+  });
+
+  it('updates a standalone plugin with only an untracked new file when forced', () => {
+    fs.mkdirSync(standaloneDir, { recursive: true });
+    fs.writeFileSync(path.join(standaloneDir, 'old.js'), 'cli({ site: "old", name: "old", access: "read" })');
+    const lock = _readLockFile();
+    lock[standaloneName] = {
+      source: { kind: 'git', url: 'https://github.com/user/webcmd-plugin-__test-dirty-standalone__.git' },
+      commitHash: 'oldhasholdhasholdhasholdhasholdhasholdh',
+      installedAt: '2025-01-01T00:00:00.000Z',
+    };
+    _writeLockFile(lock);
+
+    mockStandaloneUpdate('?? new-command.js\n');
+
+    expect(() => updatePlugin(standaloneName, { force: true })).not.toThrow();
+  });
+
+  it('updates cleanly when the only untracked paths are gitignored, since git status omits them entirely', () => {
+    fs.mkdirSync(standaloneDir, { recursive: true });
+    fs.writeFileSync(path.join(standaloneDir, 'old.js'), 'cli({ site: "old", name: "old", access: "read" })');
+    fs.writeFileSync(path.join(standaloneDir, '.gitignore'), 'node_modules/\ndist/\n');
+    fs.mkdirSync(path.join(standaloneDir, 'node_modules'), { recursive: true });
+    fs.writeFileSync(path.join(standaloneDir, 'node_modules', 'junk.js'), '// build artifact\n');
+    const lock = _readLockFile();
+    lock[standaloneName] = {
+      source: { kind: 'git', url: 'https://github.com/user/webcmd-plugin-__test-dirty-standalone__.git' },
+      commitHash: 'oldhasholdhasholdhasholdhasholdhasholdh',
+      installedAt: '2025-01-01T00:00:00.000Z',
+    };
+    _writeLockFile(lock);
+
+    // Real `git status --porcelain` omits gitignored paths entirely (no `!!`
+    // entry either, unless --ignored is passed) — mock that exact behavior.
+    mockStandaloneUpdate('');
+
+    expect(() => updatePlugin(standaloneName)).not.toThrow();
+  });
+
   it('refuses to update a monorepo plugin when the shared clone has uncommitted changes, before touching the clone', () => {
     const subDir = path.join(monorepoRepoDir, 'packages', monorepoPluginName);
     fs.mkdirSync(subDir, { recursive: true });
@@ -1750,9 +1805,9 @@ describe('getDirtyFiles', () => {
     expect(pluginModule.getDirtyFiles('/some/dir')).toEqual(['M foo.js', '?? untracked.js']);
   });
 
-  it('passes --untracked-files=no so new untracked files never block an update', () => {
+  it('does not pass --untracked-files=no, so untracked files are reported (git already omits gitignored paths)', () => {
     mockExecFileSync.mockImplementation((cmd, args) => {
-      expect(args).toContain('--untracked-files=no');
+      expect(args).not.toContain('--untracked-files=no');
       return '';
     });
     pluginModule.getDirtyFiles('/some/dir');
