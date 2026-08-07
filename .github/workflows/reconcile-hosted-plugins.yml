@@ -16,6 +16,9 @@ on:
       - 'plugins/**'
       - 'webcmd-plugin.json'
   workflow_dispatch:
+    # Note: manual runs should be triggered against main to ensure github.sha
+    # points to the current tip. Reconciling an older ref would delist plugins
+    # added since that commit.
 
 concurrency:
   group: reconcile-hosted-plugins
@@ -39,6 +42,9 @@ jobs:
 
       - name: Execute Cloud Run Job
         run: |
+          # Note: --update-env-vars on 'execute' (not 'update') is a per-execution
+          # override that does not modify the job's stored configuration. See:
+          # "environment variables overrides for an execution of a job"
           gcloud run jobs execute webcmd-reconcile-marketplace \
             --region "${{ secrets.GCP_REGION }}" \
             --update-env-vars "WEBCMD_PLUGINS_COMMIT=${{ github.sha }}" \
