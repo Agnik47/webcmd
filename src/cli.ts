@@ -50,6 +50,8 @@ import { configureRootCommandSurface } from './root-command-surface.js';
 import { missingPluginGuidance, PLUGINS_DIR } from './discovery.js';
 import { loadBrowserRunSource } from './browser/run/input.js';
 import { BrowserRunError } from './browser/run/types.js';
+import { classifyCommandOrigin, formatCommandOrigin } from './command-origin.js';
+import { readOverrideRecords, removeOverrideRecords } from './override-provenance.js';
 
 const CLI_FILE = fileURLToPath(import.meta.url);
 const FOLLOW_POLL_MS = 1_000;
@@ -568,6 +570,23 @@ function applyRootSubcommandSummaries(program: Command): void {
   }
 }
 
+async function handleAdapterOverride(commandKey: string): Promise<void> {
+  const { createAdapterOverride } = await import('./adapter-override.js');
+  try {
+    const result = createAdapterOverride(commandKey);
+    console.log(`✅ Override created for ${result.commandKey}`);
+    console.log(`     yours: ${result.overridePath}`);
+    console.log(`     base:  ${result.basePath}`);
+    console.log();
+    console.log(`  Your copy now takes precedence over plugin "${result.plugin}".`);
+    console.log(`  "${CLI_COMMAND} plugin update" keeps updating the plugin copy, not your override,`);
+    console.log('  and will tell you when the upstream file changes so you can merge.');
+  } catch (err) {
+    console.error(`Error: ${getErrorMessage(err)}`);
+    process.exitCode = EXIT_CODES.GENERIC_ERROR;
+  }
+}
+
 export function createProgram(BUILTIN_CLIS: string, USER_CLIS: string, pluginsDir: string = PLUGINS_DIR): Command {
   const program = new Command();
   // enablePositionalOptions: prevents parent from consuming flags meant for subcommands;
@@ -582,8 +601,19 @@ export function createProgram(BUILTIN_CLIS: string, USER_CLIS: string, pluginsDi
   configureListCommandSurface(program.command('list'))
     .action((opts) => {
       const externalClis = opts.format === 'table' ? loadExternalClis() : [];
+      const overrides = readOverrideRecords();
       const presentation = commandListPresentation(
-        filterCommandsByTag([...new Set(getRegistry().values())].map(toPresentableCommand), opts.tag),
+        filterCommandsByTag([...new Set(getRegistry().values())].map((command) => {
+          const commandKey = `${command.site}/${command.name}`;
+          const classified = classifyCommandOrigin(command, {
+            pluginsDir,
+            userClisDir: USER_CLIS,
+          });
+          const origin = classified.kind === 'local' && overrides[commandKey]
+            ? { kind: 'override' as const, plugin: overrides[commandKey].plugin }
+            : classified;
+          return { ...toPresentableCommand(command), origin: formatCommandOrigin(origin) };
+        }), opts.tag),
         opts.format,
         {
           externalClis: externalClis.map((external) => ({
@@ -845,6 +875,11 @@ cli({
         process.exitCode = EXIT_CODES.GENERIC_ERROR;
       }
     });
+
+  browser.command('fork')
+    .argument('<name>', 'Command to fork in site/command format')
+    .description('Fork an installed plugin command into a private copy')
+    .action(handleAdapterOverride);
 
   // ── Verify (test adapter) ──
 
@@ -1114,6 +1149,25 @@ cli({
 
   // ── Plugin management ──────────────────────────────────────────────────────
 
+  /** Print the "N overrides need reconciliation" report after `plugin update`. Prints nothing when empty. */
+  function printReconcileReport(needs: import('./plugin.js').OverrideReconcileNeed[]): void {
+    if (needs.length === 0) return;
+    console.log();
+    console.log(`⚠  ${needs.length} override${needs.length === 1 ? '' : 's'} need${needs.length === 1 ? 's' : ''} reconciliation:`);
+    for (const need of needs) {
+      console.log(`     ${need.commandKey}`);
+      console.log(`       yours:    ${need.yours}`);
+      console.log(`       upstream: ${need.upstream}`);
+      if (need.base) {
+        console.log(`       base:     ${need.base}`);
+      } else {
+        console.log(`       base:     unavailable (merge base was deleted)`);
+      }
+    }
+    console.log(`     Your override still takes precedence. Merge the upstream change, or run`);
+    console.log(`     ${CLI_COMMAND} adapter reset <plugin> to drop the override.`);
+  }
+
   const pluginCmd = program.command('plugin').description(`Manage ${CLI_COMMAND} plugins`);
   // Snapshot before applyRootSubcommandSummaries() rewrites .description() to a child-name listing.
   const originalPluginDescription = pluginCmd.description();
@@ -1173,7 +1227,7 @@ cli({
         return;
       }
 
-      const { updatePlugin, updateAllPlugins } = await import('./plugin.js');
+      const { updatePlugin, updateAllPlugins, findOverridesNeedingReconcile } = await import('./plugin.js');
       const { discoverPlugins } = await import('./discovery.js');
       if (opts.all) {
         const results = updateAllPlugins({ force: opts.force === true });
@@ -1204,13 +1258,18 @@ cli({
         } else {
           console.log('✅ All plugins updated successfully.');
         }
+
+        printReconcileReport(findOverridesNeedingReconcile([
+          ...new Set(results.flatMap((result) => result.success ? result.updatedPlugins ?? [result.name] : [])),
+        ]));
         return;
       }
 
       try {
-        updatePlugin(name!, { force: opts.force === true });
+        const updatedPlugins = updatePlugin(name!, { force: opts.force === true });
         await discoverPlugins();
         console.log(`✅ Plugin "${name}" updated successfully.`);
+        printReconcileReport(findOverridesNeedingReconcile(updatedPlugins));
       } catch (err) {
         console.error(`Error: ${getErrorMessage(err)}`);
         process.exitCode = EXIT_CODES.GENERIC_ERROR;
@@ -1226,6 +1285,10 @@ cli({
       const { listPlugins } = await import('./plugin.js');
       const plugins = listPlugins();
       if (plugins.length === 0) {
+        if (opts.format === 'json') {
+          renderOutput([], { fmt: 'json' });
+          return;
+        }
         console.log('  No plugins installed.');
         console.log(`  Install one with: ${CLI_COMMAND} plugin install github:user/repo`);
         return;
@@ -1233,7 +1296,7 @@ cli({
       if (opts.format === 'json') {
         renderOutput(plugins, {
           fmt: 'json',
-          columns: ['name', 'commands', 'source'],
+          columns: ['name', 'commands', 'source', 'overrides', 'updateAvailable'],
           title: `${CLI_COMMAND}/plugins`,
           source: `${CLI_COMMAND} plugin list`,
         });
@@ -1259,6 +1322,9 @@ cli({
         const cmds = p.commands.length > 0 ? ` (${p.commands.join(', ')})` : '';
         const src = p.source ? ` ← ${p.source}` : '';
         console.log(`  ${p.name}${version}${desc}${cmds}${src}`);
+        if (p.overrides.length > 0) {
+          console.log(`    ⚠ ${p.overrides.length} override${p.overrides.length === 1 ? '' : 's'}: ${p.overrides.join(', ')}${p.updateAvailable ? ' (upstream changed since fork)' : ''}`);
+        }
       }
 
       for (const [mono, group] of monoGroups) {
@@ -1269,6 +1335,9 @@ cli({
           const desc = p.description ? ` — ${p.description}` : '';
           const cmds = p.commands.length > 0 ? ` (${p.commands.join(', ')})` : '';
           console.log(`    ${p.name}${version}${desc}${cmds}`);
+          if (p.overrides.length > 0) {
+            console.log(`      ⚠ ${p.overrides.length} override${p.overrides.length === 1 ? '' : 's'}: ${p.overrides.join(', ')}${p.updateAvailable ? ' (upstream changed since fork)' : ''}`);
+          }
         }
       }
 
@@ -1430,43 +1499,110 @@ cli({
 
   adapterCmd
     .command('status')
-    .description('List legacy local adapters in ~/.webcmd/clis/')
-    .action(async () => {
+    .description('List local adapters in ~/.webcmd/clis/')
+    .option('-f, --format <fmt>', 'Output format: table, json', 'table')
+    .action(async (opts: { format?: string }) => {
+      let userClisListed = false;
       try {
         const userEntries = await fs.promises.readdir(USER_CLIS, { withFileTypes: true });
-        const userSites = userEntries.filter(e => e.isDirectory()).map(e => e.name).sort();
+        userClisListed = true;
+        const userSites = userEntries.filter(e => e.isDirectory() && e.name !== '.base').map(e => e.name).sort();
         if (userSites.length === 0) {
-          console.log('No legacy local adapters installed.');
+          if (opts.format === 'json') {
+            renderOutput([], { fmt: 'json' });
+            return;
+          }
+          console.log('No local adapters installed.');
           return;
         }
 
-        console.log(`Legacy local adapters in ~/.webcmd/clis/ (${userSites.length} sites):\n`);
-        for (const site of userSites) console.log(`  ${site}`);
-      } catch {
-        console.log('No legacy local adapters installed.');
+        const records = readOverrideRecords();
+        const reconcile = new Set((await import('./plugin.js')).findOverridesNeedingReconcile().map(({ commandKey }) => commandKey));
+        const adapters: Array<{
+          command: string;
+          kind: 'user' | 'override';
+          plugin: string | null;
+          reconciliationNeeded: boolean;
+          orphaned: boolean;
+        }> = [];
+        for (const site of userSites) {
+          const files = await fs.promises.readdir(path.join(USER_CLIS, site));
+          for (const file of files.filter((entry) => entry.endsWith('.js')).sort()) {
+            const command = `${site}/${file.slice(0, -3)}`;
+            const record = records[command];
+            adapters.push(record
+              ? {
+                  command,
+                  kind: 'override',
+                  plugin: record.plugin,
+                  reconciliationNeeded: reconcile.has(command),
+                  orphaned: !fs.existsSync(path.join(pluginsDir, record.plugin)),
+                }
+              : { command, kind: 'user', plugin: null, reconciliationNeeded: false, orphaned: false });
+          }
+        }
+        if (opts.format === 'json') {
+          renderOutput(adapters, {
+            fmt: 'json',
+            columns: ['command', 'kind', 'plugin', 'reconciliationNeeded', 'orphaned'],
+            title: `${CLI_COMMAND}/adapter-status`,
+            source: `${CLI_COMMAND} adapter status`,
+          });
+          return;
+        }
+        console.log(`Local adapters in ~/.webcmd/clis/ (${userSites.length} sites):\n`);
+        for (const site of userSites) {
+          console.log(`  ${site}`);
+          for (const adapter of adapters.filter((item) => item.command.startsWith(`${site}/`))) {
+            if (adapter.kind === 'user') {
+              console.log(`    user adapter: ${adapter.command}`);
+            } else if (adapter.orphaned) {
+              console.log(`    orphaned override: ${adapter.command} (plugin ${adapter.plugin} is not installed)`);
+            } else {
+              console.log(`    override: ${adapter.command} (plugin ${adapter.plugin}${adapter.reconciliationNeeded ? ', upstream changed since fork' : ''})`);
+            }
+          }
+        }
+      } catch (err) {
+        if (!userClisListed && (err as NodeJS.ErrnoException).code === 'ENOENT') {
+          if (opts.format === 'json') renderOutput([], { fmt: 'json' });
+          else console.log('No local adapters installed.');
+          return;
+        }
+        console.error(`Error: ${getErrorMessage(err)}`);
+        process.exitCode = EXIT_CODES.GENERIC_ERROR;
       }
     });
 
   adapterCmd
     .command('reset')
-    .description('Remove a legacy local adapter')
+    .description('Remove a local adapter override')
     .argument('[site]', 'Site name (e.g. twitter, youtube)')
     .option('--all', 'Reset all local overrides')
     .action(async (site: string | undefined, opts: { all?: boolean }) => {
       if (opts.all) {
+        let userClisListed = false;
         try {
           const userEntries = await fs.promises.readdir(USER_CLIS, { withFileTypes: true });
-          const dirs = userEntries.filter(e => e.isDirectory());
+          userClisListed = true;
+          const dirs = userEntries.filter(e => e.isDirectory() && e.name !== '.base');
+          readOverrideRecords();
           if (dirs.length === 0) {
             console.log('No local sites to reset.');
             return;
           }
+          let removedRecords = 0;
           for (const dir of dirs) {
             fs.rmSync(path.join(USER_CLIS, dir.name), { recursive: true, force: true });
+            removedRecords += removeOverrideRecords(dir.name).length;
           }
-          console.log(`✅ Removed ${dirs.length} legacy local adapter(s).`);
-        } catch {
-          console.log('No local sites to reset.');
+          console.log(`✅ Removed ${dirs.length} local adapter override(s) and ${removedRecords} provenance record(s).`);
+        } catch (err) {
+          if (!userClisListed && (err as NodeJS.ErrnoException).code === 'ENOENT') console.log('No local sites to reset.');
+          else {
+            console.error(`Error: ${getErrorMessage(err)}`);
+            process.exitCode = EXIT_CODES.GENERIC_ERROR;
+          }
         }
         return;
       }
@@ -1486,8 +1622,15 @@ cli({
       }
 
       fs.rmSync(userSiteDir, { recursive: true, force: true });
-      console.log(`✅ Removed legacy local adapter "${site}".`);
+      const removedRecords = removeOverrideRecords(site).length;
+      console.log(`✅ Removed local adapter override "${site}" and ${removedRecords} provenance record(s).`);
     });
+
+  adapterCmd
+    .command('override')
+    .description('Fork an installed plugin command into ~/.webcmd/clis so you can modify it')
+    .argument('<command>', 'Command to override, as <site>/<command>')
+    .action(handleAdapterOverride);
 
   // ── Built-in: browser profile selection ──────────────────────────────────
   const profileCmd = program.command('profile').description('Manage webcmd browser runtime profiles');

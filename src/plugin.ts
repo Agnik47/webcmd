@@ -12,11 +12,12 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { execSync, execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { PLUGINS_DIR } from './discovery.js';
+import { getPluginsDir, PLUGINS_DIR } from './discovery.js';
 import { getErrorMessage, PluginError } from './errors.js';
 import { log } from './logger.js';
 import { isRecord } from './utils.js';
 import { PACKAGE_NAME } from './brand.js';
+import { fileSha256, readOverrideRecords } from './override-provenance.js';
 import {
   readPluginManifest,
   isMonorepo,
@@ -66,6 +67,10 @@ export interface PluginInfo {
   monorepoName?: string;
   /** Description from webcmd-plugin.json. */
   description?: string;
+  /** Commands forked into ~/.webcmd/clis with upstream provenance. */
+  overrides: string[];
+  /** An override's upstream command changed since it was forked. */
+  updateAvailable: boolean;
 }
 
 interface ParsedSource {
@@ -1181,7 +1186,7 @@ function isSymlinkSync(p: string): boolean {
  * For monorepo sub-plugins: pulls the monorepo root and re-runs lifecycle
  * for all sub-plugins from the same monorepo.
  */
-export function updatePlugin(name: string, options: { force?: boolean } = {}): void {
+export function updatePlugin(name: string, options: { force?: boolean } = {}): string[] {
   const targetDir = path.join(PLUGINS_DIR, name);
   if (!fs.existsSync(targetDir)) {
     throw new Error(`Plugin "${name}" is not installed.`);
@@ -1194,7 +1199,7 @@ export function updatePlugin(name: string, options: { force?: boolean } = {}): v
     // Local installs are symlinked to the user's own checkout, not replaced
     // wholesale, so dirty edits there are the intended workflow, not a hazard.
     updateLocalPlugin(name, targetDir, lock, lockEntry);
-    return;
+    return [name];
   }
 
   if (source?.kind === 'monorepo') {
@@ -1202,7 +1207,7 @@ export function updatePlugin(name: string, options: { force?: boolean } = {}): v
     const monoName = source.repoName;
     const cloneUrl = source.url;
     assertPluginNotDirty(monoName, monoDir, options.force === true);
-    withTempClone(cloneUrl, (tmpCloneDir) => {
+    return withTempClone(cloneUrl, (tmpCloneDir) => {
       const manifest = readPluginManifest(tmpCloneDir);
       if (!manifest || !isMonorepo(manifest)) {
         throw new Error(`Updated source is no longer a monorepo: ${cloneUrl}`);
@@ -1239,8 +1244,8 @@ export function updatePlugin(name: string, options: { force?: boolean } = {}): v
           writeLockFile(lock);
         },
       );
+      return updatedPlugins.map((plugin) => plugin.name);
     });
-    return;
   }
 
   assertPluginNotDirty(name, targetDir, options.force === true);
@@ -1266,12 +1271,14 @@ export function updatePlugin(name: string, options: { force?: boolean } = {}): v
       }
     });
   });
+  return [name];
 }
 
 export interface UpdateResult {
   name: string;
   success: boolean;
   error?: string;
+  updatedPlugins?: string[];
 }
 
 /**
@@ -1281,8 +1288,7 @@ export interface UpdateResult {
 export function updateAllPlugins(options: { force?: boolean } = {}): UpdateResult[] {
   return listPlugins().map((plugin): UpdateResult => {
     try {
-      updatePlugin(plugin.name, options);
-      return { name: plugin.name, success: true };
+      return { name: plugin.name, success: true, updatedPlugins: updatePlugin(plugin.name, options) };
     } catch (err) {
       return {
         name: plugin.name,
@@ -1293,20 +1299,64 @@ export function updateAllPlugins(options: { force?: boolean } = {}): UpdateResul
   });
 }
 
+export interface OverrideReconcileNeed {
+  commandKey: string;
+  plugin: string;
+  yours: string;
+  upstream: string;
+  base: string | null;
+}
+
+/**
+ * Find overrides whose upstream plugin file has changed since the fork.
+ *
+ * Content-based, not commit-based: a plugin's commitHash moves whenever
+ * *any* of its commands change, so comparing commitHash would flag every
+ * override on every unrelated update. Comparing the file's own sha256
+ * against the override record's sourceSha256 only flags overrides whose
+ * actual upstream content changed.
+ */
+export function findOverridesNeedingReconcile(pluginNames?: string[]): OverrideReconcileNeed[] {
+  const homeDir = getHomeDir();
+  const records = readOverrideRecords(homeDir);
+  const needs: OverrideReconcileNeed[] = [];
+
+  for (const [commandKey, record] of Object.entries(records)) {
+    if (pluginNames && !pluginNames.includes(record.plugin)) continue;
+    // Plugin was uninstalled: no upstream to reconcile against. Task 7's
+    // `adapter status` surfaces these separately as orphaned.
+    if (!fs.existsSync(record.sourcePath)) continue;
+    if (fileSha256(record.sourcePath) === record.sourceSha256) continue;
+
+    needs.push({
+      commandKey,
+      plugin: record.plugin,
+      yours: path.join(homeDir, '.webcmd', 'clis', `${commandKey}.js`),
+      upstream: record.sourcePath,
+      base: fs.existsSync(record.basePath) ? record.basePath : null,
+    });
+  }
+
+  return needs;
+}
+
 /**
  * List all installed plugins.
  * Reads webcmd-plugin.json for description/version when available.
  */
 export function listPlugins(): PluginInfo[] {
-  if (!fs.existsSync(PLUGINS_DIR)) return [];
+  const pluginsDir = getPluginsDir(getHomeDir());
+  if (!fs.existsSync(pluginsDir)) return [];
 
-  const entries = fs.readdirSync(PLUGINS_DIR, { withFileTypes: true });
+  const entries = fs.readdirSync(pluginsDir, { withFileTypes: true });
   const lock = readLockFile();
+  const records = readOverrideRecords(getHomeDir());
+  const updates = new Set(findOverridesNeedingReconcile().map(({ commandKey }) => commandKey));
   const plugins: PluginInfo[] = [];
 
   for (const entry of entries) {
     // Accept both real directories and symlinks (monorepo sub-plugins)
-    const pluginDir = path.join(PLUGINS_DIR, entry.name);
+    const pluginDir = path.join(pluginsDir, entry.name);
     const isDir = entry.isDirectory() || isSymlinkSync(pluginDir);
     if (!isDir) continue;
 
@@ -1329,6 +1379,9 @@ export function listPlugins(): PluginInfo[] {
     }
 
     const source = resolveStoredPluginSource(lockEntry, pluginDir);
+    const overrideKeys = Object.keys(records)
+      .filter((commandKey) => records[commandKey]!.plugin === entry.name)
+      .sort();
 
     plugins.push({
       name: entry.name,
@@ -1339,6 +1392,8 @@ export function listPlugins(): PluginInfo[] {
       installedAt: lockEntry?.installedAt,
       monorepoName: lockEntry?.source.kind === 'monorepo' ? lockEntry.source.repoName : undefined,
       description,
+      overrides: overrideKeys.map((commandKey) => commandKey.slice(commandKey.indexOf('/') + 1)),
+      updateAvailable: overrideKeys.some((commandKey) => updates.has(commandKey)),
     });
   }
 

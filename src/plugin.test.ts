@@ -10,6 +10,7 @@ import { pathToFileURL } from 'node:url';
 import { PLUGINS_DIR } from './discovery.js';
 import type { LockEntry } from './plugin.js';
 import * as pluginModule from './plugin.js';
+import { createAdapterOverride } from './adapter-override.js';
 
 const { mockExecFileSync, mockExecSync } = vi.hoisted(() => ({
   mockExecFileSync: vi.fn(),
@@ -1893,5 +1894,110 @@ describe('getDirtyFiles', () => {
       return scoped ? '?? sub/plug/new.txt\n' : '?? top.txt\n?? sub/plug/new.txt\n';
     });
     expect(pluginModule.getDirtyFiles('/repo/sub/plug')).toEqual(['?? sub/plug/new.txt']);
+  });
+});
+
+describe('findOverridesNeedingReconcile', () => {
+  let home: string;
+  let originalHome: string | undefined;
+  let pluginsDir: string;
+  let clisDir: string;
+  let pluginFile: string;
+
+  beforeEach(() => {
+    originalHome = process.env.HOME;
+    home = fs.mkdtempSync(path.join(os.tmpdir(), 'webcmd-reconcile-'));
+    process.env.HOME = home;
+
+    pluginsDir = path.join(home, '.webcmd', 'plugins');
+    clisDir = path.join(home, '.webcmd', 'clis');
+    fs.mkdirSync(path.join(pluginsDir, 'linkedin'), { recursive: true });
+    pluginFile = path.join(pluginsDir, 'linkedin', 'search.js');
+    fs.writeFileSync(pluginFile, '// search v1\n', 'utf-8');
+    fs.writeFileSync(path.join(pluginsDir, 'linkedin', 'inbox.js'), '// inbox v1\n', 'utf-8');
+
+    createAdapterOverride('linkedin/search');
+  });
+
+  afterEach(() => {
+    if (originalHome === undefined) delete process.env.HOME;
+    else process.env.HOME = originalHome;
+    fs.rmSync(home, { recursive: true, force: true });
+  });
+
+  it('reports an override whose upstream file changed', () => {
+    fs.writeFileSync(pluginFile, '// upstream moved\n', 'utf-8');
+    const needs = pluginModule.findOverridesNeedingReconcile(['linkedin']);
+    expect(needs).toEqual([{
+      commandKey: 'linkedin/search', plugin: 'linkedin',
+      yours: path.join(clisDir, 'linkedin', 'search.js'),
+      upstream: pluginFile,
+      base: path.join(clisDir, '.base', 'linkedin', 'search.js'),
+    }]);
+  });
+
+  it('does NOT report an override when an unrelated command in the same plugin changed', () => {
+    fs.writeFileSync(path.join(pluginsDir, 'linkedin', 'inbox.js'), '// unrelated\n', 'utf-8');
+    expect(pluginModule.findOverridesNeedingReconcile(['linkedin'])).toEqual([]);
+  });
+
+  it('does NOT report a user adapter that has no provenance', () => {
+    fs.mkdirSync(path.join(clisDir, 'mysite'), { recursive: true });
+    fs.writeFileSync(path.join(clisDir, 'mysite', 'run.js'), '// local adapter\n', 'utf-8');
+    expect(pluginModule.findOverridesNeedingReconcile()).toEqual([]);
+  });
+
+  it('reports base as null when the base copy was deleted', () => {
+    fs.rmSync(path.join(clisDir, '.base', 'linkedin', 'search.js'), { force: true });
+    fs.writeFileSync(pluginFile, '// upstream moved again\n', 'utf-8');
+    expect(pluginModule.findOverridesNeedingReconcile(['linkedin'])[0]!.base).toBeNull();
+  });
+});
+
+describe('listPlugins override reporting', () => {
+  let home: string;
+  let originalHome: string | undefined;
+
+  beforeEach(() => {
+    originalHome = process.env.HOME;
+    home = fs.mkdtempSync(path.join(os.tmpdir(), 'webcmd-list-overrides-'));
+    process.env.HOME = home;
+  });
+
+  afterEach(() => {
+    if (originalHome === undefined) delete process.env.HOME;
+    else process.env.HOME = originalHome;
+    fs.rmSync(home, { recursive: true, force: true });
+    vi.resetModules();
+  });
+
+  it('lists only provenance-backed overrides and their upstream state per plugin', async () => {
+    vi.resetModules();
+    const { createAdapterOverride: createOverride } = await import('./adapter-override.js');
+    const { listPlugins: list } = await import('./plugin.js');
+    const pluginsDir = path.join(home, '.webcmd', 'plugins');
+    const clisDir = path.join(home, '.webcmd', 'clis');
+    const linkedinDir = path.join(pluginsDir, 'linkedin');
+
+    fs.mkdirSync(linkedinDir, { recursive: true });
+    fs.mkdirSync(path.join(pluginsDir, 'hackernews'), { recursive: true });
+    fs.writeFileSync(path.join(linkedinDir, 'search.js'), '// search v1\n');
+    fs.writeFileSync(path.join(linkedinDir, 'inbox.js'), '// inbox v1\n');
+    fs.writeFileSync(path.join(pluginsDir, 'hackernews', 'top.js'), '// top v1\n');
+    createOverride('linkedin/search', { homeDir: home });
+    fs.mkdirSync(path.join(clisDir, 'local'), { recursive: true });
+    fs.writeFileSync(path.join(clisDir, 'local', 'run.js'), '// no upstream\n');
+
+    expect(list().find((plugin) => plugin.name === 'linkedin')).toMatchObject({
+      overrides: ['search'], updateAvailable: false,
+    });
+    expect(list().find((plugin) => plugin.name === 'hackernews')).toMatchObject({
+      overrides: [], updateAvailable: false,
+    });
+
+    fs.writeFileSync(path.join(linkedinDir, 'search.js'), '// search v2\n');
+    expect(list().find((plugin) => plugin.name === 'linkedin')).toMatchObject({
+      overrides: ['search'], updateAvailable: true,
+    });
   });
 });
