@@ -2,53 +2,32 @@
 
 ## [0.5.4](https://github.com/agentrhq/webcmd/compare/webcmd-v0.5.3...webcmd-v0.5.4) (2026-08-09)
 
+### Highlights
+- All site adapters are now independent plugins and are no longer bundled with the core `webcmd` package. This major architectural change allows adapters to be updated individually without requiring a new `webcmd` release. Previously bundled commands can be installed using `webcmd plugin install github:agentrhq/webcmd/plugins/<site-name>`. (#216)
 
-### Features
+### Improvements
+- A new `webcmd update` command allows you to upgrade `webcmd` to the latest version and refresh bundled skill links directly from the CLI. (#224)
+- The new `webcmd adapter override <site>/<command>` command lets you create a local, editable copy of a command from an installed plugin, making it easier to customize or iterate on existing adapters. (#245)
+- The `browser run` command now uses a sandboxed Playwright environment, improving the reliability and capability of browser-based automations. (#196)
+- Documentation has been updated to:
+    - Add the `webcmd skills` subcommands to the CLI reference. (#200)
+    - Document the `-f plain` output format and aliases for `yaml` and `md`. (#202)
+    - Improve the clarity and correctness of the main README file. (#205, #207)
 
-* add adapter override and hosted fixture export ([6fbbd6c](https://github.com/agentrhq/webcmd/commit/6fbbd6c2604ccc64179a248792b9920c2bb7d980))
-* add the override provenance store and merge-base copies ([242cb0c](https://github.com/agentrhq/webcmd/commit/242cb0c5d8e53820a7b7f6882b1dbe4dce3aa692))
-* add webcmd adapter override to fork a plugin command with provenance ([78653ad](https://github.com/agentrhq/webcmd/commit/78653adcad406b229ddebf35074c1f95dcf7e363))
-* add webcmd update command ([eeb695b](https://github.com/agentrhq/webcmd/commit/eeb695bee26ca94bd3b8c7f922f152a89619ac4d))
-* add webcmd update command ([ce68d92](https://github.com/agentrhq/webcmd/commit/ce68d9217591fb4191b4054c44a5f12b47943e08))
-* added luma plugin ([#195](https://github.com/agentrhq/webcmd/issues/195)) ([8de78ba](https://github.com/agentrhq/webcmd/commit/8de78ba245b134c46cce12ae07c198c5bb34d3d4))
-* attribute registered commands to plugin, override, or local origin ([8724e47](https://github.com/agentrhq/webcmd/commit/8724e4728ff2a764f3f878d61991aac31c5025b9))
-* browser run playwright sandbox ([b51cac3](https://github.com/agentrhq/webcmd/commit/b51cac37e160bee1664de853b4dcbc60059476b6))
-* export the verify fixture evaluator for hosted consumers ([00dc005](https://github.com/agentrhq/webcmd/commit/00dc0057d880defb23f0db374a94fb2baf46cde4))
-* implement site memory invariants for local mode ([b4db91c](https://github.com/agentrhq/webcmd/commit/b4db91c8e51f8c408940813a87c1d9a250877625))
-* report overrides needing reconciliation after a plugin update ([debf878](https://github.com/agentrhq/webcmd/commit/debf8788d690e38ccc0d13c037f5249411308a9a))
-* surface Cloak runtime update notice in webcmd update ([8f7ffba](https://github.com/agentrhq/webcmd/commit/8f7ffba5bf817965f48762465a6214780434de1a))
-* surface override state in plugin list, webcmd list, and adapter status ([2496d13](https://github.com/agentrhq/webcmd/commit/2496d133d9748bab01405400df7f8f82373ebd41))
+### Fixes
+- Hosted browser commands will no longer fail when the Webcmd Cloud API includes an `expiresAt` field in its response. (#194)
+- Improved the performance of status-checking commands like `webcmd doctor` by caching the browser runtime version, reducing unnecessary file reads. (#213)
 
+### Adapters
+- Nine new adapters have been added for exporting postgraduate course data from the following universities: University of Cincinnati, Concordia University, University of Göttingen, Heidelberg University, HFT Stuttgart, Illinois Institute of Technology, Johns Hopkins University, University of Alberta, and Yale University. (#192)
+- A new `luma` adapter allows you to manage Luma events, guests, and registration questions. (#195)
+- The documentation for the `skyscanner` adapter has been updated to include required flags and provide current examples. (#209)
 
-### Bug Fixes
+### Reverts
+- Reverted the addition of the one-click "Copy prompt" feature for AI agent setup from the documentation homepage. (#221)
 
-* add structured adapter status reporting ([d7a5df0](https://github.com/agentrhq/webcmd/commit/d7a5df0ce6406779056a36846a7520c7e21b49bb))
-* clear override provenance and merge base on adapter reset ([7e676a0](https://github.com/agentrhq/webcmd/commit/7e676a006bf2b54b271a6c200dc7403c76e41d9d))
-* close plugin override review gaps ([4cc9be9](https://github.com/agentrhq/webcmd/commit/4cc9be987f396648104060477a33496e3f3fd1fb))
-* correct layer numbering in README for clarity ([#205](https://github.com/agentrhq/webcmd/issues/205)) ([cfba63c](https://github.com/agentrhq/webcmd/commit/cfba63cefed2496fb748c4079556fd3d88322029))
-* detect overrides against installed plugins instead of the removed bundled clis ([f4defbf](https://github.com/agentrhq/webcmd/commit/f4defbf92a3586107e18845c75ae14a9745ea390))
-* don't let doctor crash when adapter override detection fails ([29fbf8f](https://github.com/agentrhq/webcmd/commit/29fbf8fa1709205fc56cae58a51aeb298055e470))
-* harden local site memory filesystem reads ([11ed43f](https://github.com/agentrhq/webcmd/commit/11ed43fda40295bfce045b5fef150ddc3f3af622))
-* **hosted:** accept expiresAt in browser run responses ([06fb90c](https://github.com/agentrhq/webcmd/commit/06fb90cd9818f820a35e7ced9bd6673b853c5b30))
-* **hosted:** accept expiresAt in browser run responses ([11c0920](https://github.com/agentrhq/webcmd/commit/11c09205b2b413ee9fd018dc247d5f6defd5e2f8))
-* keep override tests portable on windows ([b8a90de](https://github.com/agentrhq/webcmd/commit/b8a90de301a201956e5b76423ca7c552f83c19fb))
-* let ~/.webcmd/clis override installed plugins ([6db12aa](https://github.com/agentrhq/webcmd/commit/6db12aa14ddd159f1f777872115eff3fc4af4908))
-* narrow adapter status missing directory handling ([94e6bab](https://github.com/agentrhq/webcmd/commit/94e6bab876f591f3b71eb26771f4400751738a31))
-* omit links for internal plugin authors ([#214](https://github.com/agentrhq/webcmd/issues/214)) ([8276873](https://github.com/agentrhq/webcmd/commit/8276873d3eee706212f178f13febf005bcd845c6))
-* reject symlinked site memory path segments ([199f485](https://github.com/agentrhq/webcmd/commit/199f4852b18a7fc2e46000130d4d0dd35a4b4462))
-* return empty adapter status as json ([465af51](https://github.com/agentrhq/webcmd/commit/465af516bca79d01a3bbea1e6ae32d2c901faa55))
-* run verify fixture export contract in unit tests ([b841842](https://github.com/agentrhq/webcmd/commit/b84184231b3e2f4557f721cb8a4281f2c874ecfb))
-* scope commitHash lookup to homeDir in adapter override provenance ([7d369ea](https://github.com/agentrhq/webcmd/commit/7d369ea59d7a44cf1f3d8a507fa9dddd4f86eed9))
-* scope override reconciliation to updated plugins ([20afd2e](https://github.com/agentrhq/webcmd/commit/20afd2e8ff74e361e847ed3ab714cd4a3b8d45b6))
-* surface adapter status json errors ([38a87e1](https://github.com/agentrhq/webcmd/commit/38a87e164ddd6badec4c85aff479cb10538481cf))
-* typos ([1a25081](https://github.com/agentrhq/webcmd/commit/1a250817e99a0cc21e3ddf2d36784aeac8bd6052))
-* validate each override record and assert sha256 stability in tests ([518fd8f](https://github.com/agentrhq/webcmd/commit/518fd8f29a66163f00539f03870ff6d01e08ff45))
-* validate provenance before empty reset ([f799632](https://github.com/agentrhq/webcmd/commit/f7996325f7ebec0cd6fdc45ccc9e476575369408))
-
-
-### Performance Improvements
-
-* cache the resolved cloakbrowser version instead of re-reading it per status call ([#213](https://github.com/agentrhq/webcmd/issues/213)) ([9fc42d4](https://github.com/agentrhq/webcmd/commit/9fc42d40ee7e456388c8ab495f9dda3e59af8c1b))
+### Contributors
+[@ankitranjan7](https://github.com/ankitranjan7) | [@askadityapandey](https://github.com/askadityapandey) | [@beubax](https://github.com/beubax) | [@rajarshidattapy](https://github.com/rajarshidattapy) | [@rishabhraj36](https://github.com/rishabhraj36)
 
 ## [0.5.3](https://github.com/agentrhq/webcmd/compare/webcmd-v0.5.2...webcmd-v0.5.3) (2026-08-07)
 
