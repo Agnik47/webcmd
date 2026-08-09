@@ -47,7 +47,7 @@ import { registerCommand, Strategy } from '${registryTsUrl}';
 registerCommand({
   site: 'demo', name: 'run', access: 'read', args: [],
   description: 'override copy', strategy: Strategy.PUBLIC, browser: false,
-  source: '${path.join(clisDir, 'run.js')}', func: async () => [{ from: 'override' }],
+  source: ${JSON.stringify(path.join(clisDir, 'run.js'))}, func: async () => [{ from: 'override' }],
 });
 `);
 

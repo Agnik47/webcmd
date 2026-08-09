@@ -212,7 +212,7 @@ async function readableRelativePath(root: string, path: string): Promise<string>
   if ((await lstat(join(root, relativePath))).isSymbolicLink()) throw new Error(`Invalid site memory path: ${path}`);
   const [realRoot, realTarget] = await Promise.all([realpath(root), realpath(join(root, relativePath))]);
   if (realTarget !== realRoot && !realTarget.startsWith(`${realRoot}${sep}`)) throw new Error(`Invalid site memory path: ${path}`);
-  return relativePath;
+  return relativePath.split(sep).join('/');
 }
 
 function safeRelativePath(root: string, path: string): string {

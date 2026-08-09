@@ -12,7 +12,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { execSync, execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { PLUGINS_DIR } from './discovery.js';
+import { getPluginsDir, PLUGINS_DIR } from './discovery.js';
 import { getErrorMessage, PluginError } from './errors.js';
 import { log } from './logger.js';
 import { isRecord } from './utils.js';
@@ -1345,9 +1345,10 @@ export function findOverridesNeedingReconcile(pluginNames?: string[]): OverrideR
  * Reads webcmd-plugin.json for description/version when available.
  */
 export function listPlugins(): PluginInfo[] {
-  if (!fs.existsSync(PLUGINS_DIR)) return [];
+  const pluginsDir = getPluginsDir(getHomeDir());
+  if (!fs.existsSync(pluginsDir)) return [];
 
-  const entries = fs.readdirSync(PLUGINS_DIR, { withFileTypes: true });
+  const entries = fs.readdirSync(pluginsDir, { withFileTypes: true });
   const lock = readLockFile();
   const records = readOverrideRecords(getHomeDir());
   const updates = new Set(findOverridesNeedingReconcile().map(({ commandKey }) => commandKey));
@@ -1355,7 +1356,7 @@ export function listPlugins(): PluginInfo[] {
 
   for (const entry of entries) {
     // Accept both real directories and symlinks (monorepo sub-plugins)
-    const pluginDir = path.join(PLUGINS_DIR, entry.name);
+    const pluginDir = path.join(pluginsDir, entry.name);
     const isDir = entry.isDirectory() || isSymlinkSync(pluginDir);
     if (!isDir) continue;
 
