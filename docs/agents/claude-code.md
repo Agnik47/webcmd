@@ -3,13 +3,11 @@ title: Claude Code Agent
 sidebarTitle: Claude Code
 ---
 
-> **Agent prompt**
->
-> Fetch and follow [start.md](https://raw.githubusercontent.com/agentrhq/webcmd/main/start.md) to set up Webcmd end to end, then read this page's Manual — especially [Override default tools](#override-default-tools) — before doing browser work.
+## Agent prompt
 
-> Use Webcmd with [Claude Code](https://code.claude.com) to replace its native `WebFetch` and `WebSearch` tools with the Webcmd browser surface.
-
-Claude Code's native web tools are lossy by design: `WebFetch` summarizes a page with a small extraction model and `WebSearch` returns result titles and URLs but cannot read the pages. Point Claude Code at Webcmd's browser CLI instead: adapters return exact, stable fields, and `webcmd browser` sessions render real pages with logged-in profiles. Claude Code runs `webcmd` through its Bash tool.
+```text
+Fetch and follow https://raw.githubusercontent.com/agentrhq/webcmd/main/start.md to set up Webcmd end to end.
+```
 
 ## Manual
 
