@@ -1,5 +1,5 @@
 import { cli, Strategy } from '../registry.js';
-import { ArgumentError } from '../errors.js';
+import { ArgumentError, CliError, EXIT_CODES, toEnvelope } from '../errors.js';
 import { webFetch, type WebFetchOptions, type WebFetchResult } from './client.js';
 
 export const webFetchCommand = cli({
@@ -31,7 +31,13 @@ function clientOptions(argv: readonly string[]): WebFetchOptions {
   return { url: values.url, timeoutSeconds: int('timeout', 30), maxChars: int('max-chars', 50000), allowPrivate: values['allow-private'] === true || values['allow-private'] === 'true' };
 }
 
-export async function runClientOwnedWebFetch(argv: readonly string[], dependencies: { webFetch?: typeof webFetch; stdout?: NodeJS.WritableStream } = {}): Promise<void> {
-  const result = await (dependencies.webFetch ?? webFetch)(clientOptions(argv));
-  (dependencies.stdout ?? process.stdout).write(`${formatWebFetchMarkdown(result)}\n`);
+export async function runClientOwnedWebFetch(argv: readonly string[], dependencies: { webFetch?: typeof webFetch; stdout?: NodeJS.WritableStream; stderr?: NodeJS.WritableStream } = {}): Promise<void> {
+  try {
+    const result = await (dependencies.webFetch ?? webFetch)(clientOptions(argv));
+    (dependencies.stdout ?? process.stdout).write(`${formatWebFetchMarkdown(result)}\n`);
+  } catch (err) {
+    const { formatErrorEnvelope } = await import('../output.js');
+    (dependencies.stderr ?? process.stderr).write(formatErrorEnvelope(toEnvelope(err), { cmdName: 'web/fetch' }));
+    process.exitCode = err instanceof CliError ? err.exitCode : EXIT_CODES.GENERIC_ERROR;
+  }
 }
