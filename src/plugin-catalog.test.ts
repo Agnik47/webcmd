@@ -119,4 +119,20 @@ describe('plugin catalog', () => {
     expect(result.plugins.map((plugin) => plugin.name)).toEqual(['flights']);
     expect(result.errors).toEqual([{ sourceId: 'bad', manifestUrl: 'https://bad.test/webcmd-plugin.json', message: 'network failed' }]);
   });
+
+  it('matches multi-word queries against a one-word plugin name, ignoring separators and order', async () => {
+    const catalog: PluginCatalog = {
+      version: 1,
+      sources: [{ id: 'agentrhq/webcmd', source: 'github:agentrhq/webcmd', manifestUrl: 'https://example.com/webcmd-plugin.json' }],
+    };
+    const fetchJson = async () => ({ plugins: { hackernews: { path: 'plugins/hackernews', description: 'Hacker News client' } } });
+
+    for (const query of ['hacker news', 'hacker-news', 'hackernews', 'hacker', 'news hacker']) {
+      const result = await searchCatalogPlugins(catalog, { query, fetchJson });
+      expect(result.plugins.map((plugin) => plugin.name), `query: ${query}`).toEqual(['hackernews']);
+    }
+
+    const miss = await searchCatalogPlugins(catalog, { query: 'reddit news', fetchJson });
+    expect(miss.plugins).toEqual([]);
+  });
 });
