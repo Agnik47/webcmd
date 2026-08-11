@@ -35,33 +35,67 @@ async function resolve(host: string, lookup: typeof dnsLookup, allowPrivate: boo
   return addresses[0]!.address;
 }
 
+/**
+ * Sockets that outlive their handler close over the tunnel's lifetime (CONNECT
+ * tunnels become raw bidirectional pipes; plain requests may be keep-alive), so
+ * `server.close()` alone — which only stops accepting new connections — leaves
+ * them dangling. Tracked here so `close()` can force them shut instead of racing
+ * whatever tears them down next.
+ */
+type Handle = { destroy(error?: Error): void; once(event: 'close', listener: () => void): unknown };
+
 export async function createSafeProxy(options: SafeProxyOptions = {}): Promise<SafeProxy> {
   const lookup = options.lookup ?? dnsLookup;
   const allowPrivate = options.allowPrivate === true;
+  const openHandles = new Set<Handle>();
+  const track = (handle: Handle): void => {
+    openHandles.add(handle);
+    handle.once('close', () => openHandles.delete(handle));
+  };
+
   const server = http.createServer(async (request, response) => {
+    track(request.socket);
+    let upstream: http.ClientRequest | undefined;
+    // Registered before any async work: a half-closed peer can error at any point in
+    // the request lifetime, and an unhandled 'error' event crashes the whole process.
+    request.on('error', () => { upstream?.destroy(); response.destroy(); });
+    response.on('error', () => { upstream?.destroy(); request.destroy(); });
     try {
       const target = new URL(request.url ?? '');
       const address = await resolve(target.hostname, lookup, allowPrivate);
-      const upstream = http.request({ host: address, port: Number(target.port) || 80, method: request.method, path: `${target.pathname}${target.search}`, headers: { ...request.headers, host: target.host } }, upstreamResponse => {
+      upstream = http.request({ host: address, port: Number(target.port) || 80, method: request.method, path: `${target.pathname}${target.search}`, headers: { ...request.headers, host: target.host } }, upstreamResponse => {
         response.writeHead(upstreamResponse.statusCode ?? 502, upstreamResponse.headers);
         upstreamResponse.pipe(response);
       });
+      track(upstream);
       upstream.on('error', error => response.destroy(error));
       request.pipe(upstream);
     } catch (error) { response.writeHead(403).end(error instanceof Error ? error.message : 'Unsafe fetch destination'); }
   });
   server.on('connect', async (request, client, head) => {
+    track(client);
+    let upstream: net.Socket | undefined;
+    // Same reasoning as above: once the tunnel is piping both ways, either side can
+    // reset first, and only one direction (upstream's own 'error') was covered before.
+    client.on('error', () => upstream?.destroy());
     try {
       const [host, portText] = (request.url ?? '').replace(/^\[/, '').replace(']', '').split(':');
       if (!host) throw new Error('Invalid CONNECT target');
       const address = await resolve(host, lookup, allowPrivate);
-      const upstream = net.connect({ host: address, port: Number(portText) || 443 });
-      upstream.once('connect', () => { client.write('HTTP/1.1 200 Connection Established\r\n\r\n'); if (head.length) upstream.write(head); upstream.pipe(client); client.pipe(upstream); });
-      upstream.once('error', error => client.destroy(error));
+      upstream = net.connect({ host: address, port: Number(portText) || 443 });
+      track(upstream);
+      upstream.on('error', error => client.destroy(error));
+      upstream.once('connect', () => { client.write('HTTP/1.1 200 Connection Established\r\n\r\n'); if (head.length) upstream!.write(head); upstream!.pipe(client); client.pipe(upstream!); });
     } catch (error) { client.end(`HTTP/1.1 403 Forbidden\r\n\r\n${error instanceof Error ? error.message : ''}`); }
   });
   await new Promise<void>((resolveListen, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', () => resolveListen()); });
   const address = server.address();
   if (!address || typeof address === 'string') throw new Error('Safe proxy did not bind');
-  return { url: `http://127.0.0.1:${address.port}`, close: () => new Promise((resolveClose, reject) => server.close(error => error ? reject(error) : resolveClose())) };
+  return {
+    url: `http://127.0.0.1:${address.port}`,
+    close: () => new Promise((resolveClose, reject) => {
+      for (const handle of openHandles) handle.destroy();
+      server.close(error => error ? reject(error) : resolveClose());
+    }),
+  };
 }
