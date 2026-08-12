@@ -50,19 +50,38 @@ function bundledSkill(name: string): string {
 }
 
 describe('webcmd skills content', () => {
-  it('keeps smart search on live discovery and explicit fetch escalation', () => {
+  it('keeps smart search on live discovery and explicit browser Sessions', () => {
     const skill = bundledSkill('smart-search');
+    const browser = bundledSkill('webcmd-browser');
+    const skills = [skill, browser];
+    const sessionId = 'session_7d8f2c10-4a11-4f3e-9c22-1b6de0a91f45';
+    const sessionWorkflow = [
+      'webcmd --profile work session create',
+      `webcmd --profile work --session ${sessionId} browser run --stdin`,
+      `webcmd --profile work --session ${sessionId} browser snapshot --snapshot-mode read`,
+      `webcmd --profile work session close ${sessionId}`,
+    ];
     expect(skill).toContain('webcmd list --tag search -f json');
     expect(skill).toContain('webcmd plugin search');
     expect(skill).toContain('webcmd plugin install');
+    expect(skill).toContain('webcmd web fetch --url');
     expect(skill).toContain('FETCH_BLOCKED');
     expect(skill).toContain('FETCH_REQUIRES_BROWSER');
-    expect(skill).toContain('webcmd web fetch-browser');
+    for (const guide of skills) {
+      const normalizedGuide = guide.replaceAll(/\\\n\s*/g, ' ').replaceAll(/ {2,}/g, ' ');
+      for (const command of sessionWorkflow) {
+        expect(normalizedGuide).toContain(command);
+      }
+      expect(guide).toMatch(/web fetch.*(?:remains|runs).*local/i);
+      expect(guide).toMatch(/web fetch.*never opens a browser/i);
+      expect(guide).toMatch(/local.*Cloak[\s\S]{0,160}hosted.*Webcmd Cloud.*Browser Use/i);
+      expect(guide).not.toMatch(/fetch-browser|web read|--browser/i);
+    }
     expect(skill).toContain('Search Summary');
     expect(skill).toMatch(/at most three.*plugin/i);
     expect(skill).toMatch(/up to five.*candidate/i);
     expect(skill).toMatch(/three.*URL.*default/i);
-    expect(skill).toMatch(/two.*browser fetch/i);
+    expect(skill).toMatch(/two.*browser.*Session/i);
     expect(skill).toContain('## Site-named fast path');
     expect(skill).toMatch(/cost order is mandatory when the request does not name a site/i);
     expect(skill).not.toContain('references/sources-');
@@ -117,9 +136,8 @@ describe('webcmd skills content', () => {
     const usage = bundledSkill('webcmd-usage');
     const autofix = bundledSkill('webcmd-autofix');
     const author = bundledSkill('webcmd-adapter-author');
-    const browser = bundledSkill('webcmd-browser');
-    const skills = [usage, autofix, author, browser];
-    const handoffSkills = [usage, autofix, browser];
+    const skills = [usage, autofix, author];
+    const handoffSkills = [usage, autofix];
     const autofixAuthRequired = autofix.match(/^- \*\*`AUTH_REQUIRED`\*\*[\s\S]*?(?=\n- \*\*)/m)?.[0] ?? '';
     const autofixAuthRequiredRow = autofix.split('\n')
       .find((line) => line.startsWith('| AUTH_REQUIRED |')) ?? '';

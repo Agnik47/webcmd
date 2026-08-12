@@ -23,6 +23,7 @@ import { PKG_VERSION } from './version.js';
 import { EXIT_CODES } from './errors.js';
 import { isSupportedNodeVersion, MIN_SUPPORTED_NODE_MAJOR } from './runtime-detect.js';
 import { CONFIG_DIR_NAME } from './brand.js';
+import { parseHostedRootCommandSurface } from './root-command-surface.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -77,9 +78,9 @@ if (!fastPathHandled) {
   } else if (argv[0] === 'skills' || argv[0] === 'update') {
     const { createProgram } = await import('./cli.js');
     await createProgram(BUILTIN_CLIS, USER_CLIS).parseAsync(argv, { from: 'user' });
-  } else if (argv[0] === 'web' && argv[1] === 'fetch') {
-    const { runClientOwnedWebFetch } = await import('./fetch/command.js');
-    await runClientOwnedWebFetch(argv);
+  } else if (isWebFetch(argv)) {
+    const { runWebFetchCommand } = await import('./fetch/command.js');
+    await runWebFetchCommand(argv);
   } else {
     const { shouldUseHostedMode } = await import('./hosted/config.js');
     if (shouldUseHostedMode()) {
@@ -95,6 +96,15 @@ if (!fastPathHandled) {
         uninstallSignalCancellation();
       }
     }
+  }
+}
+
+function isWebFetch(args: readonly string[]): boolean {
+  try {
+    const parsed = parseHostedRootCommandSurface(args);
+    return parsed.kind === 'dispatch' && parsed.argv[0] === 'web' && parsed.argv[1] === 'fetch';
+  } catch {
+    return false;
   }
 }
 
