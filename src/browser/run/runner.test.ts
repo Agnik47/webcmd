@@ -607,6 +607,14 @@ afterAll(async () => {
     expect(output.result).toBe('undefined');
   });
 
+  it('serializes a program with no explicit return as null', async () => {
+    const output = await run(`
+      await page.getByRole('button', { name: 'Save' }).click();
+    `);
+
+    expect(output.result).toBeNull();
+  });
+
   it('keeps time, memory, output, redaction, and serialization limits', async () => {
     await expect(run('while (true) {}', { timeoutMs: 25 })).rejects.toMatchObject({
       code: 'BROWSER_RUN_TIMEOUT',
