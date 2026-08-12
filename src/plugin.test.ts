@@ -1914,6 +1914,42 @@ describe('getDirtyFiles', () => {
     expect(pluginModule.getDirtyFiles('/some/dir')).toEqual(['M foo.js', '?? untracked.js']);
   });
 
+  it('ignores the node_modules/package-lock.json that install itself created', () => {
+    mockExecFileSync.mockImplementation((cmd, args) => {
+      if (Array.isArray(args) && args[0] === 'rev-parse') return '.git\n';
+      return '?? node_modules/\n?? package-lock.json\n?? packages/alpha/node_modules/\n?? packages/alpha/package-lock.json\n';
+    });
+    expect(pluginModule.getDirtyFiles('/some/dir')).toEqual([]);
+  });
+
+  it('still reports user work that merely looks like an install artifact', () => {
+    mockExecFileSync.mockImplementation((cmd, args) => {
+      if (Array.isArray(args) && args[0] === 'rev-parse') return '.git\n';
+      return '?? node_modules_notes.md\n M src/package-lock.json.bak\n';
+    });
+    expect(pluginModule.getDirtyFiles('/some/dir')).toEqual(['?? node_modules_notes.md', 'M src/package-lock.json.bak']);
+  });
+
+  // Only `??` is npm's own output. Every tracked status at the same path is
+  // user work that updatePlugin would destroy, so it must keep blocking.
+  it.each([
+    [' M package-lock.json', 'M package-lock.json'],
+    ['M  package-lock.json', 'M  package-lock.json'],
+    [' D package-lock.json', 'D package-lock.json'],
+    ['D  package-lock.json', 'D  package-lock.json'],
+    ['A  package-lock.json', 'A  package-lock.json'],
+    [' M packages/alpha/package-lock.json', 'M packages/alpha/package-lock.json'],
+    [' M node_modules/vendored/patch.js', 'M node_modules/vendored/patch.js'],
+    ['R  old-lock.json -> package-lock.json', 'R  old-lock.json -> package-lock.json'],
+    ['UU package-lock.json', 'UU package-lock.json'],
+  ])('keeps tracked entry %j dirty', (porcelain, expected) => {
+    mockExecFileSync.mockImplementation((cmd, args) => {
+      if (Array.isArray(args) && args[0] === 'rev-parse') return '.git\n';
+      return `${porcelain}\n`;
+    });
+    expect(pluginModule.getDirtyFiles('/some/dir')).toEqual([expected]);
+  });
+
   it('does not pass --untracked-files=no, so untracked files are reported (git already omits gitignored paths)', () => {
     mockExecFileSync.mockImplementation((cmd, args) => {
       expect(args).not.toContain('--untracked-files=no');
