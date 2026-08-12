@@ -1,6 +1,8 @@
 import type { CommandSurfaceMetadata } from '../command-surface.js';
 import type { Arg } from '../registry.js';
 
+export const HOSTED_SESSION_PROTOCOL_VERSION = 1 as const;
+
 export type HostedCommandStrategy = 'PUBLIC' | 'COOKIE' | 'INTERCEPT' | 'UI' | 'LOCAL' | string;
 
 export interface HostedCommandArg extends Arg {}
@@ -40,6 +42,7 @@ export interface HostedManifest {
   userId: string;
   metadata: {
     contractSchemaVersion: number;
+    sessionProtocolVersion: number;
     webcmdPackageVersion: string;
     generatedAt: string;
   };
@@ -60,6 +63,35 @@ export interface HostedPublicProfile {
 export interface HostedProfilesResponse {
   ok: true;
   profiles: HostedPublicProfile[];
+}
+
+export interface HostedBrowserSession {
+  id: string;
+  kind: 'explicit' | 'adapter-default';
+  profileId: string;
+  runtimeState: 'active' | 'idle';
+  handoff: { site: string; expiresAt: string } | null;
+  createdAt: string;
+  updatedAt: string;
+  lastUsedAt: string;
+}
+
+export interface HostedBrowserSessionResponse {
+  ok: true;
+  session: HostedBrowserSession;
+}
+
+export interface HostedBrowserSessionsResponse {
+  ok: true;
+  sessions: HostedBrowserSession[];
+}
+
+export interface HostedBrowserSessionCloseResponse {
+  ok: true;
+  closed: boolean;
+  alreadyIdle: boolean;
+  session: string;
+  displaced?: { executionId?: string; handoffSite?: string };
 }
 
 export interface HostedMarketplacePlugin {
