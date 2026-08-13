@@ -774,6 +774,16 @@
         "handle": "agentrhq"
       }
     },
+    "omnisearch": {
+      "path": "plugins/omnisearch",
+      "version": "0.1.0",
+      "description": "No-login research across Hacker News, Stack Overflow, GitHub, arXiv, Dev.to, Lobsters, and Bluesky",
+      "webcmd": ">=0.5.3",
+      "author": {
+        "name": "Rishet Mehra",
+        "handle": "Rishet11"
+      }
+    },
     "openalex": {
       "path": "plugins/openalex",
       "version": "0.1.0",
