@@ -41,7 +41,7 @@ import { analyzeSite, type PageSignals } from './browser/analyze.js';
 import { browserOptionValueParser } from './browser/command-catalog.js';
 import { registerAuthCommands } from './commands/auth.js';
 import { daemonRestart, daemonStatus, daemonStop } from './commands/daemon.js';
-import { isVerbose, log } from './logger.js';
+import { enableVerbose, isVerbose, log } from './logger.js';
 import { BrowserCommandError, listExistingBrowserTabs, releaseSiteSessionLease, sendCommand } from './browser/daemon-client.js';
 import { fetchDaemonStatus } from './browser/daemon-transport.js';
 import { aliasForContextId, loadProfileConfig, profileListRows, profileRouteParams, renameProfile, resolveProfileSelection, setDefaultProfile, type ProfileSelection } from './browser/profile.js';
@@ -579,7 +579,20 @@ function sessionCreateOutput(data: unknown): unknown {
 }
 
 function applyVerbose(opts: { verbose?: boolean }): void {
-  if (opts.verbose) process.env.WEBCMD_VERBOSE = '1';
+  enableVerbose(opts.verbose === true);
+}
+
+/**
+ * Add `-v` to a browser leaf that performs bridge/CDP I/O.
+ *
+ * The CDP client already gates diagnostics on `isVerbose()`
+ * (`src/browser/cdp.ts`), but the raw browser leaves rejected the flag, so those
+ * diagnostics were only reachable by setting `WEBCMD_VERBOSE` by hand (#174).
+ * Filesystem-only leaves (`init`, `fork`) are deliberately left out: a flag
+ * there would advertise diagnostics that do not exist.
+ */
+function withBrowserVerbose(command: Command): Command {
+  return command.option('-v, --verbose', 'Debug output', false);
 }
 
 function formatChildCommandSummary(command: Command): string {
@@ -1142,6 +1155,7 @@ cli({
 
   function rawBrowserAction(fn: (session: string, routing: { contextId?: string; preferredContextId?: string }, opts: Record<string, unknown>) => Promise<unknown>) {
     return async (opts: Record<string, unknown>, command: Command) => {
+      applyVerbose(opts as { verbose?: boolean });
       const runId = generateRunId();
       const commandName = `browser/${command.name()}`;
       let releaseRun = true;
@@ -1172,11 +1186,11 @@ cli({
     };
   }
 
-  browser.addCommand(new Command('tabs')
+  browser.addCommand(withBrowserVerbose(new Command('tabs')
     .description('List pages in the existing browser session')
-    .action(rawBrowserAction((session, routing) => listExistingBrowserTabs(session, routing))));
+    .action(rawBrowserAction((session, routing) => listExistingBrowserTabs(session, routing)))));
 
-  browser.addCommand(new Command('bind')
+  browser.addCommand(withBrowserVerbose(new Command('bind')
     .description('Bind this session to an existing page')
     .addOption(new Option('--page <id>', 'Stable page id returned by tabs')
       .makeOptionMandatory()
@@ -1185,16 +1199,16 @@ cli({
       const page = typeof opts.page === 'string' ? opts.page.trim() : '';
       if (!page) throw new BrowserCommandError('--page must be a non-empty stable page id', 'invalid_request');
       return sendCommand('bind', { session, surface: 'browser', ...routing, page });
-    })));
+    }))));
 
-  const runCommand = new Command('run')
+  const runCommand = withBrowserVerbose(new Command('run')
     .description('Run JavaScript with Playwright')
     .option('--stdin', 'Read the program from stdin')
     .option('--file <path>', 'Read the program from a file')
     .addOption(new Option('--timeout <seconds>', 'Execution timeout in seconds').argParser(browserOptionValueParser('run', 'timeout')!))
     .addOption(new Option('--max-output <characters>', 'Maximum returned characters').argParser(browserOptionValueParser('run', 'maxOutput')!))
     .addOption(new Option('--snapshot-mode <mode>', 'Snapshot mode for automatic diff: act or tree').default('act').argParser(browserOptionValueParser('run', 'snapshotMode')!))
-    .option('--no-snapshot-diff', 'Skip the automatic before/after snapshot diff');
+    .option('--no-snapshot-diff', 'Skip the automatic before/after snapshot diff'));
   runCommand.action(rawBrowserAction(async (session, routing, opts) => {
     let source: string;
     try {
@@ -1218,7 +1232,7 @@ cli({
   }));
   browser.addCommand(runCommand);
 
-  browser.addCommand(new Command('snapshot')
+  browser.addCommand(withBrowserVerbose(new Command('snapshot')
     .description('Inspect the current page with a compact accessibility snapshot')
     .addOption(new Option('--snapshot-mode <mode>', 'Snapshot mode: act, tree, or read').default('act').argParser(browserOptionValueParser('snapshot', 'snapshotMode')!))
     .option('--ref <ref>', 'Render only the subtree rooted at this snapshot ref')
@@ -1230,15 +1244,15 @@ cli({
       snapshotMode: opts.snapshotMode === 'tree' || opts.snapshotMode === 'read' ? opts.snapshotMode : 'act',
       ...(typeof opts.ref === 'string' ? { ref: opts.ref } : {}),
       ...(typeof opts.maxOutput === 'number' ? { maxOutputChars: opts.maxOutput } : {}),
-    }))));
+    })))));
 
-  browser.addCommand(new Command('close')
+  browser.addCommand(withBrowserVerbose(new Command('close')
     .description('Close or detach this browser session')
     .action(rawBrowserAction((session, routing) => sendCommand('close-window', {
       session,
       surface: 'browser',
       ...routing,
-    }))));
+    })))));
   // ── Built-in: doctor / completion ──────────────────────────────────────────
 
   program

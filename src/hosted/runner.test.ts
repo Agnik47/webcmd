@@ -5,7 +5,7 @@ import path from 'node:path';
 import { Writable, type WritableOptions } from 'node:stream';
 import type { Command } from 'commander';
 import yaml from 'js-yaml';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { browserCommandCatalog } from '../browser/command-catalog.js';
 import { buildHostedContract } from './contract.js';
 import { rejectPositionalBrowserSessionArgv } from '../cli-argv-preprocess.js';
@@ -1634,6 +1634,76 @@ describe('runHostedCli', () => {
       'Webcmd live view: https://api.example.com/account/live/session_a',
       '',
     ].join('\n'));
+  });
+
+  // Hosted dispatch parsed -v and then dropped it, so the flag local mode honours
+  // was a silent no-op in hosted mode (#174).
+  describe('hosted verbose mode', () => {
+    let written: string[] = [];
+
+    function runWhoami(argv: string[]) {
+      return runHostedCli(argv, {
+        config: makeHostedConfig({ apiBaseUrl: 'https://api.example.com', apiKey: 'hosted-secret-key' }),
+        stdout: sink().stream,
+        fetchImpl: async (url) => (String(url).endsWith('/v1/manifest')
+          ? manifestResponse()
+          : executionResponse({ result: [{ username: 'octocat' }], columns: ['username'] })),
+      });
+    }
+
+    beforeEach(() => {
+      delete process.env.WEBCMD_VERBOSE;
+      written = [];
+      vi.spyOn(process.stderr, 'write').mockImplementation((chunk: unknown) => {
+        written.push(String(chunk));
+        return true;
+      });
+    });
+
+    afterEach(() => {
+      delete process.env.WEBCMD_VERBOSE;
+      vi.restoreAllMocks();
+    });
+
+    it('turns on verbose mode and emits request diagnostics for -v', async () => {
+      await expect(runWhoami(['github', 'whoami', '-f', 'json', '-v'])).resolves.toMatchObject({ exitCode: 0 });
+
+      expect(process.env.WEBCMD_VERBOSE).toBe('1');
+      const output = written.join('');
+      expect(output).toContain('hosted → POST /v1/execute');
+      expect(output).toMatch(/hosted ← POST \/v1\/execute 200 \(\d+ms\)/);
+      expect(output).not.toContain('hosted-secret-key');
+    });
+
+    it('emits no diagnostics without -v', async () => {
+      await expect(runWhoami(['github', 'whoami', '-f', 'json'])).resolves.toMatchObject({ exitCode: 0 });
+
+      expect(process.env.WEBCMD_VERBOSE).toBeUndefined();
+      expect(written.join('')).not.toContain('hosted →');
+    });
+
+    // The wire body is a server contract; -v is a local concern and must not
+    // start appearing as an unknown field in execute requests.
+    it('keeps verbose out of the /v1/execute request body', async () => {
+      const bodies: unknown[] = [];
+      await runHostedCli(['github', 'whoami', '-f', 'json', '-v'], {
+        config: makeHostedConfig({ apiBaseUrl: 'https://api.example.com', apiKey: 'key' }),
+        stdout: sink().stream,
+        fetchImpl: async (url, init) => {
+          if (init?.body) bodies.push(JSON.parse(String(init.body)) as unknown);
+          return String(url).endsWith('/v1/manifest')
+            ? manifestResponse()
+            : executionResponse({ result: [{ username: 'octocat' }], columns: ['username'] });
+        },
+      });
+
+      expect(bodies.at(-1)).toEqual({
+        command: 'github/whoami',
+        args: {},
+        format: 'json',
+        trace: 'off',
+      });
+    });
   });
 
   it('uploads local file args, runs a prepared execution, and materializes hosted output artifacts', async () => {
