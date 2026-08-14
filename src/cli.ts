@@ -59,6 +59,8 @@ import { BrowserRunError } from './browser/run/types.js';
 import { classifyCommandOrigin, formatCommandOrigin } from './command-origin.js';
 import { readOverrideRecords, removeOverrideRecords } from './override-provenance.js';
 import { clearDaemonRunContext, generateRunId, isUnknownOutcomeError, runWithDaemonRunContext } from './session-lease.js';
+import { createLocalSiteMemoryBackend, registerSiteCommands } from './site-memory/commands.js';
+import { resolveAdapterSourcePath } from './adapter-source.js';
 
 const CLI_FILE = fileURLToPath(import.meta.url);
 const FOLLOW_POLL_MS = 1_000;
@@ -619,6 +621,7 @@ export function createProgram(BUILTIN_CLIS: string, USER_CLIS: string, pluginsDi
     .name('webcmd')
     .description('Make any website your CLI. Zero setup. AI-powered.');
   configureRootCommandSurface(program);
+  registerSiteCommands(program, createLocalSiteMemoryBackend());
 
   // ── Built-in: list ────────────────────────────────────────────────────────
 
@@ -1745,6 +1748,27 @@ cli({
     .description('Fork an installed plugin command into ~/.webcmd/clis so you can modify it')
     .argument('<command>', 'Command to override, as <site>/<command>')
     .action(handleAdapterOverride);
+
+  const localAdapterPath = (commandKey: string): string => {
+    const [site, command, extra] = commandKey.split('/');
+    if (!site || !command || extra || site === '.' || site === '..' || command === '.' || command === '..' || site.includes('\\') || command.includes('\\')) {
+      throw new ArgumentError('Adapter command must use site/command format.');
+    }
+    const registered = getRegistry().get(`${site}/${command}`) as import('./registry.js').InternalCliCommand | undefined;
+    const source = registered && resolveAdapterSourcePath(registered);
+    if (!source) throw new ArgumentError(`Adapter source is unavailable for ${commandKey}.`);
+    return source;
+  };
+  const reportLocalAdapterPath = (commandKey: string): void => console.log(localAdapterPath(commandKey));
+  const adapterSourceCmd = adapterCmd.command('source').description('Inspect local adapter source paths; hosted mode reads or writes source');
+  adapterSourceCmd.command('get').description('Print local source path; --output is hosted-only').argument('<command>').option('-o, --output <path>').action((commandKey: string, options: { output?: string }) => {
+    if (options.output) throw new ArgumentError(`Local adapter source get does not support --output. Use webcmd adapter path ${commandKey} and edit that file.`);
+    reportLocalAdapterPath(commandKey);
+  });
+  adapterSourceCmd.command('put').description('Hosted-only source write; local users edit the adapter path').argument('<command>').argument('<path>').action((commandKey: string) => {
+    throw new ArgumentError(`Local adapter source put is unavailable. Use webcmd adapter path ${commandKey} and edit that file.`);
+  });
+  adapterCmd.command('path').argument('<command>').action((commandKey: string) => reportLocalAdapterPath(commandKey));
 
   // ── Built-in: browser profile selection ──────────────────────────────────
   const profileCmd = program.command('profile').description('Manage webcmd browser runtime profiles');

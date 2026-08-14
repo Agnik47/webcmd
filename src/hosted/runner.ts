@@ -1,4 +1,5 @@
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Command, CommanderError, InvalidArgumentError } from 'commander';
@@ -50,10 +51,12 @@ import {
 import { isHostedConfig, loadWebcmdConfig, type WebcmdConfig } from './config.js';
 import { resolveHostedApiKey, type HostedCredentialStore } from './credentials.js';
 import { parseHostedRootCommandSurface } from '../root-command-surface.js';
+import { registerSiteCommands, type SiteMemoryBackend } from '../site-memory/commands.js';
 import type {
   HostedBrowserActionName,
   HostedBrowserRunActionResponse,
   HostedBrowserSnapshotActionResponse,
+  HostedCommand,
   HostedManifest,
 } from './types.js';
 import type { HostedBrowserCommandContract } from './contract.js';
@@ -122,7 +125,7 @@ export async function runHostedCli(argv: string[], opts: HostedRunnerOptions = {
       workspace: resolveWorkspace(argv, opts.env ?? process.env),
       fetchImpl: opts.fetchImpl,
     });
-    await dispatchHosted(argv, client, stdout, stderr, opts.now ?? Date.now);
+    await dispatchHosted(argv, client, stdout, stderr, opts.now ?? Date.now, opts.homeDir ?? opts.env?.HOME ?? homedir());
     return { handled: true, exitCode: EXIT_CODES.SUCCESS };
   } catch (err) {
     if (err instanceof StreamWriteError) throw err;
@@ -161,6 +164,7 @@ async function dispatchHosted(
   stdout: NodeJS.WritableStream,
   stderr: NodeJS.WritableStream,
   now: () => number,
+  homeDir: string,
 ): Promise<void> {
   const normalized = parseHostedRootCommandSurface(argv);
   if (normalized.kind === 'help') {
@@ -229,6 +233,16 @@ async function dispatchHosted(
     return;
   }
 
+  if (args[0] === 'site') {
+    await runHostedSiteSurface(args.slice(1), normalized.literal, client, stdout);
+    return;
+  }
+
+  if (args[0] === 'adapter' && (args[1] === 'source' || args[1] === 'path' || args[1] === '--help' || args[1] === '-h')) {
+    await runHostedAdapterSourceSurface(args.slice(1), normalized.literal, client, stdout, homeDir);
+    return;
+  }
+
   if (args[0] === 'list') {
     const parsed = parseHostedListSurface(args.slice(1), normalized.literal);
     if (parsed.kind === 'help') {
@@ -276,10 +290,13 @@ async function dispatchHosted(
         await renderOutput(result, { fmt: 'json', stdout });
       } else {
         for (const error of result.errors) await writeToStream(stderr, `Warning: ${error.sourceId}: ${error.message}\n`);
-        await renderOutput(result.plugins, {
+        await renderOutput(result.plugins.map(plugin => ({
+          ...plugin,
+          excludedCommands: plugin.excludedCommands.join(','),
+        })), {
           fmt: parsed.format,
           fmtExplicit: parsed.formatExplicit,
-          columns: ['name', 'description', 'version', 'sourceId', 'installSource', 'webcmd'],
+          columns: ['name', 'description', 'version', 'sourceId', 'installSource', 'webcmd', 'availability', 'excludedCommands'],
           title: `${CLI_COMMAND}/plugin-search`,
           source: `${CLI_COMMAND} plugin search`,
           stdout,
@@ -468,6 +485,124 @@ async function dispatchHosted(
   }
 }
 
+async function runHostedSiteSurface(argv: readonly string[], literal: boolean, client: HostedClient, stdout: NodeJS.WritableStream): Promise<void> {
+  let help = '';
+  let stderr = '';
+  const root = new Command('webcmd').exitOverride().configureOutput({
+    writeOut: value => { help += value; },
+    writeErr: value => { stderr += value; },
+  });
+  registerSiteCommands(root, hostedSiteMemoryBackend(client), stdout);
+  try {
+    await root.parseAsync(literal ? ['--', 'site', ...argv] : ['site', ...argv], { from: 'user' });
+  } catch (error) {
+    if (error instanceof CommanderError && error.code === 'commander.helpDisplayed') {
+      await writeToStream(stdout, help);
+      return;
+    }
+    if (error instanceof CommanderError) throw new CommanderStructuralError(stderr || `${error.message}\n`, error.exitCode);
+    throw error;
+  }
+}
+
+function hostedSiteMemoryBackend(client: HostedClient): SiteMemoryBackend {
+  return {
+    show: async (site, kind) => Promise.all((await client.listSiteMemory(site)).filter(item => !kind || item.kind === kind)
+      .map(async item => ({ path: item.path, body: await client.readSiteMemory(site, item.path) }))),
+    list: site => client.listSiteMemory(site),
+    note: (site, text, author) => client.writeSiteMemory(site, 'notes.md', JSON.stringify({ text, ...(author ? { author } : {}) }), 'application/json'),
+    endpoint: (site, name, input) => client.writeSiteMemory(site, 'endpoints.json', JSON.stringify({ name, ...input }), 'application/json'),
+    stale: (site, name) => client.deleteSiteMemory(site, 'endpoints.json', JSON.stringify({ name })),
+    fieldMap: (site, key, meaning, source, force) => client.writeSiteMemory(site, 'field-map.json', JSON.stringify({ key, meaning, source, force }), 'application/json'),
+    fixture: async (site, command) => {
+      try { return await client.readSiteMemory(site, `verify/${command}.json`); }
+      catch (error) { if (error instanceof HostedClientError && error.code === 'SITE_MEMORY_NOT_FOUND') return null; throw error; }
+    },
+    putFixture: (site, command, body) => client.writeSiteMemory(site, `verify/${command}.json`, body, 'application/json'),
+    sample: (site, command, body) => client.writeSiteMemory(site, `fixtures/${command}-${Date.now()}.json`, body, 'application/json'),
+  };
+}
+
+type HostedAdapterSourceCommand =
+  | { kind: 'get'; commandKey: string; output?: string }
+  | { kind: 'put'; commandKey: string; path: string }
+  | { kind: 'path'; commandKey: string };
+
+async function runHostedAdapterSourceSurface(argv: readonly string[], literal: boolean, client: HostedClient, stdout: NodeJS.WritableStream, homeDir: string): Promise<void> {
+  let parsed: HostedAdapterSourceCommand | undefined;
+  let help = '';
+  let stderr = '';
+  const root = new Command('webcmd').exitOverride().configureOutput({
+    writeOut: value => { help += value; },
+    writeErr: value => { stderr += value; },
+  });
+  const adapter = root.command('adapter');
+  const source = adapter.command('source');
+  source.command('get').argument('<command>').option('-o, --output <path>').action((commandKey, opts: { output?: string }) => { parsed = { kind: 'get', commandKey, output: opts.output }; });
+  source.command('put').argument('<command>').argument('<path>').action((commandKey, filePath) => { parsed = { kind: 'put', commandKey, path: filePath }; });
+  adapter.command('path').argument('<command>').action(commandKey => { parsed = { kind: 'path', commandKey }; });
+  try {
+    await root.parseAsync(literal ? ['--', 'adapter', ...argv] : ['adapter', ...argv], { from: 'user' });
+  } catch (error) {
+    if (error instanceof CommanderError && error.code === 'commander.helpDisplayed') {
+      await writeToStream(stdout, help);
+      return;
+    }
+    if (error instanceof CommanderError) throw new CommanderStructuralError(stderr || `${error.message}\n`, error.exitCode);
+    throw error;
+  }
+  if (!parsed) throw new CommanderStructuralError("error: command 'adapter' did not run\n", EXIT_CODES.USAGE_ERROR);
+  const { site, command } = parseAdapterCommandKey(parsed.commandKey);
+  const destination = hostedAdapterDestination(homeDir, site, command);
+  if (parsed.kind === 'path') return writeToStream(stdout, `${destination}\n`);
+  const metadata = await hostedAdapterSourceMetadata(client, parsed.commandKey);
+  const sourcePath = metadata.sourceFile ?? metadata.modulePath;
+  if (!sourcePath) throw new ConfigError(`Hosted adapter source is unavailable for ${parsed.commandKey}.`);
+  validateHostedRelativePath(sourcePath, 'adapter source provenance');
+  if (parsed.kind === 'get') {
+    const body = await client.readAdapterSource(metadata.adapterPackageId!, sourcePath);
+    if (parsed.output === '-') return writeToStream(stdout, body);
+    const output = parsed.output ?? destination;
+    mkdirSync(path.dirname(output), { recursive: true });
+    writeFileSync(output, body, 'utf8');
+    return;
+  }
+  const result = await client.writeAdapterSource(metadata.adapterPackageId!, sourcePath, readFileSync(parsed.path, 'utf8'));
+  await writeToStream(stdout, `${result.commands.join('\n')}\n`);
+}
+
+function parseAdapterCommandKey(value: string): { site: string; command: string } {
+  const [site, command, extra] = value.split('/');
+  if (!isSafePathSegment(site) || !isSafePathSegment(command) || extra) throw new ConfigError('Adapter command must use site/command format.');
+  return { site, command };
+}
+
+function hostedAdapterDestination(homeDir: string, site: string, command: string): string {
+  const root = path.resolve(homeDir, '.webcmd', 'hosted', 'clis');
+  const destination = path.resolve(root, site, `${command}.js`);
+  const relative = path.relative(root, destination);
+  if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) throw new ConfigError('Hosted adapter destination is invalid.');
+  return destination;
+}
+
+function validateHostedRelativePath(value: string, label: string): void {
+  if (!value || value.includes('\\') || path.isAbsolute(value) || value.split('/').some(part => !isSafePathSegment(part))) {
+    throw new ConfigError(`Hosted ${label} is invalid.`);
+  }
+}
+
+function isSafePathSegment(value: string | undefined): value is string {
+  return typeof value === 'string' && value !== '' && value !== '.' && value !== '..' && !value.includes('\\') && !value.includes('\0');
+}
+
+async function hostedAdapterSourceMetadata(client: HostedClient, key: string): Promise<HostedCommand> {
+  const manifest = await client.getManifest();
+  validateManifestContractIdentity(manifest);
+  const command = manifest.commands.find(candidate => candidate.command === key);
+  if (!command?.adapterPackageId || (!command.sourceFile && !command.modulePath)) throw new ConfigError(`Hosted adapter source is unavailable for ${key}.`);
+  return command;
+}
+
 type ParsedHostedSessionSurface =
   | { kind: 'help'; output: string }
   | { kind: 'run'; command: 'create' | 'list' | 'close'; format: string; formatExplicit: boolean; session?: string; force?: boolean; limit?: number };
@@ -556,7 +691,7 @@ function hasPresentFileArgument(
 ): boolean {
   return command.args.some((arg) => {
     if (!arg.file) return false;
-    const value = args[arg.name] ?? arg.default;
+    const value = args[arg.name] ?? arg.default ?? arg.file.defaultPath;
     return value !== undefined && value !== null && value !== '';
   });
 }
@@ -775,6 +910,10 @@ function browserActionArgs(
   }
 
   switch (contract.command) {
+    case 'verify': {
+      const { fixture, ...rest } = args;
+      return fixture === false ? { ...rest, noFixture: true } : rest;
+    }
     case 'screenshot':
       delete args.path;
       return args;

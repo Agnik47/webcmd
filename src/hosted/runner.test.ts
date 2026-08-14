@@ -262,6 +262,95 @@ function captureLocalBrowserStructure(argv: string[]): {
 }
 
 describe('runHostedCli', () => {
+  it('registers the hosted site-memory and adapter-source grammar', async () => {
+    const grammar = [
+      ['site', 'memory', 'show'], ['site', 'memory', 'list'], ['site', 'note', 'add'],
+      ['site', 'endpoint', 'set'], ['site', 'endpoint', 'stale'], ['site', 'field-map', 'add'],
+      ['site', 'fixture', 'get'], ['site', 'fixture', 'put'], ['site', 'sample', 'add'],
+      ['adapter', 'source', 'get'], ['adapter', 'source', 'put'], ['adapter', 'path'],
+    ];
+    const program = createProgram('', '');
+    for (const path of grammar) {
+      let command: Command | undefined = program;
+      for (const segment of path) command = command?.commands.find(candidate => candidate.name() === segment);
+      expect(command).toBeDefined();
+    }
+  });
+
+  it('uses hosted manifest provenance for adapter source and keeps memory reads on stdout', async () => {
+    const homeDir = await mkdtemp(path.join(tmpdir(), 'webcmd-hosted-authoring-'));
+    const stdout = sink();
+    const source = 'export const search = true;\n';
+    const sourceManifest = {
+      ...manifest,
+      commands: [{ ...manifest.commands[0], adapterPackageId: 'pkg_github', sourceFile: 'clis/github/search.js' }],
+    };
+    try {
+      const run = (argv: string[]) => runHostedCli(argv, {
+        config: makeHostedConfig({ apiBaseUrl: 'https://api.example.com', apiKey: 'key' }),
+        homeDir,
+        stdout: stdout.stream,
+        fetchImpl: async (url) => {
+          const pathname = new URL(String(url)).pathname;
+          if (pathname === '/v1/manifest') return new Response(JSON.stringify({ ok: true, manifest: sourceManifest }));
+          if (pathname === '/v1/sites/github/memory') return new Response(JSON.stringify({ ok: true, artifacts: [{ path: 'notes.md', kind: 'notes', contentType: 'application/json', sha256: 'abc', byteSize: 1, updatedAt: '2026-08-14T00:00:00.000Z' }] }));
+          return new Response(pathname.includes('/memory/') ? 'Uses GraphQL\n' : source);
+        },
+      });
+
+      await expect(run(['adapter', 'source', 'get', 'github/whoami'])).resolves.toMatchObject({ exitCode: 0 });
+      await expect(readFile(path.join(homeDir, '.webcmd', 'hosted', 'clis', 'github', 'whoami.js'), 'utf8')).resolves.toBe(source);
+      await expect(run(['site', 'memory', 'show', 'github'])).resolves.toMatchObject({ exitCode: 0 });
+      expect(stdout.text()).toContain('Uses GraphQL');
+    } finally {
+      await rm(homeDir, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects unsafe hosted adapter command keys and source provenance', async () => {
+    const stdout = sink();
+    const stderr = sink();
+    const requested: string[] = [];
+    const config = makeHostedConfig({ apiBaseUrl: 'https://api.example.com', apiKey: 'key' });
+    const unsafeManifest = { ...manifest, commands: [{ ...manifest.commands[0], adapterPackageId: 'pkg_github', sourceFile: '../escape.js' }] };
+    const result = await runHostedCli(['adapter', 'path', '../outside'], { config, stdout: stdout.stream, stderr: stderr.stream });
+    expect(result.exitCode).not.toBe(0);
+    expect(stdout.text()).not.toContain('outside');
+    const provenance = await runHostedCli(['adapter', 'source', 'get', 'github/whoami'], {
+      config,
+      stderr: stderr.stream,
+      fetchImpl: async (url) => {
+        requested.push(new URL(String(url)).pathname);
+        return new Response(JSON.stringify({ ok: true, manifest: unsafeManifest }));
+      },
+    });
+    expect(provenance.exitCode).not.toBe(0);
+    expect(requested).toEqual(['/v1/manifest']);
+  });
+
+  it('writes hosted site and adapter help to stdout', async () => {
+    const stdout = sink();
+    const config = makeHostedConfig({ apiBaseUrl: 'https://api.example.com', apiKey: 'key' });
+    await expect(runHostedCli(['site', '--help'], { config, stdout: stdout.stream })).resolves.toMatchObject({ exitCode: 0 });
+    await expect(runHostedCli(['adapter', 'source', '--help'], { config, stdout: stdout.stream })).resolves.toMatchObject({ exitCode: 0 });
+    expect(stdout.text()).toContain('Read and write site memory');
+    expect(stdout.text()).toContain('adapter source');
+  });
+
+  it('writes hosted adapter group help to stdout', async () => {
+    const stdout = sink();
+    const fetchImpl = vi.fn<typeof fetch>(async () => manifestResponse());
+    const result = await runHostedCli(['adapter', '--help'], {
+      config: makeHostedConfig({ apiBaseUrl: 'https://api.example.com', apiKey: 'key' }),
+      stdout: stdout.stream,
+      fetchImpl,
+    });
+
+    expect(result).toEqual({ handled: true, exitCode: 0 });
+    expect(stdout.text()).toContain('Commands:\n  source');
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
   it('presents web fetch help from local metadata without dispatching it to Cloud', async () => {
     const stdout = sink();
     const fetchImpl = vi.fn<typeof fetch>(async () => manifestResponse());
@@ -295,7 +384,7 @@ describe('runHostedCli', () => {
     const requests: string[] = [];
     const stdout = sink();
     const stderr = sink();
-    const result = await runHostedCli(['plugin', 'search', 'acme', '-f', 'json'], {
+    const result = await runHostedCli(['plugin', 'search', 'mercury'], {
       config: makeHostedConfig({ apiBaseUrl: 'https://api.example.com', apiKey: 'key' }),
       stdout: stdout.stream,
       stderr: stderr.stream,
@@ -305,12 +394,14 @@ describe('runHostedCli', () => {
           ok: true,
           result: {
             plugins: [{
-              name: 'acme',
-              description: 'Search Acme',
-              version: '1.0.0',
+              name: 'mercury',
+              description: 'Search Mercury',
+              version: '0.7.1',
               sourceId: 'agentrhq/webcmd',
-              installSource: 'github:agentrhq/webcmd/acme',
+              installSource: 'github:agentrhq/webcmd/mercury',
               webcmd: '>=0.4.3',
+              availability: 'mixed',
+              excludedCommands: ['mercury/reimbursement-plan'],
             }],
             errors: [],
           },
@@ -320,11 +411,9 @@ describe('runHostedCli', () => {
 
     expect(result).toEqual({ handled: true, exitCode: 0 });
     expect(stderr.text()).toBe('');
-    expect(JSON.parse(stdout.text())).toEqual({
-      plugins: [expect.objectContaining({ name: 'acme', installSource: 'github:agentrhq/webcmd/acme' })],
-      errors: [],
-    });
-    expect(requests).toEqual(['https://api.example.com/v1/marketplace/plugins?query=acme']);
+    expect(stdout.text()).toContain('mixed');
+    expect(stdout.text()).toContain('mercury/reimbursement-plan');
+    expect(requests).toEqual(['https://api.example.com/v1/marketplace/plugins?query=mercury']);
   });
 
   it('installs hosted marketplace plugins without fetching the manifest', async () => {
@@ -353,6 +442,29 @@ describe('runHostedCli', () => {
     expect(stderr.text()).toBe('');
     expect(stdout.text()).toBe('✅ Plugin "acme" installed successfully. Commands are ready to use.\n');
     expect(requests).toEqual(['https://api.example.com/v1/marketplace/installations']);
+  });
+
+  it('renders Cloud local-only marketplace install guidance', async () => {
+    const stdout = sink();
+    const stderr = sink();
+    const result = await runHostedCli(['plugin', 'install', 'github:agentrhq/webcmd/local-only'], {
+      config: makeHostedConfig({ apiBaseUrl: 'https://api.example.com', apiKey: 'key' }),
+      stdout: stdout.stream,
+      stderr: stderr.stream,
+      fetchImpl: async () => new Response(JSON.stringify({
+        ok: false,
+        error: {
+          code: 'MARKETPLACE_PLUGIN_LOCAL_ONLY',
+          message: 'This plugin is only available in local mode.',
+          help: 'Run `webcmd setup` and choose local mode to install this plugin.',
+        },
+      }), { status: 409 }),
+    });
+
+    expect(result).toEqual({ handled: true, exitCode: 1 });
+    expect(stdout.text()).toBe('');
+    expect(stderr.text()).toContain('MARKETPLACE_PLUGIN_LOCAL_ONLY');
+    expect(stderr.text()).toContain('Run `webcmd setup` and choose local mode to install this plugin.');
   });
 
   it.each(['catalog'])('rejects unsupported hosted plugin %s without an API call', async (subcommand) => {
@@ -1568,6 +1680,39 @@ describe('runHostedCli', () => {
     }
   });
 
+  it('prepares execution for an implicit mutable file default', async () => {
+    const requests: Array<{ pathname: string; body?: unknown }> = [];
+    const commandWithOnlyFileDefault = {
+      ...manifest,
+      commands: [{
+        site: 'likes', name: 'list', command: 'likes/list', description: 'List likes',
+        access: 'read', strategy: 'PUBLIC', browser: false, columns: [], args: [{
+          name: 'resume', file: {
+            direction: 'input-output', pathKind: 'file', multiple: false, defaultPath: 'likes.resume.json',
+          },
+        }],
+      }],
+    };
+    const result = await runHostedCli(['likes', 'list'], {
+      config: makeHostedConfig({ apiBaseUrl: 'https://api.example.com', apiKey: 'key' }),
+      fetchImpl: async (url, init) => {
+        const pathname = new URL(String(url)).pathname;
+        requests.push({ pathname, ...(init?.body ? { body: JSON.parse(String(init.body)) } : {}) });
+        if (pathname === '/v1/manifest') return new Response(JSON.stringify({ ok: true, manifest: commandWithOnlyFileDefault }));
+        if (pathname === '/v1/executions') return new Response(JSON.stringify({
+          ok: true, execution: { id: 'exec_likes', command: 'likes/list', status: 'queued' }, fileArguments: [],
+        }));
+        return new Response(JSON.stringify({
+          ok: true, result: [], execution: { id: 'exec_likes', command: 'likes/list', status: 'succeeded' },
+        }));
+      },
+    });
+
+    expect(result).toEqual({ handled: true, exitCode: 0 });
+    expect(requests.map(request => request.pathname)).toEqual(['/v1/manifest', '/v1/executions', '/v1/executions/exec_likes/run']);
+    expect(requests[1]?.body).toEqual({ command: 'likes/list' });
+  });
+
   it.each([
     { name: 'scalar field', result: { value: 'hello' }, argv: ['-f', 'plain'], expected: 'hello\n' },
     {
@@ -1882,12 +2027,12 @@ describe('runHostedCli', () => {
     expect(stderr.text()).toMatch(/hosted mode has no local daemon/i);
   });
 
-  it('matches the exact local text help for every catalogued browser leaf without a cloud call', async () => {
+  it('matches the exact local text help for every raw-session browser leaf without a cloud call', async () => {
     const program = createProgram('', '');
     const browser = program.commands.find(command => command.name() === 'browser');
     if (!browser) throw new Error('Local browser namespace is missing');
 
-    for (const contract of browserCommandCatalog) {
+    for (const contract of browserCommandCatalog.filter(command => command.command !== 'init' && command.command !== 'verify')) {
       const parts = contract.command.split('/');
       let local = browser;
       for (const part of parts) {
@@ -1976,6 +2121,73 @@ describe('runHostedCli', () => {
     } finally {
       await rm(uploadDir, { recursive: true, force: true });
     }
+  });
+
+  it('dispatches hosted browser verify with its local verification options', async () => {
+    const requests: Array<{ url: string; body?: Record<string, unknown> }> = [];
+    const result = await runHostedCli([
+      '--session', 'session_work', 'browser', 'verify', 'hn/top',
+      '--no-fixture', '--write-fixture', '--update-fixture', '--strict-memory',
+      '--seed-args', '{"limit":3}', '--trace', 'retain-on-failure', '--max-top-level-keys', '20',
+    ], {
+      config: makeHostedConfig({ apiBaseUrl: 'https://api.example.com', apiKey: 'key' }),
+      stdout: sink().stream,
+      stderr: sink().stream,
+      fetchImpl: async (url, init) => {
+        const body = init?.body ? JSON.parse(String(init.body)) as Record<string, unknown> : undefined;
+        requests.push({ url: String(url), ...(body ? { body } : {}) });
+        if (String(url).endsWith('/v1/manifest')) return manifestResponse();
+        return new Response(JSON.stringify({
+          ok: true,
+          result: {},
+          columns: [],
+          trace: null,
+          run: { executionId: 'exec_browser_verify', session: 'session_work', profile: { id: 'profile_default', displayName: 'default' } },
+          execution: { id: 'exec_browser_verify', status: 'succeeded' },
+        }), { status: 200 });
+      },
+    });
+
+    expect(result).toEqual({ handled: true, exitCode: 0 });
+    expect(requests[1]?.body).toMatchObject({
+      command: 'browser/verify',
+      action: 'verify',
+      args: {
+        name: 'hn/top',
+        noFixture: true,
+        writeFixture: true,
+        updateFixture: true,
+        strictMemory: true,
+        seedArgs: '{"limit":3}',
+        trace: 'retain-on-failure',
+        maxTopLevelKeys: 20,
+      },
+    });
+  });
+
+  it('dispatches hosted browser verify with a numeric default maxTopLevelKeys', async () => {
+    const requests: Array<{ body?: Record<string, unknown> }> = [];
+    const result = await runHostedCli(['--session', 'session_work', 'browser', 'verify', 'hn/top'], {
+      config: makeHostedConfig({ apiBaseUrl: 'https://api.example.com', apiKey: 'key' }),
+      stdout: sink().stream,
+      stderr: sink().stream,
+      fetchImpl: async (url, init) => {
+        const body = init?.body ? JSON.parse(String(init.body)) as Record<string, unknown> : undefined;
+        if (!String(url).endsWith('/v1/manifest')) requests.push({ ...(body ? { body } : {}) });
+        if (String(url).endsWith('/v1/manifest')) return manifestResponse();
+        return new Response(JSON.stringify({
+          ok: true,
+          result: {},
+          columns: [],
+          trace: null,
+          run: { executionId: 'exec_browser_verify', session: 'session_work', profile: { id: 'profile_default', displayName: 'default' } },
+          execution: { id: 'exec_browser_verify', status: 'succeeded' },
+        }), { status: 200 });
+      },
+    });
+
+    expect(result).toEqual({ handled: true, exitCode: 0 });
+    expect(requests[0]?.body).toMatchObject({ args: { name: 'hn/top', maxTopLevelKeys: 12 } });
   });
 
   it('sends browser-run file contents and snapshot-diff options to Cloud instead of the local path', async () => {
