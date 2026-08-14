@@ -2,18 +2,26 @@
 
 ## [0.7.1](https://github.com/agentrhq/webcmd/compare/webcmd-v0.7.0...webcmd-v0.7.1) (2026-08-14)
 
+### Improvements
+- Expanded Webcmd Cloud parity with mutable `input-output` file arguments and corrected filename mapping for commands that produce multiple files.
+- Added hosted support for `browser init`, `browser verify`, adapter source management, and site-memory workflows, enabling adapter authoring and validation in hosted environments.
+- Added marketplace availability metadata to distinguish `hosted`, `mixed`, and `local-only` plugins.
+
 ### Fixes
+- Improved `webcmd doctor` browser diagnostics:
+  - Browser installation now completes before the timed connectivity probe begins, preventing first-use downloads from being reported as 8-second browser command timeouts.
+  - A dedicated **Browser binary** status identifies missing, invalid, or non-executable Chromium binaries separately from daemon/runtime connectivity.
+  - Missing binaries now report their expected path, download URL, and actionable `CLOAKBROWSER_BINARY_PATH` guidance.
+- On macOS, Webcmd now repairs stale LaunchServices registrations for managed Chromium bundles and retries background launch once. If remediation fails, `doctor` displays the exact manual `lsregister` command.
+- Prevented background Chromium profiles on macOS from crashing after `webcmd doctor` closes its probe window.
+- Fixed persistent browser Sessions so `browser run` cannot access pages owned by sibling Sessions.
 
-- **browser:** retry background Chromium launch through Launch Services ([#302](https://github.com/agentrhq/webcmd/pull/302))
-- **doctor:** distinguish a missing browser binary from connectivity failures ([#303](https://github.com/agentrhq/webcmd/pull/303))
-- **doctor:** install the browser before applying the live-check timeout ([#237](https://github.com/agentrhq/webcmd/pull/237))
-- **browser:** keep background Chromium profiles alive ([#308](https://github.com/agentrhq/webcmd/pull/308))
-- **browser:** isolate pages created by persistent sessions ([#312](https://github.com/agentrhq/webcmd/pull/312))
+### Adapters
+- Added hosted file contracts across the official plugin catalog, including support for mutable files and commands with multiple outputs.
+- Removed local-only filesystem and binary assumptions from affected plugin commands to improve hosted execution compatibility.
 
-### Release preparation
-
-- Require OpenAI-generated release notes ([#307](https://github.com/agentrhq/webcmd/pull/307))
-- Complete Cloud and plugin parity for 0.7.1 ([#309](https://github.com/agentrhq/webcmd/pull/309))
+### Contributors
+[@ankitranjan7](https://github.com/ankitranjan7) | [@ayushsingh82](https://github.com/ayushsingh82) | [@beubax](https://github.com/beubax) | [@Sarfraz-droid](https://github.com/Sarfraz-droid)
 
 ## [0.7.0](https://github.com/agentrhq/webcmd/compare/webcmd-v0.6.2...webcmd-v0.7.0) (2026-08-14)
 
