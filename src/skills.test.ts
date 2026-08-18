@@ -218,6 +218,7 @@ describe('webcmd skills content', () => {
     expect(browserRunReference).toMatch(/QuickJS/);
     expect(browserRunReference).toMatch(/page\.evaluate/);
     expect(browserRunReference).toMatch(/artifact/i);
+    expect(browserRunReference).toContain("writeArtifact(");
     expect(browserRunReference).toMatch(/errors/i);
     expect(browserRunReference).toMatch(/snapshot behavior/i);
     expect(browserRunReference).toContain('--snapshot-mode act|tree');
