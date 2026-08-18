@@ -2,16 +2,19 @@
 
 ## [0.7.3](https://github.com/agentrhq/webcmd/compare/webcmd-v0.7.2...webcmd-v0.7.3) (2026-08-18)
 
+### Improvements
+- `webcmd profile list` now supports `-f, --format` for structured output.
+  - Saved but disconnected profiles are included with their connection status.
+  - Structured output now reports `DAEMON_UNAVAILABLE` instead of returning an empty list when the daemon is stopped or stale.
+- Expanded browser skill guidance to clearly describe the `browser run` QuickJS sandbox, including available globals, DOM access through `page.evaluate()`, file uploads, blocked APIs, and local/hosted behavior.
+- Updated file-upload examples to use the supported `TextEncoder` with `Uint8Array` payloads.
 
-### Features
+### Fixes
+- Added standard encoding APIs to the `browser run` sandbox: `btoa`, `atob`, `TextEncoder`, and `TextDecoder`.
+- Unsupported Playwright API errors now suggest supported alternatives where available, such as using `webcmd session close`, creating a new session, using `page.request`, or driving the page without raw CDP.
 
-* **cli:** add --format to profile list and report disconnected profiles ([#341](https://github.com/agentrhq/webcmd/issues/341)) ([45130c7](https://github.com/agentrhq/webcmd/commit/45130c7aadd7b59395e24c788ebbb57d9b1a9960))
-
-
-### Bug Fixes
-
-* **browser:** add btoa/atob/TextEncoder/TextDecoder to the run sandbox ([#344](https://github.com/agentrhq/webcmd/issues/344)) ([5d42052](https://github.com/agentrhq/webcmd/commit/5d420529d96650ab9b0074e7a2d8e974da93c539))
-* **browser:** name the supported alternative in unsupported-API errors ([#343](https://github.com/agentrhq/webcmd/issues/343)) ([6fb9586](https://github.com/agentrhq/webcmd/commit/6fb9586659b581ae5ff76124a1b3e1a63cfd827e))
+### Contributors
+[@ankitranjan7](https://github.com/ankitranjan7) | [@ngaurav](https://github.com/ngaurav) | [@rishabhraj36](https://github.com/rishabhraj36)
 
 ## [0.7.2](https://github.com/agentrhq/webcmd/compare/webcmd-v0.7.1...webcmd-v0.7.2) (2026-08-18)
 
