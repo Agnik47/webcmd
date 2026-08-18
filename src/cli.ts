@@ -972,7 +972,7 @@ cli({
 
   // ── Verify (test adapter) ──
 
-  browser.command('verify')
+  const browserVerifyCmd = browser.command('verify')
     .argument('<name>', 'Adapter name in site/command format (e.g. hn/top)')
     .option('--write-fixture', 'Write a starter fixture to ~/.webcmd/sites/<site>/verify/<command>.json if none exists')
     .option('--update-fixture', 'Overwrite an existing fixture with one derived from current output')
@@ -981,8 +981,17 @@ cli({
     .option('--seed-args <value>', 'Seed args when no fixture exists; use JSON array/object for multiple args or flags')
     .option('--trace <mode>', 'Trace capture for the adapter subprocess: off, on, retain-on-failure', 'off')
     .option('--max-top-level-keys <n>', 'Override the row-shape top-level key cap (default: 12) for adapters whose rows are wide by design')
-    .description('Execute an adapter and validate output; uses fixture at ~/.webcmd/sites/<site>/verify/<cmd>.json when present')
-    .action(async (name: string, opts: { fixture?: boolean; writeFixture?: boolean; updateFixture?: boolean; strictMemory?: boolean; seedArgs?: string; trace?: string; maxTopLevelKeys?: string } = {}) => {
+    .option('-f, --format <fmt>', OUTPUT_FORMAT_HELP, 'table')
+    .description('Execute an adapter and validate output; uses fixture at ~/.webcmd/sites/<site>/verify/<cmd>.json when present');
+  browserVerifyCmd.action(async (name: string, opts: { fixture?: boolean; writeFixture?: boolean; updateFixture?: boolean; strictMemory?: boolean; seedArgs?: string; trace?: string; maxTopLevelKeys?: string; format?: string } = {}) => {
+      const fmt = resolveOutputFormat(opts.format);
+      if (fmt === null) return;
+      const fmtExplicit = browserVerifyCmd.getOptionValueSource('format') === 'cli';
+      const asTable = fmt === 'table';
+      // Prose-only progress/detail lines. The structured report below carries the
+      // same facts as data; -f json/yaml callers get the report, not this text.
+      const notice = (...lines: string[]) => { if (asTable) for (const line of lines) console.log(line); };
+
       try {
         const parts = name.split('/');
         if (parts.length !== 2) { console.error('Name must be site/command format'); process.exitCode = EXIT_CODES.USAGE_ERROR; return; }
@@ -1007,17 +1016,19 @@ cli({
         const { loadFixture, writeFixture, deriveFixture, validateRows, validateRowShape, fixturePath, expandFixtureArgs, parseSeedArgs } = await import('./browser/verify-fixture.js');
         const filePath = path.join(os.homedir(), '.webcmd', 'clis', site, `${command}.js`);
         if (!fs.existsSync(filePath)) {
-          console.error(`Adapter not found: ${filePath}`);
-          console.error(`Run "webcmd browser init ${name}" to create it.`);
+          const message = `Adapter not found: ${filePath}`;
+          const hint = `Run "webcmd browser init ${name}" to create it.`;
+          if (asTable) { console.error(message); console.error(hint); }
+          else await renderOutput({ ok: false, site, command, error: { code: 'ADAPTER_NOT_FOUND', message, hint } }, { fmt, fmtExplicit });
           process.exitCode = EXIT_CODES.GENERIC_ERROR;
           return;
         }
 
-        console.log(`🔍 Verifying ${name}...\n`);
-        console.log(`  Loading: ${filePath}`);
+        notice(`🔍 Verifying ${name}...\n`, `  Loading: ${filePath}`);
 
         const useFixture = opts.fixture !== false;
         let fixture = useFixture ? loadFixture(site, command) : null;
+        const declaredFixturePath = fixturePath(site, command);
 
         // Build adapter args: fixture.args override the legacy --limit 3 heuristic.
         //   - object form   { "limit": 3 }            → `--limit 3`
@@ -1047,91 +1058,146 @@ cli({
             ...(invocation.shell ? { shell: true } : {}),
           });
         } catch (err) {
-          console.log(`  Executing: webcmd ${site} ${command} ${argDisplay}\n`);
+          notice(`  Executing: webcmd ${site} ${command} ${argDisplay}\n`);
           const execErr = err as { stdout?: string | Buffer; stderr?: string | Buffer };
-          if (execErr.stdout) console.log(String(execErr.stdout));
-          if (execErr.stderr) console.error(String(execErr.stderr).slice(0, 500));
-          console.log(`\n  ✗ Adapter failed. Fix the code and try again.`);
+          if (asTable) {
+            if (execErr.stdout) console.log(String(execErr.stdout));
+            if (execErr.stderr) console.error(String(execErr.stderr).slice(0, 500));
+            console.log(`\n  ✗ Adapter failed. Fix the code and try again.`);
+          } else {
+            await renderOutput({
+              ok: false,
+              site,
+              command,
+              error: {
+                code: 'ADAPTER_EXEC_FAILED',
+                message: 'Adapter failed to execute.',
+                ...(execErr.stderr ? { stderr: String(execErr.stderr).slice(0, 500) } : {}),
+              },
+            }, { fmt, fmtExplicit });
+          }
           process.exitCode = EXIT_CODES.GENERIC_ERROR;
           return;
         }
 
-        console.log(`  Executing: webcmd ${site} ${command} ${argDisplay}\n`);
+        notice(`  Executing: webcmd ${site} ${command} ${argDisplay}\n`);
 
         let rows: Record<string, unknown>[];
         try {
           rows = normalizeVerifyRows(JSON.parse(rawJson));
         } catch {
-          console.log(rawJson);
-          console.log('\n  ✗ Could not parse adapter output as JSON. Is `--format json` broken?');
+          if (asTable) {
+            console.log(rawJson);
+            console.log('\n  ✗ Could not parse adapter output as JSON. Is `--format json` broken?');
+          } else {
+            await renderOutput({
+              ok: false,
+              site,
+              command,
+              error: { code: 'ADAPTER_OUTPUT_NOT_JSON', message: 'Could not parse adapter output as JSON.' },
+            }, { fmt, fmtExplicit });
+          }
           process.exitCode = EXIT_CODES.GENERIC_ERROR;
           return;
         }
 
-        console.log(renderVerifyPreview(rows));
-        console.log(`\n  → ${rows.length} row${rows.length === 1 ? '' : 's'}`);
+        notice(renderVerifyPreview(rows), `\n  → ${rows.length} row${rows.length === 1 ? '' : 's'}`);
 
         const shapeFailures = validateRowShape(rows, { maxTopLevelKeys });
         if (shapeFailures.length > 0) {
-          console.log(`\n  ✗ Adapter output violates row shape conventions:`);
-          for (const f of shapeFailures.slice(0, 20)) {
-            const where = f.rowIndex !== undefined ? `row[${f.rowIndex}] ` : '';
-            console.log(`    - [${f.rule}] ${where}${f.detail}`);
+          if (asTable) {
+            console.log(`\n  ✗ Adapter output violates row shape conventions:`);
+            for (const f of shapeFailures.slice(0, 20)) {
+              const where = f.rowIndex !== undefined ? `row[${f.rowIndex}] ` : '';
+              console.log(`    - [${f.rule}] ${where}${f.detail}`);
+            }
+            if (shapeFailures.length > 20) {
+              console.log(`    ... and ${shapeFailures.length - 20} more failure(s)`);
+            }
+            console.log(`\n  Keep rows agent-native: <=${maxTopLevelKeys ?? 12} top-level keys, nesting depth <=1, and id-shaped fields at top level.`);
+            console.log(`  If this adapter's rows are wide by design, rerun with --max-top-level-keys <n>.`);
+          } else {
+            await renderOutput({ ok: false, site, command, rowCount: rows.length, shapeFailures }, { fmt, fmtExplicit });
           }
-          if (shapeFailures.length > 20) {
-            console.log(`    ... and ${shapeFailures.length - 20} more failure(s)`);
-          }
-          console.log(`\n  Keep rows agent-native: <=${maxTopLevelKeys ?? 12} top-level keys, nesting depth <=1, and id-shaped fields at top level.`);
-          console.log(`  If this adapter's rows are wide by design, rerun with --max-top-level-keys <n>.`);
           process.exitCode = EXIT_CODES.GENERIC_ERROR;
           return;
         }
 
         // ── Fixture handling ───────────────────────────────────────────
+        let fixtureAction: 'none' | 'written' | 'updated' | 'skipped-exists' = 'none';
         if (opts.writeFixture || opts.updateFixture) {
           if (fixture && !opts.updateFixture) {
-            console.log(`\n  Fixture already exists at ${fixturePath(site, command)}.`);
-            console.log(`  Use --update-fixture to overwrite.`);
+            notice(`\n  Fixture already exists at ${declaredFixturePath}.`, `  Use --update-fixture to overwrite.`);
+            fixtureAction = 'skipped-exists';
           } else {
             const fixtureArgs = explicitArgs !== undefined
               ? explicitArgs
               : (hasLimitArg ? { limit: 3 } : undefined);
             const derived = deriveFixture(rows, fixtureArgs);
             const p = writeFixture(site, command, derived);
-            console.log(`\n  ${fixture ? '↻ Updated' : '✎ Wrote'} fixture: ${p}`);
-            console.log(`  Review and hand-tune the derived expectations (add patterns / notEmpty, tighten rowCount).`);
+            notice(`\n  ${fixture ? '↻ Updated' : '✎ Wrote'} fixture: ${p}`, `  Review and hand-tune the derived expectations (add patterns / notEmpty, tighten rowCount).`);
+            fixtureAction = fixture ? 'updated' : 'written';
             fixture = derived;
           }
         }
 
         if (!fixture) {
-          console.log(`\n  ✓ Adapter runs. (No fixture at ${fixturePath(site, command)} — consider --write-fixture to seed one.)`);
+          notice(`\n  ✓ Adapter runs. (No fixture at ${declaredFixturePath} — consider --write-fixture to seed one.)`);
           const memoryReport = checkSiteMemory(site);
-          printSiteMemoryReport(memoryReport, opts.strictMemory);
-          if (!memoryReport.ok && opts.strictMemory) {
-            process.exitCode = EXIT_CODES.GENERIC_ERROR;
+          if (asTable) printSiteMemoryReport(memoryReport, opts.strictMemory);
+          const ok = !(!memoryReport.ok && opts.strictMemory);
+          if (!asTable) {
+            await renderOutput({
+              ok,
+              site,
+              command,
+              rowCount: rows.length,
+              fixture: { path: declaredFixturePath, exists: false, action: fixtureAction },
+              memory: memoryReport,
+            }, { fmt, fmtExplicit });
           }
+          if (!ok) process.exitCode = EXIT_CODES.GENERIC_ERROR;
           return;
         }
 
         const failures = validateRows(rows, fixture);
         if (failures.length === 0) {
-          console.log(`\n  ✓ Adapter matches fixture (${fixturePath(site, command)}).`);
+          notice(`\n  ✓ Adapter matches fixture (${declaredFixturePath}).`);
           const memoryReport = checkSiteMemory(site);
-          printSiteMemoryReport(memoryReport, opts.strictMemory);
-          if (!memoryReport.ok && opts.strictMemory) {
-            process.exitCode = EXIT_CODES.GENERIC_ERROR;
+          if (asTable) printSiteMemoryReport(memoryReport, opts.strictMemory);
+          const ok = !(!memoryReport.ok && opts.strictMemory);
+          if (!asTable) {
+            await renderOutput({
+              ok,
+              site,
+              command,
+              rowCount: rows.length,
+              fixture: { path: declaredFixturePath, exists: true, action: fixtureAction },
+              memory: memoryReport,
+            }, { fmt, fmtExplicit });
           }
+          if (!ok) process.exitCode = EXIT_CODES.GENERIC_ERROR;
           return;
         }
 
-        console.log(`\n  ✗ Adapter output does not match fixture:`);
-        for (const f of failures.slice(0, 20)) {
-          const where = f.rowIndex !== undefined ? `row[${f.rowIndex}] ` : '';
-          console.log(`    - [${f.rule}] ${where}${f.detail}`);
-        }
-        if (failures.length > 20) {
-          console.log(`    ... and ${failures.length - 20} more failure(s)`);
+        if (asTable) {
+          console.log(`\n  ✗ Adapter output does not match fixture:`);
+          for (const f of failures.slice(0, 20)) {
+            const where = f.rowIndex !== undefined ? `row[${f.rowIndex}] ` : '';
+            console.log(`    - [${f.rule}] ${where}${f.detail}`);
+          }
+          if (failures.length > 20) {
+            console.log(`    ... and ${failures.length - 20} more failure(s)`);
+          }
+        } else {
+          await renderOutput({
+            ok: false,
+            site,
+            command,
+            rowCount: rows.length,
+            fixture: { path: declaredFixturePath, exists: true, action: fixtureAction },
+            matchFailures: failures,
+          }, { fmt, fmtExplicit });
         }
         process.exitCode = EXIT_CODES.GENERIC_ERROR;
       } catch (err) {
