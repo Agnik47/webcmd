@@ -19,14 +19,14 @@ import './fetch/command.js';
 import { commandListPresentation, filterCommandsByTag, toPresentableCommand } from './command-presentation.js';
 import { configureCompletionCommandSurface, configureListCommandSurface, configurePluginInstallSurface, configurePluginListSurface, configurePluginSearchSurface } from './builtin-command-surface.js';
 import { OUTPUT_FORMAT_HELP, resolveOutputFormat } from './command-surface.js';
-import { render as renderOutput } from './output.js';
+import { render as renderOutput, formatErrorEnvelope } from './output.js';
 import { PKG_VERSION } from './version.js';
 import { printCompletionScript } from './completion.js';
 import { loadExternalClis, executeExternalCli, installExternalCli, registerExternalCli, isBinaryInstalled, formatExternalCliLabel } from './external.js';
 import { addWebcmdSkills, listWebcmdSkills, removeWebcmdSkills, updateWebcmdSkill, type WebcmdSkillAddResult } from './skills.js';
 import { registerAllCommands } from './commanderAdapter.js';
 import { buildRootHelpPresentation, classifyAdapter, installCommanderNamespaceStructuredHelp, installRootPresentationHelp, leadingPositionalFromUsage, rootHelpData, type RootAdapterGroups } from './help.js';
-import { EXIT_CODES, getErrorMessage, BrowserConnectError, CliError, ArgumentError } from './errors.js';
+import { EXIT_CODES, getErrorMessage, toEnvelope, BrowserConnectError, CliError, ArgumentError } from './errors.js';
 import { TargetError, type TargetErrorCode } from './browser/target-errors.js';
 import { resolveTargetJs, getTextResolvedJs, getValueResolvedJs, getAttributesResolvedJs, selectResolvedJs, isAutocompleteResolvedJs, type ResolveOptions, type TargetMatchLevel } from './browser/target-resolver.js';
 import { buildFindJs, buildSemanticFindJs, isFindError, type FindResult, type FindError, type SemanticFindOptions } from './browser/find.js';
@@ -44,7 +44,7 @@ import { daemonRestart, daemonStatus, daemonStop } from './commands/daemon.js';
 import { isVerbose, log } from './logger.js';
 import { BrowserCommandError, listExistingBrowserTabs, releaseSiteSessionLease, sendCommand } from './browser/daemon-client.js';
 import { fetchDaemonStatus } from './browser/daemon-transport.js';
-import { aliasForContextId, loadProfileConfig, profileRouteParams, renameProfile, resolveProfileSelection, setDefaultProfile, type ProfileSelection } from './browser/profile.js';
+import { aliasForContextId, loadProfileConfig, profileListRows, profileRouteParams, renameProfile, resolveProfileSelection, setDefaultProfile, type ProfileSelection } from './browser/profile.js';
 import { formatDaemonVersion, isDaemonStale } from './browser/daemon-version.js';
 import { DEFAULT_BROWSER_CONNECT_TIMEOUT } from './browser/config.js';
 import { CLI_COMMAND, PACKAGE_NAME } from './brand.js';
@@ -898,6 +898,21 @@ export function createProgram(BUILTIN_CLIS: string, USER_CLIS: string, pluginsDi
     .description('Run Playwright programs against an explicit browser Session');
   const originalBrowserDescription = browser.description();
 
+  // Retired browser subcommands. `fork` was a duplicate of `adapter override`
+  // that never appeared in the docs; commander's bare "unknown command" leaves
+  // the caller with no way to find the replacement, so name it.
+  const RETIRED_BROWSER_SUBCOMMANDS: Record<string, string> = {
+    fork: `${CLI_COMMAND} adapter override <site>/<command>`,
+  };
+  browser.on('command:*', (operands: string[]) => {
+    const name = operands[0]!;
+    const replacement = RETIRED_BROWSER_SUBCOMMANDS[name];
+    console.error(replacement
+      ? `error: '${CLI_COMMAND} browser ${name}' was removed. Use: ${replacement}`
+      : `error: unknown command '${name}'`);
+    process.exitCode = EXIT_CODES.USAGE_ERROR;
+  });
+
   // ── Init (adapter scaffolding) ──
 
   browser.command('init')
@@ -964,11 +979,6 @@ cli({
         process.exitCode = EXIT_CODES.GENERIC_ERROR;
       }
     });
-
-  browser.command('fork')
-    .argument('<name>', 'Command to fork in site/command format')
-    .description('Fork an installed plugin command into a private copy')
-    .action(handleAdapterOverride);
 
   // ── Verify (test adapter) ──
 
@@ -1778,10 +1788,41 @@ cli({
   profileCmd
     .command('list')
     .description('List Chrome and Chromium profiles available through the Cloak runtime')
-    .action(async () => {
+    .option('-f, --format <fmt>', OUTPUT_FORMAT_HELP, 'table')
+    .action(async (opts: { format?: string }, command: Command) => {
+      const fmt = resolveOutputFormat(opts.format);
+      if (fmt === null) return;
       const status = await fetchDaemonStatus();
       const config = loadProfileConfig();
       const profiles = status?.profiles ?? [];
+      const daemonUsable = Boolean(status)
+        && !isDaemonStale(status!, PKG_VERSION)
+        && Array.isArray(status!.profiles);
+      if (fmt !== 'table') {
+        // An empty list and an unreadable runtime are different facts. Emitting `[]` for a
+        // stale or absent daemon reads as "no profiles exist" and sends callers looking for
+        // profile state elsewhere, so structured mode fails loudly instead.
+        if (!daemonUsable) {
+          const error = new CliError(
+            'DAEMON_UNAVAILABLE',
+            status
+              ? `Daemon ${formatDaemonVersion(status)} is stale for CLI v${PKG_VERSION}; profile list is incomplete.`
+              : 'Daemon is not running; profile list is incomplete.',
+            status ? 'Run: webcmd daemon restart' : 'Run webcmd doctor after opening Chrome.',
+          );
+          console.error(`Error: ${error.message}`);
+          console.error(`Hint: ${error.hint}`);
+          process.exitCode = error.exitCode;
+          return;
+        }
+        // Saved-but-disconnected profiles are included: they exist, they are just not live.
+        await renderOutput(profileListRows(config, profiles), {
+          fmt,
+          fmtExplicit: command.getOptionValueSource('format') === 'cli',
+          columns: ['contextId', 'alias', 'default', 'connected', 'runtimeVersion'],
+        });
+        return;
+      }
       if (!status) {
         console.log('Daemon is not running. Run webcmd doctor after opening Chrome.');
         return;
@@ -2033,8 +2074,31 @@ export async function loadAntigravityServe(pluginsDir: string = PLUGINS_DIR): Pr
   return import(pathToFileURL(path.join(pluginsDir, 'antigravity', 'serve.js')).href);
 }
 
-export function runCli(BUILTIN_CLIS: string, USER_CLIS: string): void {
-  createProgram(BUILTIN_CLIS, USER_CLIS).parse();
+/**
+ * Run the local CLI, reporting anything a built-in command throws as the same
+ * error envelope adapter commands already emit.
+ *
+ * Built-in actions used to have no handler at all: `parse()` does not await
+ * async actions, so a throw either crashed with a raw Node stack trace or
+ * surfaced as an unhandled rejection, and the `exitCode` the error carried was
+ * lost. `parseAsync` lets the rejection reach this catch.
+ */
+export async function runCli(BUILTIN_CLIS: string, USER_CLIS: string): Promise<void> {
+  try {
+    await createProgram(BUILTIN_CLIS, USER_CLIS).parseAsync();
+  } catch (err) {
+    reportCliError(err);
+  }
+}
+
+/** Render a thrown error as the shared envelope and set the exit code it carries. */
+export function reportCliError(err: unknown, stderr: NodeJS.WritableStream = process.stderr): void {
+  const envelope = toEnvelope(err);
+  if (process.env.WEBCMD_DEBUG && err instanceof Error && err.stack) {
+    envelope.error.stack = err.stack;
+  }
+  stderr.write(formatErrorEnvelope(envelope));
+  process.exitCode = envelope.error.exitCode;
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
