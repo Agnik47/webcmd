@@ -1,4 +1,5 @@
 import { attachTraceReceipt, CliError, EXIT_CODES, type ExitCode } from '../errors.js';
+import { log } from '../logger.js';
 import { HOSTED_SESSION_PROTOCOL_VERSION } from './types.js';
 import type {
   HostedBrowserActionRequest,
@@ -475,19 +476,35 @@ export class HostedClient {
     return body;
   }
 
-  private authenticatedFetch(path: string, init: RequestInit = {}): Promise<Response> {
-    return this.fetchImpl(`${this.apiBaseUrl}${path}`, {
-      ...init,
-      headers: {
-        accept: 'application/json',
-        authorization: `Bearer ${this.apiKey}`,
-        'x-webcmd-session-protocol-version': String(HOSTED_SESSION_PROTOCOL_VERSION),
-        'x-webcmd-client-capabilities': 'hosted-live-view-v1',
-        ...(init.body ? { 'content-type': 'application/json' } : {}),
-        ...(this.workspace ? { 'x-webcmd-workspace': this.workspace } : {}),
-        ...(init.headers ?? {}),
-      },
-    });
+  private async authenticatedFetch(path: string, init: RequestInit = {}): Promise<Response> {
+    // Verbose diagnostics deliberately carry the method, path, status and elapsed
+    // time only. The bearer token, the workspace header and request/response
+    // bodies are never logged — `-v` is a debugging aid, not a credential dump.
+    const method = init.method ?? 'GET';
+    const startedAt = Date.now();
+    log.verbose(`hosted → ${method} ${path}`);
+    try {
+      const response = await this.fetchImpl(`${this.apiBaseUrl}${path}`, {
+        ...init,
+        headers: {
+          accept: 'application/json',
+          authorization: `Bearer ${this.apiKey}`,
+          'x-webcmd-session-protocol-version': String(HOSTED_SESSION_PROTOCOL_VERSION),
+          'x-webcmd-client-capabilities': 'hosted-live-view-v1',
+          ...(init.body ? { 'content-type': 'application/json' } : {}),
+          ...(this.workspace ? { 'x-webcmd-workspace': this.workspace } : {}),
+          ...(init.headers ?? {}),
+        },
+      });
+      log.verbose(`hosted ← ${method} ${path} ${response.status} (${Date.now() - startedAt}ms)`);
+      return response;
+    } catch (error) {
+      log.verbose(
+        `hosted ✖ ${method} ${path} failed after ${Date.now() - startedAt}ms: ` +
+        `${error instanceof Error ? error.message : String(error)}`,
+      );
+      throw error;
+    }
   }
 
   private async requestText(path: string): Promise<string> {

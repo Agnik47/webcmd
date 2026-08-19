@@ -22,6 +22,7 @@ import {
 } from '../completion-shared.js';
 import { CliError, ConfigError, EXIT_CODES, toEnvelope } from '../errors.js';
 import { getRequestedHelpFormat, renderStructuredHelp } from '../help.js';
+import { enableVerbose } from '../logger.js';
 import { findPackageRoot } from '../package-paths.js';
 import { formatErrorEnvelope, render as renderOutput } from '../output.js';
 import { StreamWriteError, writeToStream } from '../stream-write.js';
@@ -443,6 +444,11 @@ async function dispatchHosted(
   if (command.clientOwned) {
     throw new Error(`Internal invariant: client-owned command ${command.command} reached hosted dispatch.`);
   }
+  // Hosted dispatch parsed `-v` but never acted on it, so the flag that local
+  // mode honours was a silent no-op here (#174). Applying it before the request
+  // lights up the client's HTTP diagnostics on the same env contract local mode
+  // uses, keeping the two modes' verbose behaviour aligned.
+  enableVerbose(parsed.verbose);
 
   const startTime = now();
   const response = command.browser || hasPresentFileArgument(command, parsed.args)

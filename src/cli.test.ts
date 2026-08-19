@@ -1194,7 +1194,7 @@ name: 'search',
         usage: 'webcmd browser bind [options]',
         positionals: [],
       });
-      expect(bind.command_options.map((option: any) => option.name)).toEqual(['page']);
+      expect(bind.command_options.map((option: any) => option.name)).toEqual(['page', 'verbose']);
       expect(data.structured_help).toMatchObject({
         formats: ['yaml', 'json'],
         usage: 'webcmd browser --help -f yaml',
@@ -2108,6 +2108,65 @@ describe('browser raw session commands', () => {
 
     expect(mockSendCommand).toHaveBeenCalledWith('snapshot', {
       session: 'session_test', surface: 'browser', snapshotMode: 'read', ref: 'e12', maxOutputChars: 1000,
+    });
+  });
+
+  // The CDP client already gates diagnostics on isVerbose(), but the raw browser
+  // leaves rejected -v, so those diagnostics were unreachable from the CLI (#174).
+  describe('raw browser verbose flag', () => {
+    afterEach(() => {
+      delete process.env.WEBCMD_VERBOSE;
+    });
+
+    it.each(['tabs', 'snapshot', 'close'])('accepts -v on browser %s', async (leaf) => {
+      delete process.env.WEBCMD_VERBOSE;
+      const program = createProgram('', '');
+
+      await program.parseAsync(['node', 'webcmd', '--session', 'session_test', 'browser', leaf, '-v']);
+
+      expect(process.exitCode).toBeUndefined();
+      expect(process.env.WEBCMD_VERBOSE).toBe('1');
+    });
+
+    it('accepts -v on browser bind', async () => {
+      delete process.env.WEBCMD_VERBOSE;
+      const program = createProgram('', '');
+
+      await program.parseAsync(['node', 'webcmd', '--session', 'session_test', 'browser', 'bind', '--page', 'page-123', '-v']);
+
+      expect(process.env.WEBCMD_VERBOSE).toBe('1');
+      expect(mockSendCommand).toHaveBeenCalledWith('bind', {
+        session: 'session_test', surface: 'browser', page: 'page-123',
+      });
+    });
+
+    it('leaves verbose mode off when the flag is absent', async () => {
+      delete process.env.WEBCMD_VERBOSE;
+      const program = createProgram('', '');
+
+      await program.parseAsync(['node', 'webcmd', '--session', 'session_test', 'browser', 'tabs']);
+
+      expect(process.env.WEBCMD_VERBOSE).toBeUndefined();
+    });
+
+    // Structural check so `run` is covered too: it needs a program source, so it
+    // cannot reach the action body from argv alone.
+    //
+    // Filesystem-only leaves stay without the flag: there are no diagnostics
+    // behind it, and advertising one would be the no-op #174 set out to remove.
+    it('declares the flag on bridge leaves and withholds it from filesystem-only ones', () => {
+      const program = createProgram('', '');
+      const browser = program.commands.find(command => command.name() === 'browser');
+      const flagsFor = (name: string) => browser?.commands
+        .find(command => command.name() === name)
+        ?.options.map(option => option.long) ?? [];
+
+      for (const leaf of ['tabs', 'bind', 'run', 'snapshot', 'close']) {
+        expect(flagsFor(leaf)).toContain('--verbose');
+      }
+      for (const leaf of ['init', 'fork']) {
+        expect(flagsFor(leaf)).not.toContain('--verbose');
+      }
     });
   });
 
