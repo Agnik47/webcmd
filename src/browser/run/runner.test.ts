@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -53,6 +54,15 @@ function run(source: string, options = {}, input = {}) {
     pageId: 'page-1',
     ...input,
   }, source, options);
+}
+
+async function runError(source: string): Promise<Error & { code?: string; hint?: string }> {
+  try {
+    await run(source);
+  } catch (cause) {
+    return cause as Error & { code?: string; hint?: string };
+  }
+  throw new Error('expected the program to fail');
 }
 
 describeWithChromium('runBrowserProgram', () => {
@@ -230,6 +240,26 @@ afterAll(async () => {
     const output = await run('return typeof page.snapshotForAI;');
 
     expect(output.result).toBe('undefined');
+  });
+  it('reports the caller line, column, and source for a compile error', async () => {
+    // An unescaped quote ends the string early; the parser trips on what follows.
+    // Line/column must be the caller's own, not the AsyncFunction wrapper's.
+    const error = await runError("const a = 1;\nconst s = 'x'y';\nreturn a;");
+
+    expect(error.code).toBe('BROWSER_RUN_SYNTAX_ERROR');
+    expect(error.message).toContain('at line 2, column 14');
+    expect(error.message).toContain("const s = 'x'y';");
+    expect(error.message).not.toContain('QuickJS promise rejected');
+    expect(error.hint).toContain('unescaped quote');
+  });
+
+  it('does not blame the caller syntax for a runtime SyntaxError', async () => {
+    // JSON.parse throws a SyntaxError from a program that compiled fine.
+    const error = await runError("return JSON.parse('1,2,3');");
+
+    expect(error.code).toBeUndefined();
+    expect(error.name).toBe('SyntaxError');
+    expect(error.hint).toBeUndefined();
   });
   it('publishes the browser-run package subpath', () => {
     const packageJson = JSON.parse(
@@ -528,6 +558,73 @@ afterAll(async () => {
       requestUrl: 'https://example.test/data',
       responseStatus: 201,
     });
+  });
+
+  it('decodes response bodies and post data as text', async () => {
+    await context.route('https://example.test/json', route => route.fulfill({
+      contentType: 'application/json',
+      body: '{"id":1,"title":"Essence"}',
+    }));
+    const output = await run(`
+      const requestPromise = page.waitForRequest('**/json');
+      const responsePromise = page.waitForResponse('**/json');
+      await page.evaluate(
+        () => fetch('https://example.test/json', { method: 'POST', body: 'h\u00e9llo' })
+      );
+      const request = await requestPromise;
+      const response = await responsePromise;
+      return {
+        postData: request.postData(),
+        text: await response.text(),
+        json: await response.json(),
+      };
+    `);
+
+    expect(output.result).toEqual({
+      postData: 'h\u00e9llo',
+      text: '{"id":1,"title":"Essence"}',
+      json: { id: 1, title: 'Essence' },
+    });
+  });
+
+  it('fetches through page.request and decodes the response as text', async () => {
+    const server = http.createServer((request, response) => {
+      const chunks: Buffer[] = [];
+      request.on('data', chunk => chunks.push(chunk));
+      request.on('end', () => {
+        response.writeHead(200, { 'content-type': 'application/json' });
+        response.end(JSON.stringify({
+          method: request.method,
+          title: 'Ess\u00e9nce',
+          body: Buffer.concat(chunks).toString('utf8'),
+        }));
+      });
+    });
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+    const { port } = server.address() as import('node:net').AddressInfo;
+    try {
+      const output = await run(`
+        const response = await page.request.get('http://127.0.0.1:${port}/api');
+        const posted = await page.request.post('http://127.0.0.1:${port}/api', {
+          data: { ok: true },
+        });
+        return {
+          status: response.status(),
+          text: await response.text(),
+          json: await response.json(),
+          posted: await posted.json(),
+        };
+      `);
+
+      expect(output.result).toEqual({
+        status: 200,
+        text: '{"method":"GET","title":"Ess\u00e9nce","body":""}',
+        json: { method: 'GET', title: 'Ess\u00e9nce', body: '' },
+        posted: { method: 'POST', title: 'Ess\u00e9nce', body: '{"ok":true}' },
+      });
+    } finally {
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }
   });
 
   it('waits for downloads', async () => {
