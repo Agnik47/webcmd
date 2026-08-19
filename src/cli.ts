@@ -19,14 +19,14 @@ import './fetch/command.js';
 import { commandListPresentation, filterCommandsByTag, toPresentableCommand } from './command-presentation.js';
 import { configureCompletionCommandSurface, configureListCommandSurface, configurePluginInstallSurface, configurePluginListSurface, configurePluginSearchSurface } from './builtin-command-surface.js';
 import { OUTPUT_FORMAT_HELP, resolveOutputFormat } from './command-surface.js';
-import { render as renderOutput } from './output.js';
+import { render as renderOutput, formatErrorEnvelope } from './output.js';
 import { PKG_VERSION } from './version.js';
 import { printCompletionScript } from './completion.js';
 import { loadExternalClis, executeExternalCli, installExternalCli, registerExternalCli, isBinaryInstalled, formatExternalCliLabel } from './external.js';
 import { addWebcmdSkills, listWebcmdSkills, removeWebcmdSkills, updateWebcmdSkill, type WebcmdSkillAddResult } from './skills.js';
 import { registerAllCommands } from './commanderAdapter.js';
 import { buildRootHelpPresentation, classifyAdapter, installCommanderNamespaceStructuredHelp, installRootPresentationHelp, leadingPositionalFromUsage, rootHelpData, type RootAdapterGroups } from './help.js';
-import { EXIT_CODES, getErrorMessage, BrowserConnectError, CliError, ArgumentError } from './errors.js';
+import { EXIT_CODES, getErrorMessage, toEnvelope, BrowserConnectError, CliError, ArgumentError } from './errors.js';
 import { TargetError, type TargetErrorCode } from './browser/target-errors.js';
 import { resolveTargetJs, getTextResolvedJs, getValueResolvedJs, getAttributesResolvedJs, selectResolvedJs, isAutocompleteResolvedJs, type ResolveOptions, type TargetMatchLevel } from './browser/target-resolver.js';
 import { buildFindJs, buildSemanticFindJs, isFindError, type FindResult, type FindError, type SemanticFindOptions } from './browser/find.js';
@@ -667,56 +667,67 @@ export function createProgram(BUILTIN_CLIS: string, USER_CLIS: string, pluginsDi
 
   // ── Built-in: validate / verify ───────────────────────────────────────────
 
-  program
+  const validateCmd = program
     .command('validate')
     .description('Validate CLI definitions')
     .argument('[target]', 'site or site/name')
-    .action(async (target) => {
-      const { validateClisWithTarget, renderValidationReport } = await import('./validate.js');
-      console.log(renderValidationReport(validateClisWithTarget([BUILTIN_CLIS, USER_CLIS], target)));
-    });
+    .option('-f, --format <fmt>', OUTPUT_FORMAT_HELP, 'table');
+  validateCmd.action(async (target, opts) => {
+    const fmt = resolveOutputFormat(opts.format);
+    if (fmt === null) return;
+    const fmtExplicit = validateCmd.getOptionValueSource('format') === 'cli';
+    const { validateClisWithTarget, renderValidationReport } = await import('./validate.js');
+    const report = validateClisWithTarget([BUILTIN_CLIS, USER_CLIS], target);
+    if (fmt === 'table') console.log(renderValidationReport(report));
+    else await renderOutput(report, { fmt, fmtExplicit });
+  });
 
-  program
+  const verifyCmd = program
     .command('verify')
     .description('Validate + smoke test')
     .argument('[target]')
     .option('--smoke', 'Run smoke tests', false)
-    .action(async (target, opts) => {
-      const { verifyClis, renderVerifyReport } = await import('./verify.js');
-      const r = await verifyClis({ builtinClis: BUILTIN_CLIS, userClis: USER_CLIS, target, smoke: opts.smoke });
-      console.log(renderVerifyReport(r));
-      process.exitCode = r.ok ? EXIT_CODES.SUCCESS : EXIT_CODES.GENERIC_ERROR;
+    .option('-f, --format <fmt>', OUTPUT_FORMAT_HELP, 'table');
+  verifyCmd.action(async (target, opts) => {
+    const fmt = resolveOutputFormat(opts.format);
+    if (fmt === null) return;
+    const fmtExplicit = verifyCmd.getOptionValueSource('format') === 'cli';
+    const { verifyClis, renderVerifyReport } = await import('./verify.js');
+    const r = await verifyClis({ builtinClis: BUILTIN_CLIS, userClis: USER_CLIS, target, smoke: opts.smoke });
+    if (fmt === 'table') console.log(renderVerifyReport(r));
+    else await renderOutput(r, { fmt, fmtExplicit });
+    process.exitCode = r.ok ? EXIT_CODES.SUCCESS : EXIT_CODES.GENERIC_ERROR;
+  });
+
+  // Bare `skills` and `skills list` render the same rows; the only difference is
+  // the invocation reported in the table footer.
+  const renderSkillsList = (fmt: string, fmtExplicit: boolean, source: string): Promise<void> =>
+    renderOutput(listWebcmdSkills(), {
+      fmt,
+      fmtExplicit,
+      columns: ['name', 'description', 'version', 'path'],
+      title: 'webcmd/skills/list',
+      source,
     });
 
   const skillsCmd = program
     .command('skills')
     .description('List, add, update, and remove bundled Webcmd skills')
-    .action(() => {
-      const rows = listWebcmdSkills();
-      renderOutput(rows, {
-        fmt: 'table',
-        fmtExplicit: false,
-        columns: ['name', 'description', 'version', 'path'],
-        title: 'webcmd/skills/list',
-        source: 'webcmd skills',
-      });
-    });
+    .option('-f, --format <fmt>', OUTPUT_FORMAT_HELP, 'table');
+  skillsCmd.action(async (opts) => {
+    const fmt = resolveOutputFormat(opts.format);
+    if (fmt === null) return;
+    await renderSkillsList(fmt, skillsCmd.getOptionValueSource('format') === 'cli', 'webcmd skills');
+  });
 
   const skillsListCmd = skillsCmd
     .command('list')
     .description('List bundled Webcmd skills')
     .option('-f, --format <fmt>', OUTPUT_FORMAT_HELP, 'table');
-  skillsListCmd.action((opts) => {
+  skillsListCmd.action(async (opts) => {
     const fmt = resolveOutputFormat(opts.format);
     if (fmt === null) return;
-    const rows = listWebcmdSkills();
-    renderOutput(rows, {
-      fmt,
-      fmtExplicit: skillsListCmd.getOptionValueSource('format') === 'cli',
-      columns: ['name', 'description', 'version', 'path'],
-      title: 'webcmd/skills/list',
-      source: 'webcmd skills list',
-    });
+    await renderSkillsList(fmt, skillsListCmd.getOptionValueSource('format') === 'cli', 'webcmd skills list');
   });
 
   skillsCmd
@@ -898,6 +909,21 @@ export function createProgram(BUILTIN_CLIS: string, USER_CLIS: string, pluginsDi
     .description('Run Playwright programs against an explicit browser Session');
   const originalBrowserDescription = browser.description();
 
+  // Retired browser subcommands. `fork` was a duplicate of `adapter override`
+  // that never appeared in the docs; commander's bare "unknown command" leaves
+  // the caller with no way to find the replacement, so name it.
+  const RETIRED_BROWSER_SUBCOMMANDS: Record<string, string> = {
+    fork: `${CLI_COMMAND} adapter override <site>/<command>`,
+  };
+  browser.on('command:*', (operands: string[]) => {
+    const name = operands[0]!;
+    const replacement = RETIRED_BROWSER_SUBCOMMANDS[name];
+    console.error(replacement
+      ? `error: '${CLI_COMMAND} browser ${name}' was removed. Use: ${replacement}`
+      : `error: unknown command '${name}'`);
+    process.exitCode = EXIT_CODES.USAGE_ERROR;
+  });
+
   // ── Init (adapter scaffolding) ──
 
   browser.command('init')
@@ -964,11 +990,6 @@ cli({
         process.exitCode = EXIT_CODES.GENERIC_ERROR;
       }
     });
-
-  browser.command('fork')
-    .argument('<name>', 'Command to fork in site/command format')
-    .description('Fork an installed plugin command into a private copy')
-    .action(handleAdapterOverride);
 
   // ── Verify (test adapter) ──
 
@@ -1307,16 +1328,21 @@ cli({
     }))));
   // ── Built-in: doctor / completion ──────────────────────────────────────────
 
-  program
+  const doctorCmd = program
     .command('doctor')
     .description('Diagnose webcmd browser bridge connectivity')
     .option('-v, --verbose', 'Debug output')
-    .action(async (opts) => {
-      applyVerbose(opts);
-      const { runBrowserDoctor, renderBrowserDoctorReport } = await import('./doctor.js');
-      const report = await runBrowserDoctor({ cliVersion: PKG_VERSION });
-      console.log(renderBrowserDoctorReport(report));
-    });
+    .option('-f, --format <fmt>', OUTPUT_FORMAT_HELP, 'table');
+  doctorCmd.action(async (opts) => {
+    applyVerbose(opts);
+    const fmt = resolveOutputFormat(opts.format);
+    if (fmt === null) return;
+    const fmtExplicit = doctorCmd.getOptionValueSource('format') === 'cli';
+    const { runBrowserDoctor, renderBrowserDoctorReport } = await import('./doctor.js');
+    const report = await runBrowserDoctor({ cliVersion: PKG_VERSION });
+    if (fmt === 'table') console.log(renderBrowserDoctorReport(report));
+    else await renderOutput(report, { fmt, fmtExplicit });
+  });
 
   configureCompletionCommandSurface(program.command('completion'))
     .action((shell: string) => {
@@ -1837,11 +1863,13 @@ cli({
   adapterCmd.command('path').argument('<command>').action((commandKey: string) => reportLocalAdapterPath(commandKey));
 
   // ── Built-in: browser profile selection ──────────────────────────────────
+  const PROFILE_LIST_COLUMNS = ['contextId', 'alias', 'default', 'connected', 'runtimeVersion'];
+
   const profileCmd = program.command('profile').description('Manage webcmd browser runtime profiles');
   // Snapshot before applyRootSubcommandSummaries() rewrites .description() to a child-name listing.
   const originalProfileDescription = profileCmd.description();
 
-  profileCmd
+  const profileListCmd = profileCmd
     .command('list')
     .description('List Chrome and Chromium profiles available through the Cloak runtime')
     .option('-f, --format <fmt>', OUTPUT_FORMAT_HELP, 'table')
@@ -1954,10 +1982,15 @@ cli({
   const daemonCmd = program.command('daemon').description('Manage the webcmd daemon');
   // Snapshot before applyRootSubcommandSummaries() rewrites .description() to a child-name listing.
   const originalDaemonDescription = daemonCmd.description();
-  daemonCmd
+  const daemonStatusCmd = daemonCmd
     .command('status')
     .description('Show daemon status')
-    .action(async () => { await daemonStatus(); });
+    .option('-f, --format <fmt>', OUTPUT_FORMAT_HELP, 'table');
+  daemonStatusCmd.action(async (opts) => {
+    const fmt = resolveOutputFormat(opts.format);
+    if (fmt === null) return;
+    await daemonStatus({ fmt, fmtExplicit: daemonStatusCmd.getOptionValueSource('format') === 'cli' });
+  });
   daemonCmd
     .command('stop')
     .description('Stop the daemon')
@@ -2130,8 +2163,31 @@ export async function loadAntigravityServe(pluginsDir: string = PLUGINS_DIR): Pr
   return import(pathToFileURL(path.join(pluginsDir, 'antigravity', 'serve.js')).href);
 }
 
-export function runCli(BUILTIN_CLIS: string, USER_CLIS: string): void {
-  createProgram(BUILTIN_CLIS, USER_CLIS).parse();
+/**
+ * Run the local CLI, reporting anything a built-in command throws as the same
+ * error envelope adapter commands already emit.
+ *
+ * Built-in actions used to have no handler at all: `parse()` does not await
+ * async actions, so a throw either crashed with a raw Node stack trace or
+ * surfaced as an unhandled rejection, and the `exitCode` the error carried was
+ * lost. `parseAsync` lets the rejection reach this catch.
+ */
+export async function runCli(BUILTIN_CLIS: string, USER_CLIS: string): Promise<void> {
+  try {
+    await createProgram(BUILTIN_CLIS, USER_CLIS).parseAsync();
+  } catch (err) {
+    reportCliError(err);
+  }
+}
+
+/** Render a thrown error as the shared envelope and set the exit code it carries. */
+export function reportCliError(err: unknown, stderr: NodeJS.WritableStream = process.stderr): void {
+  const envelope = toEnvelope(err);
+  if (process.env.WEBCMD_DEBUG && err instanceof Error && err.stack) {
+    envelope.error.stack = err.stack;
+  }
+  stderr.write(formatErrorEnvelope(envelope));
+  process.exitCode = envelope.error.exitCode;
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
