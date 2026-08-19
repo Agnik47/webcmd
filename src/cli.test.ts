@@ -1677,6 +1677,158 @@ describe('browser verify', () => {
       fs.rmSync(fakeHome, { recursive: true, force: true });
     }
   });
+
+  describe('structured output', () => {
+    const consoleLogSpy = vi.mocked(console.log);
+
+    /**
+     * Runs `browser verify` against a throwaway adapter under a temp HOME and
+     * returns whatever reached stdout. Every structured-output case needs the
+     * same scaffolding; only the adapter rows and argv differ.
+     */
+    const runVerify = async (
+      slug: string,
+      adapterOutput: string,
+      argv: string[],
+      seedFixture?: unknown,
+    ): Promise<string> => {
+      const originalHome = process.env.HOME;
+      const originalUserProfile = process.env.USERPROFILE;
+      const fakeHome = fs.mkdtempSync(path.join(os.tmpdir(), `webcmd-browser-verify-${slug}-`));
+      process.env.HOME = fakeHome;
+      process.env.USERPROFILE = fakeHome;
+      mockExecFileSync.mockReturnValue(adapterOutput);
+      consoleLogSpy.mockClear();
+
+      try {
+        const adapterDir = path.join(fakeHome, '.webcmd', 'clis', 'hn');
+        fs.mkdirSync(adapterDir, { recursive: true });
+        fs.writeFileSync(path.join(adapterDir, 'top.js'), 'export default {};\n', 'utf-8');
+
+        if (seedFixture !== undefined) {
+          const verifyDir = path.join(fakeHome, '.webcmd', 'sites', 'hn', 'verify');
+          fs.mkdirSync(verifyDir, { recursive: true });
+          fs.writeFileSync(path.join(verifyDir, 'top.json'), JSON.stringify(seedFixture), 'utf-8');
+        }
+
+        await createProgram('', '').parseAsync(['node', 'webcmd', '--session', 'test', 'browser', 'verify', 'hn/top', ...argv]);
+        return consoleLogSpy.mock.calls.map((args) => args.join(' ')).join('\n');
+      } finally {
+        consoleLogSpy.mockClear();
+        if (originalHome === undefined) delete process.env.HOME;
+        else process.env.HOME = originalHome;
+        if (originalUserProfile === undefined) delete process.env.USERPROFILE;
+        else process.env.USERPROFILE = originalUserProfile;
+        fs.rmSync(fakeHome, { recursive: true, force: true });
+      }
+    };
+
+    it('reports a fixture-less pass as a structured report with no prose', async () => {
+      const stdout = await runVerify('json-pass', JSON.stringify([{ title: 'ok' }]), ['--no-fixture', '-f', 'json']);
+
+      expect(process.exitCode).toBeUndefined();
+      const report = JSON.parse(stdout);
+      expect(report).toMatchObject({
+        ok: true,
+        site: 'hn',
+        command: 'top',
+        rowCount: 1,
+        fixture: { exists: false, action: 'none' },
+      });
+      expect(report.memory).toMatchObject({ ok: false });
+      // The emoji progress report is the table rendering; it must not leak into JSON.
+      expect(stdout).not.toContain('🔍');
+      expect(stdout).not.toContain('Verifying');
+    });
+
+    it('reports row-shape violations as structured failures', async () => {
+      const stdout = await runVerify(
+        'json-shape',
+        JSON.stringify([{ title: 'ok', author: { user_id: 'u1' } }]),
+        ['--no-fixture', '-f', 'json'],
+      );
+
+      expect(process.exitCode).toBe(1);
+      const report = JSON.parse(stdout);
+      expect(report.ok).toBe(false);
+      expect(report.rowCount).toBe(1);
+      expect(report.shapeFailures).toEqual(
+        expect.arrayContaining([expect.objectContaining({ rule: 'shapeNestedId' })]),
+      );
+      expect(stdout).not.toContain('violates row shape conventions');
+    });
+
+    it('reports fixture mismatches as structured failures', async () => {
+      const stdout = await runVerify(
+        'json-mismatch',
+        JSON.stringify([{ title: 'actual' }]),
+        ['-f', 'json'],
+        { expect: { columns: ['title'], rowCount: { min: 5 } } },
+      );
+
+      expect(process.exitCode).toBe(1);
+      const report = JSON.parse(stdout);
+      expect(report.ok).toBe(false);
+      expect(report.fixture).toMatchObject({ exists: true });
+      expect(report.matchFailures).toEqual(
+        expect.arrayContaining([expect.objectContaining({ rule: 'rowCount' })]),
+      );
+    });
+
+    it('reports a missing adapter as a structured error', async () => {
+      const originalHome = process.env.HOME;
+      const originalUserProfile = process.env.USERPROFILE;
+      const fakeHome = fs.mkdtempSync(path.join(os.tmpdir(), 'webcmd-browser-verify-json-missing-'));
+      process.env.HOME = fakeHome;
+      process.env.USERPROFILE = fakeHome;
+      consoleLogSpy.mockClear();
+
+      try {
+        await createProgram('', '').parseAsync(['node', 'webcmd', '--session', 'test', 'browser', 'verify', 'hn/top', '-f', 'json']);
+
+        expect(process.exitCode).toBe(1);
+        const report = JSON.parse(consoleLogSpy.mock.calls.map((args) => args.join(' ')).join('\n'));
+        expect(report).toMatchObject({
+          ok: false,
+          site: 'hn',
+          command: 'top',
+          error: { code: 'ADAPTER_NOT_FOUND' },
+        });
+      } finally {
+        consoleLogSpy.mockClear();
+        if (originalHome === undefined) delete process.env.HOME;
+        else process.env.HOME = originalHome;
+        if (originalUserProfile === undefined) delete process.env.USERPROFILE;
+        else process.env.USERPROFILE = originalUserProfile;
+        fs.rmSync(fakeHome, { recursive: true, force: true });
+      }
+    });
+
+    it('rejects an unsupported format before running the adapter', async () => {
+      const originalHome = process.env.HOME;
+      const originalUserProfile = process.env.USERPROFILE;
+      const fakeHome = fs.mkdtempSync(path.join(os.tmpdir(), 'webcmd-browser-verify-json-badfmt-'));
+      process.env.HOME = fakeHome;
+      process.env.USERPROFILE = fakeHome;
+
+      try {
+        const adapterDir = path.join(fakeHome, '.webcmd', 'clis', 'hn');
+        fs.mkdirSync(adapterDir, { recursive: true });
+        fs.writeFileSync(path.join(adapterDir, 'top.js'), 'export default {};\n', 'utf-8');
+
+        await createProgram('', '').parseAsync(['node', 'webcmd', '--session', 'test', 'browser', 'verify', 'hn/top', '--no-fixture', '-f', 'xml']);
+
+        expect(process.exitCode).toBe(2);
+        expect(mockExecFileSync).not.toHaveBeenCalled();
+      } finally {
+        if (originalHome === undefined) delete process.env.HOME;
+        else process.env.HOME = originalHome;
+        if (originalUserProfile === undefined) delete process.env.USERPROFILE;
+        else process.env.USERPROFILE = originalUserProfile;
+        fs.rmSync(fakeHome, { recursive: true, force: true });
+      }
+    });
+  });
 });
 
 describe('profile list', () => {

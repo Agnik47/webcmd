@@ -201,8 +201,10 @@ Scaffolding and checks:
 webcmd browser init <site>/<command>
 webcmd validate [target]
 webcmd verify [target] [--smoke]
-webcmd browser verify <site>/<command>
+webcmd browser verify <site>/<command> [-f json]
 ```
+
+`browser verify -f json` returns the verification result as data rather than the progress report: `ok`, `site`, `command`, `rowCount`, a `fixture` block, and a `memory` block, plus `shapeFailures`, `matchFailures`, or an `error.code` when it fails. Parse that instead of scraping the ✓/✗ text.
 
 Adapters import only `@agentrhq/webcmd/registry` and `@agentrhq/webcmd/errors`. `columns` must align one-to-one, in name and order, with returned row object keys. See `webcmd-adapter-author`.
 
