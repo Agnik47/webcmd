@@ -1141,14 +1141,11 @@ describe('runHostedCli', () => {
       fetchImpl: async () => manifestResponse(),
     });
 
-    expect(result).toEqual({ handled: true, exitCode: 1 });
+    // Usage error: exit 2, one line plus the valid subcommands.
+    expect(result).toEqual({ handled: true, exitCode: 2 });
     expect(stderr.text()).toBe([
       "error: unknown command 'missing-command'",
-      'ok: false',
-      'error:',
-      "  code: UNKNOWN",
-      "  message: 'error: unknown command ''missing-command'''",
-      '  exitCode: 1',
+      'help: valid subcommands for `webcmd github`: whoami',
       '',
     ].join('\n'));
     expect(stdout.text()).toBe('');
@@ -1166,14 +1163,11 @@ describe('runHostedCli', () => {
       fetchImpl: async () => new Response(JSON.stringify({ ok: true, manifest: requiredManifest }), { status: 200 }),
     });
 
-    expect(result).toEqual({ handled: true, exitCode: 1 });
+    // Usage error: exit 2, one line plus the usage restatement.
+    expect(result).toEqual({ handled: true, exitCode: 2 });
     expect(stderr.text()).toBe([
       "error: missing required argument 'account'",
-      'ok: false',
-      'error:',
-      "  code: UNKNOWN",
-      "  message: 'error: missing required argument ''account'''",
-      '  exitCode: 1',
+      'help: usage: webcmd github whoami [options] <account>',
       '',
     ].join('\n'));
     expect(stdout.text()).toBe('');
@@ -1348,8 +1342,9 @@ describe('runHostedCli', () => {
       fetchImpl: async () => new Response(JSON.stringify({ ok: true, manifest: precedenceManifest }), { status: 200 }),
     });
 
-    expect(result).toEqual({ handled: true, exitCode: 1 });
-    expect(stderr.text()).toContain("error: missing required argument 'account'\nok: false\nerror:\n  code: UNKNOWN\n");
+    // Usage error: exit 2, one line plus the usage restatement.
+    expect(result).toEqual({ handled: true, exitCode: 2 });
+    expect(stderr.text()).toContain("error: missing required argument 'account'\nhelp: usage: webcmd github whoami");
     expect(stdout.text()).toBe('');
   });
 
@@ -1392,28 +1387,32 @@ describe('runHostedCli', () => {
     {
       name: 'required named option before invalid format',
       tail: ['account', '-f', 'xml'],
-      exitCode: 1,
+      exitCode: 2,
+      usage: true,
       stderr: "error: required option '--token <value>' not specified\n",
       help: false,
     },
     {
       name: 'required named option before invalid trace',
       tail: ['account', '--trace', 'always'],
-      exitCode: 1,
+      exitCode: 2,
+      usage: true,
       stderr: "error: required option '--token <value>' not specified\n",
       help: false,
     },
     {
       name: 'required named option before invalid choice',
       tail: ['account', '--mode', 'bad'],
-      exitCode: 1,
+      exitCode: 2,
+      usage: true,
       stderr: "error: required option '--token <value>' not specified\n",
       help: false,
     },
     {
       name: 'required positional before invalid format',
       tail: ['--token', 'secret', '-f', 'xml'],
-      exitCode: 1,
+      exitCode: 2,
+      usage: true,
       stderr: "error: missing required argument 'account'\n",
       help: false,
     },
@@ -1434,11 +1433,12 @@ describe('runHostedCli', () => {
     {
       name: 'ordinary excess positional',
       tail: ['account', 'extra', '--token', 'secret'],
-      exitCode: 1,
+      exitCode: 2,
+      usage: true,
       stderr: "error: too many arguments for 'whoami'. Expected 1 argument but got 2.\n",
       help: false,
     },
-  ])('matches public Commander structural bytes and discovery order: $name', async ({ name, tail, exitCode, stderr: expectedStderr, help }) => {
+  ])('matches public Commander structural bytes and discovery order: $name', async ({ name, tail, exitCode, stderr: expectedStderr, help, usage }) => {
     const structuralManifest = manifestWithStructuralArguments();
     const stdout = sink();
     const stderr = sink();
@@ -1460,6 +1460,11 @@ describe('runHostedCli', () => {
     } else if (name === 'ordinary unknown option') {
       expect(stderr.text().startsWith(expectedStderr)).toBe(true);
       expect(stderr.text()).toContain('help: valid flags for');
+    } else if (usage) {
+      // Usage error: the Commander line, a `help:` line, and no UNKNOWN envelope.
+      expect(stderr.text().startsWith(expectedStderr)).toBe(true);
+      expect(stderr.text()).toContain('help: usage: webcmd github whoami');
+      expect(stderr.text()).not.toContain('ok: false');
     } else {
       expect(stderr.text()).toContain(`${expectedStderr}ok: false\nerror:\n  code: UNKNOWN\n`);
     }
