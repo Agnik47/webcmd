@@ -2,37 +2,38 @@
 
 ## [0.7.5](https://github.com/agentrhq/webcmd/compare/webcmd-v0.7.4...webcmd-v0.7.5) (2026-08-24)
 
+### Improvements
+- Standardized output formatting across built-in command leaves. `-f/--format` and `--json` are now consistently accepted, and action commands return structured results when a machine-readable format is requested.
+- Expanded `browser run` guidance with examples for navigation, uploads, downloads, popups, data URLs, and sandbox limits. Empty runs now warn when they capture no result, logs, artifacts, or snapshot changes, and Node-only `require`/`fs` attempts return actionable guidance.
+- Clarified that `webcmd plugin search` searches the installable plugin catalog—not the web. Results now include catalog metadata, and empty results suggest an appropriate `webcmd web fetch` command for web research.
+- `webcmd plugin install <name>` now resolves exact catalog matches to their real `installSource`, or directs you to `webcmd plugin search` when no exact match is available.
+- Reduced startup noise for help and machine-readable built-in output by suppressing maintenance, update, and compatibility-shim messages on those paths. Plugin startup hooks still run during actual plugin command execution.
+- Added `WEBCMD_DAEMON_PORT` support for configuring the daemon port, with invalid values falling back to port 9777.
+- Updated agent guidance to use `webcmd web fetch --url <url>` before browser escalation or non-Webcmd HTTP clients. Browser fallback remains gated on `FETCH_BLOCKED` or `FETCH_REQUIRES_BROWSER`.
+- Refreshed the Pi BU Bench report and reproducibility instructions. The benchmark harness now also supports browser-use, agent-browser, and playwright-cli against dedicated CloakBrowser sessions.
 
-### Features
+### Fixes
+- Standardized common CLI usage failures—including unknown commands or options, missing arguments or required options, excess arguments, and invalid arguments—to exit with code 2. Explicit JSON or YAML requests now receive one structured error envelope; human output receives one error with relevant help.
+- Unknown commands now suggest nearby registered commands and canonical alternatives, such as `webcmd adapters` → `webcmd adapter` and `webcmd fetch` → `webcmd web fetch`. Unknown namespace subcommands also list valid choices without writing misleading help output to stdout.
+- Fixed duplicate usage-error output in hosted mode and aligned hosted subcommand lists with local CLI behavior.
+- `session close` now accepts either `webcmd session close <session-id>` or the root `--session <session-id>` selector. Closing an unknown or already-closed Session is idempotent, while malformed IDs still return a usage error.
+- Cross-Profile Session lookups now identify the owning Profile and provide an exact retry command. Cross-Profile closes are no longer incorrectly reported as already completed, and `session list` displays its Profile scope.
+- Download wait timeouts no longer encourage callers to invent file contents. They now recommend saving the actual download event with `download.saveAs(download.suggestedFilename())`, or reporting that no event occurred.
+- Popup and new-tab waits now use a short default timeout and provide safer recovery guidance using `context.newPage()` rather than navigating the opener. Diagnostics also explain that Chrome blocks top-level `data:` popups even when `window.open()` returns a Window object.
+- Raw observation text now redacts Basic, Negotiate, and NTLM authorization credentials in addition to Bearer tokens.
 
-* **fetch:** add --raw to web fetch for selector discovery ([#419](https://github.com/agentrhq/webcmd/issues/419)) ([d4ecfbc](https://github.com/agentrhq/webcmd/commit/d4ecfbc914c1b718a6b951ed38b837c19e96bac8))
-* **npm:** add versions command ([d999c1a](https://github.com/agentrhq/webcmd/commit/d999c1ab7c13f5ae649d515ac1f255ee6804c5dc))
+### Adapters
+- Added `webcmd reddit draft-comment`, which opens a Reddit post and inserts text into a fresh, persistent visible composer without submitting the comment.
+- Added `--raw` to `webcmd web fetch` for retrieving the original response body, supporting CSS selector discovery, meta tags, and inline script inspection. Raw output reports byte length and explicit truncation metadata while preserving existing fetch safety and challenge handling.
+- Improved adapter repair guidance for `EMPTY_RESULT`, selector failures, and related errors. JSON error envelopes now direct users to `webcmd adapter path <site>/<command>`, the `webcmd-autofix` skill, and `--trace retain-on-failure` instead of suggesting login or an unrelated API.
+- `webcmd adapter path` now accepts either `site/command` or two positional tokens, such as `webcmd adapter path quotes list`.
+- Hardened the REST Countries adapter’s handling of retired v3.1 responses. Deprecation envelopes are now reported as command execution failures with adapter-repair guidance rather than empty results.
+- Improved local adapter discovery by detecting runtime imports instead of matching call-like source text. Adapter load failures now surface their file and cause, and `adapter status` reports failed files. `cli()` is the supported adapter-authoring entry point.
+- Clarified adapter authoring workflows across `browser init`, `adapter override`, `adapter path`, plugin scaffolds, and site-memory commands, including when to create a private adapter versus override an installed command.
+- Added descriptions, argument and option guidance, examples, grammar notes, and structured YAML/JSON help throughout the `webcmd site` command tree.
 
-
-### Bug Fixes
-
-* agent-browser and playwright cli support added for benchmarks ([#430](https://github.com/agentrhq/webcmd/issues/430)) ([c5f48c7](https://github.com/agentrhq/webcmd/commit/c5f48c7fbab65d48b58fe528aa53c272afd9557b))
-* benchmark setup and report updated  ([#395](https://github.com/agentrhq/webcmd/issues/395)) ([e48cb3a](https://github.com/agentrhq/webcmd/commit/e48cb3a0994fd9c6ff20a2fbf725977417a066ca))
-* **browser:** improve run agent ergonomics ([#409](https://github.com/agentrhq/webcmd/issues/409)) ([02e0d82](https://github.com/agentrhq/webcmd/commit/02e0d827c411559cb323bb0092cb1ea52b8e6762))
-* **cli:** accept -f/--format and --json on every command ([#425](https://github.com/agentrhq/webcmd/issues/425)) ([0b4a445](https://github.com/agentrhq/webcmd/commit/0b4a4455c3e1b55c46f307fca5ba2038bd02415d))
-* **cli:** add recovery hints for common misguesses ([#410](https://github.com/agentrhq/webcmd/issues/410)) ([b2f3098](https://github.com/agentrhq/webcmd/commit/b2f3098e808e86310a8c2f43c1e28b52bcb14177))
-* **cli:** clarify adapter authoring help ([#408](https://github.com/agentrhq/webcmd/issues/408)) ([aa38134](https://github.com/agentrhq/webcmd/commit/aa3813414b9b2998ee3cc302c9246daf3923afd5))
-* **cli:** close eval gaps for formats, profiles, and plugins ([8c5ce29](https://github.com/agentrhq/webcmd/commit/8c5ce29150fcb74fcdfcd2d053c801554ff29dfa))
-* **cli:** discover adapters authored with registerCommand ([#423](https://github.com/agentrhq/webcmd/issues/423)) ([fc507cd](https://github.com/agentrhq/webcmd/commit/fc507cdc4103b3b34e9472e6d8881bfe84e623dc))
-* **cli:** do not report a cross-Profile session close as already closed ([#431](https://github.com/agentrhq/webcmd/issues/431)) ([4c91280](https://github.com/agentrhq/webcmd/commit/4c9128089ca64e5fcb414d3a684a99315e48cca7))
-* **cli:** download wait timeout must not tell agents to invent file contents ([#398](https://github.com/agentrhq/webcmd/issues/398)) ([cc28460](https://github.com/agentrhq/webcmd/commit/cc284601e7f8fa63927ef4ce0620f12c1b366909))
-* **cli:** give every site command a description and structured help ([#422](https://github.com/agentrhq/webcmd/issues/422)) ([33b4ae8](https://github.com/agentrhq/webcmd/commit/33b4ae813231fbdc0ea17d122dda08e42c9b30a3))
-* **cli:** label plugin search as catalog discovery, not web search ([#396](https://github.com/agentrhq/webcmd/issues/396)) ([d5c7cc9](https://github.com/agentrhq/webcmd/commit/d5c7cc962bd6944e5dbeb49fee8f6a950b5c7316))
-* **cli:** make session close accept --session and be idempotent ([#420](https://github.com/agentrhq/webcmd/issues/420)) ([78c5e96](https://github.com/agentrhq/webcmd/commit/78c5e96090e538755a6b281e83ca6705972e20f1))
-* **cli:** name the owning Profile when a Session lookup misses ([#406](https://github.com/agentrhq/webcmd/issues/406)) ([f7d57c2](https://github.com/agentrhq/webcmd/commit/f7d57c2040c5d56c05d19ff97a0cf8dd964651b2))
-* **cli:** one error envelope and exit 2 for every usage error ([#424](https://github.com/agentrhq/webcmd/issues/424)) ([78ebdba](https://github.com/agentrhq/webcmd/commit/78ebdbaeef04048099aceca6b34ca0ff5c9ea3a3))
-* **cli:** point EMPTY_RESULT at adapter repair, not login ([#401](https://github.com/agentrhq/webcmd/issues/401)) ([7952285](https://github.com/agentrhq/webcmd/commit/795228590e6c99afb78d371efcdd315b5f3711bd))
-* **cli:** popup wait timeout must not tell agents to page.goto the opener ([#397](https://github.com/agentrhq/webcmd/issues/397)) ([67cad65](https://github.com/agentrhq/webcmd/commit/67cad652684809c00fb4beafdbb15132c1ed04b8))
-* **cli:** resolve installSource from the catalog and name the data: popup block ([#429](https://github.com/agentrhq/webcmd/issues/429)) ([4fa4177](https://github.com/agentrhq/webcmd/commit/4fa417743db7a5f02ee0a9dfed90697f420a6e6f))
-* **cli:** route unknown subcommands through the shared error envelope ([#427](https://github.com/agentrhq/webcmd/issues/427)) ([717c80a](https://github.com/agentrhq/webcmd/commit/717c80aa38b4730e2c315a07e70ea7ec05e037ac))
-* **cli:** suggest the real command instead of a plugin that does not exist ([#421](https://github.com/agentrhq/webcmd/issues/421)) ([0b4e36c](https://github.com/agentrhq/webcmd/commit/0b4e36c2b408c1e5d0bb7a13ff437e653aa94322))
-* **hosted:** stop duplicating usage errors and align the subcommand list ([#428](https://github.com/agentrhq/webcmd/issues/428)) ([54d2dbb](https://github.com/agentrhq/webcmd/commit/54d2dbbb5903af8e8702377dc5af18608931db2b))
-* **observation:** redact Basic/Negotiate/NTLM auth credentials in raw text, not just Bearer ([#426](https://github.com/agentrhq/webcmd/issues/426)) ([a9ccc39](https://github.com/agentrhq/webcmd/commit/a9ccc39f094e8fe0d27ad9f2bb44c38f524e40c0))
+### Contributors
+[@Agnik47](https://github.com/Agnik47) | [@ankitranjan7](https://github.com/ankitranjan7) | [@arzaanxeng](https://github.com/arzaanxeng) | [@beubax](https://github.com/beubax) | [@rishabhraj36](https://github.com/rishabhraj36)
 
 ## [0.7.4](https://github.com/agentrhq/webcmd/compare/webcmd-v0.7.3...webcmd-v0.7.4) (2026-08-19)
 
