@@ -2,10 +2,13 @@
 
 ## [0.7.6](https://github.com/agentrhq/webcmd/compare/webcmd-v0.7.5...webcmd-v0.7.6) (2026-08-24)
 
+### Highlights
+- Added a published programmatic hosted runner through the new `./hosted/programmatic` package export, enabling Webcmd Cloud and other hosted integrations to invoke Webcmd directly.
+- Added virtual in-memory file, stdin, and stdout handling for hosted runs while preserving real-filesystem security protections.
+- Webcmd packages now include MCP-oriented skill documents covering usage, smart search, browser workflows, adapter authoring and repair, and sitemap workflows.
 
-### Features
-
-* **hosted:** add programmatic runner and MCP skill distribution ([#434](https://github.com/agentrhq/webcmd/issues/434)) ([357d6e2](https://github.com/agentrhq/webcmd/commit/357d6e280879af1099f5f3a84f20c59db2d23c98))
+### Contributors
+[@ngaurav](https://github.com/ngaurav)
 
 ## [0.7.5](https://github.com/agentrhq/webcmd/compare/webcmd-v0.7.4...webcmd-v0.7.5) (2026-08-24)
 
