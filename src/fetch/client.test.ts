@@ -39,6 +39,67 @@ describe('webFetch', () => {
     expect(result).toMatchObject({ tier: 'plain', content: 'ok' });
     expect(createImpit).not.toHaveBeenCalled();
   });
+  it.each([
+    ['http://metadata.google.internal/computeMetadata/v1/', 'metadata.google.internal'],
+    ['http://MeTaDaTa.GoOgLe.InTeRnAl./computeMetadata/v1/', 'metadata.google.internal'],
+    ['http://metadata.azure.internal/metadata/instance', 'metadata.azure.internal'],
+    ['http://instance-data/latest/meta-data/', 'instance-data'],
+  ])('rejects metadata hostname %s before creating a proxy or fetching', async (url, normalizedHost) => {
+    const plainFetch = vi.fn();
+    const createSafeProxy = vi.fn();
+    await expect(webFetch({ url, timeoutSeconds: 5, maxChars: 0, allowPrivate: false }, {
+      plainFetch,
+      createImpit: vi.fn(),
+      createSafeProxy,
+    })).rejects.toMatchObject({
+      code: 'FETCH_UNSAFE_ADDRESS',
+      message: `Unsafe fetch destination: ${normalizedHost}`,
+    });
+    expect(createSafeProxy).not.toHaveBeenCalled();
+    expect(plainFetch).not.toHaveBeenCalled();
+  });
+  it('does not overblock an ordinary public hostname containing metadata', async () => {
+    const plainFetch = vi.fn().mockResolvedValue(response('public metadata docs'));
+    const result = await webFetch({ url: 'https://metadata.example.com/docs', timeoutSeconds: 5, maxChars: 0, allowPrivate: false }, {
+      plainFetch,
+      createImpit: vi.fn(),
+      createSafeProxy: async () => safeProxy(),
+    });
+    expect(result.content).toBe('public metadata docs');
+    expect(plainFetch).toHaveBeenCalledOnce();
+  });
+  it('follows public redirects manually through the same safe proxy', async () => {
+    const plainFetch = vi.fn()
+      .mockResolvedValueOnce(response('', 302, { location: '/final' }))
+      .mockResolvedValueOnce(response('ok'));
+    const result = await webFetch({ url: 'https://example.com/start', timeoutSeconds: 5, maxChars: 0, allowPrivate: false }, {
+      plainFetch,
+      createImpit: vi.fn(),
+      createSafeProxy: async () => safeProxy(),
+    });
+    expect(plainFetch.mock.calls.map(([url]) => url)).toEqual(['https://example.com/start', 'https://example.com/final']);
+    expect(result).toMatchObject({ requestedUrl: 'https://example.com/start', finalUrl: 'https://example.com/final', content: 'ok' });
+  });
+  it('threads caller cancellation through the request and does not relabel it as a timeout', async () => {
+    const controller = new AbortController();
+    const cancelled = new Error('cancelled by caller');
+    let markStarted!: () => void;
+    const started = new Promise<void>(resolve => { markStarted = resolve; });
+    const plainFetch = vi.fn((_url: string, init?: Record<string, unknown>) => new Promise<never>((_resolve, reject) => {
+      const signal = init?.signal as AbortSignal;
+      markStarted();
+      signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+    }));
+    const pending = webFetch({ url: 'https://example.com', timeoutSeconds: 5, maxChars: 0, allowPrivate: false, signal: controller.signal }, {
+      plainFetch,
+      createImpit: vi.fn(),
+      createSafeProxy: async () => safeProxy(),
+    });
+    await started;
+    controller.abort(cancelled);
+    await expect(pending).rejects.toBe(cancelled);
+    expect((plainFetch.mock.calls[0]?.[1] as { signal?: AbortSignal }).signal?.aborted).toBe(true);
+  });
   it('escalates challenge responses through Chrome then Firefox', async () => {
     const first = { fetch: vi.fn().mockResolvedValue(response('challenge', 403, { server: 'cloudflare', 'content-type': 'text/plain' })) };
     const second = { fetch: vi.fn().mockResolvedValue(response('ok')) };

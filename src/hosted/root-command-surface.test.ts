@@ -700,9 +700,9 @@ describe('hosted root preflight call order', () => {
     expect(stderr.text()).toBe([
       'ok: false',
       'error:',
-      '  code: UNSUPPORTED_SHELL',
+      `  code: ${local.errorCode}`,
       `  message: '${local.errorMessage}'`,
-      '  exitCode: 1',
+      `  exitCode: ${local.exitCode}`,
       '',
     ].join('\n'));
     expect(fetchImpl).not.toHaveBeenCalled();
