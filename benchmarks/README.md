@@ -6,8 +6,7 @@ agent turns per task in this controlled 100-task comparison.
 ## Results
 
 Accuracy counts passed tasks out of 100. Cost and agent turns are averages over
-completed tasks: 99 for Webcmd, browser-use, Playwright CLI, and dev-browser,
-and 100 for agent-browser.
+completed tasks.
 
 ### Accuracy
 
