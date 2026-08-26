@@ -1,4 +1,5 @@
 import { attachTraceReceipt, CliError, EXIT_CODES, type ExitCode } from '../errors.js';
+import { parseExecutionArtifactDownloadUrl } from './artifact-url.js';
 import { log } from '../logger.js';
 import { HOSTED_SESSION_PROTOCOL_VERSION } from './types.js';
 import type {
@@ -388,6 +389,11 @@ export class HostedClient {
       throw hostedFailure(body, response.status === 401 ? EXIT_CODES.NOPERM : EXIT_CODES.GENERIC_ERROR);
     }
     return new Uint8Array(await response.arrayBuffer());
+  }
+
+  async downloadArtifactFromUrl(downloadUrl: string): Promise<Uint8Array> {
+    const ids = parseExecutionArtifactDownloadUrl(downloadUrl, this.apiBaseUrl);
+    return this.downloadExecutionArtifact(ids);
   }
 
   async startBrowserRun(session: string, input: HostedBrowserRunRequest): Promise<HostedBrowserRunResponse> {
