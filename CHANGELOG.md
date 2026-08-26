@@ -2,17 +2,19 @@
 
 ## [0.7.7](https://github.com/agentrhq/webcmd/compare/webcmd-v0.7.6...webcmd-v0.7.7) (2026-08-26)
 
+### Improvements
+- Added `webcmd artifact download <download-url> --output <local-path>` for authenticated downloads of hosted execution artifacts. Download URLs are restricted to the configured Webcmd Cloud API origin to prevent credentials from being sent elsewhere.
+- Published the full 100-task BU Bench V1 report, including accuracy, token usage, estimated controller cost, agent turns, category results, methodology, limitations, and reproduction steps.
 
-### Features
+### Fixes
+- Hosted Cloud failures with object-valued `error.details` now preserve their original error code and include those details in the CLI error envelope instead of being reported as `HOSTED_PROTOCOL`.
+- Site-memory writes on Windows now retry transient `EPERM` errors when creating lock files.
 
-* **hosted:** add authenticated artifact download command ([#438](https://github.com/agentrhq/webcmd/issues/438)) ([0806a0d](https://github.com/agentrhq/webcmd/commit/0806a0df7ea873f0029764014b743d5f6645cf79))
-* **hosted:** send sessionless browser init/verify to authoring route ([#439](https://github.com/agentrhq/webcmd/issues/439)) ([41d17b2](https://github.com/agentrhq/webcmd/commit/41d17b272ca04dff52137ef494293dc97b384b59))
+### Adapters
+- Hosted `webcmd browser init <site>/<command>` and `webcmd browser verify <site>/<command>` now use the dedicated authoring route and no longer require—or accept—`--session`.
 
-
-### Bug Fixes
-
-* **hosted:** accept object error.details from Cloud ([#440](https://github.com/agentrhq/webcmd/issues/440)) ([9dacc8f](https://github.com/agentrhq/webcmd/commit/9dacc8f8ac300f4d739fab1ad231481f35f33fad))
-* **site-memory:** retry transient Windows lock opens ([#446](https://github.com/agentrhq/webcmd/issues/446)) ([157e950](https://github.com/agentrhq/webcmd/commit/157e9509e6cc0063beee8bd4df7900a5842c1a62))
+### Contributors
+[@ankitranjan7](https://github.com/ankitranjan7) | [@beubax](https://github.com/beubax)
 
 ## [0.7.6](https://github.com/agentrhq/webcmd/compare/webcmd-v0.7.5...webcmd-v0.7.6) (2026-08-24)
 
