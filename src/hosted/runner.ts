@@ -18,12 +18,14 @@ import { filterCommandsByTag, formatRootHelp, getCommandCompletionCandidates } f
 import {
   getHostedBuiltinCommands,
   getHostedRootHelp,
+  HOSTED_ROOT_HELP,
   isLocalClientRootCommand,
   LOCAL_ONLY_COMMAND_HELP,
 } from '../completion-shared.js';
 import { splitAdapterCommandKey } from '../adapter-source.js';
 import { ArgumentError, CliError, ConfigError, EXIT_CODES, InterruptedError, toEnvelope } from '../errors.js';
 import { getRequestedHelpFormat, renderStructuredHelp } from '../help.js';
+import { WEBCMD_ROOT_COMMANDS } from '../hooks.js';
 import { enableVerbose } from '../logger.js';
 import { findPackageRoot } from '../package-paths.js';
 import { errorEnvelopeFormat, formatErrorEnvelope, requestedFormatFromArgv, requestedMachineFormat, render as renderOutput } from '../output.js';
@@ -36,6 +38,7 @@ import { BrowserRunError } from '../browser/run/types.js';
 import { CLI_COMMAND } from '../brand.js';
 import { formatPluginSearchEmptyCopy, presentPluginSearch } from '../plugin-search-presentation.js';
 import { missingPluginGuidance } from '../discovery.js';
+import type { ExternalCliConfig } from '../external.js';
 import { webFetchCommand } from '../fetch/command.js';
 import { runHostedArtifactDownload } from './artifact-download.js';
 import { HostedClient, HostedClientError, resolveWorkspace } from './client.js';
@@ -100,6 +103,13 @@ export interface HostedRunnerOptions {
   files?: VirtualFileMap;
   /** When set, every file write lands here instead of the filesystem. */
   outputs?: VirtualOutputSink;
+  /** Explicitly grants access to the installed client's external registry and executor. */
+  externals?: {
+    list(): ExternalCliConfig[];
+    run(name: string, args: string[], configs: ExternalCliConfig[]): number;
+  };
+  /** Optional local roots that are owned only when installed on this client. */
+  installedLocalCommandRoots?: ReadonlySet<string>;
 }
 
 interface HostedDispatchIo {
@@ -119,6 +129,12 @@ export interface HostedRunResult {
 interface TrustedCommandResolution {
   resolvedCommand: string;
   accessClass: 'read' | 'write';
+}
+
+interface DeferredExternalSession {
+  error: BrowserSessionArgvError;
+  args: string[];
+  configs: ExternalCliConfig[];
 }
 
 class CommanderCompatibleError extends Error {
@@ -153,7 +169,28 @@ export async function runHostedCli(argv: string[], opts: HostedRunnerOptions = {
   const stderr = opts.stderr ?? process.stderr;
 
   try {
-    argv = rejectMisplacedSessionSelectorArgv(rejectPositionalBrowserSessionArgv(argv));
+    argv = rejectPositionalBrowserSessionArgv(argv);
+    let deferredExternalSession: DeferredExternalSession | undefined;
+    try {
+      argv = rejectMisplacedSessionSelectorArgv(argv);
+    } catch (error) {
+      if (!(error instanceof BrowserSessionArgvError) || !opts.externals) throw error;
+      const root = parseHostedRootCommandSurface(argv);
+      if (root.kind !== 'dispatch') throw error;
+      const [site, ...args] = root.argv;
+      if (!site || isWebcmdOwnedRoot(site, opts.installedLocalCommandRoots)) throw error;
+      const configs = opts.externals.list();
+      if (!configs.some(config => config.name === site)) throw error;
+      deferredExternalSession = { error, args, configs };
+    }
+    const rootSurface = parseHostedRootCommandSurface(argv);
+    const rootName = rootSurface.kind === 'dispatch' ? rootSurface.argv[0] : undefined;
+    if (rootName === 'validate' || (rootName && opts.installedLocalCommandRoots?.has(rootName))) {
+      throw new ConfigError(`${CLI_COMMAND} ${rootName} is local-only and is not available in hosted mode.`, LOCAL_ONLY_COMMAND_HELP);
+    }
+    const externals = rootName && isWebcmdOwnedRoot(rootName, opts.installedLocalCommandRoots)
+      ? undefined
+      : opts.externals;
     const credential = await resolveHostedApiKey(config, {
       credentialStore: opts.credentialStore,
       env: opts.env,
@@ -168,7 +205,8 @@ export async function runHostedCli(argv: string[], opts: HostedRunnerOptions = {
     const client = new HostedClient({
       apiBaseUrl: config.hosted.apiBaseUrl,
       apiKey: credential.apiKey,
-      workspace: resolveWorkspace(argv, opts.env ?? process.env),
+      workspace: (rootSurface.kind === 'dispatch' ? rootSurface.workspace : undefined)
+        ?? resolveWorkspace([], opts.env ?? process.env),
       fetchImpl: opts.fetchImpl,
       ...(opts.signal ? { signal: opts.signal } : {}),
     });
@@ -183,7 +221,7 @@ export async function runHostedCli(argv: string[], opts: HostedRunnerOptions = {
       fileIo,
       ...(usesVirtualFileIo ? { virtualScaffold: { files: virtualFiles, outputs: virtualOutputs } } : {}),
     };
-    await dispatchHosted(
+    const exitCode = await dispatchHosted(
       argv,
       client,
       stdout,
@@ -195,8 +233,11 @@ export async function runHostedCli(argv: string[], opts: HostedRunnerOptions = {
       opts.hasLocalClientCommandHandlers !== false,
       opts.signal,
       opts.onTrustedCommandResolution,
+      externals,
+      opts.installedLocalCommandRoots,
+      deferredExternalSession,
     );
-    return { handled: true, exitCode: EXIT_CODES.SUCCESS };
+    return { handled: true, exitCode: exitCode ?? EXIT_CODES.SUCCESS };
   } catch (caught) {
     if (caught instanceof StreamWriteError) throw caught;
     const err = opts.signal?.aborted ? new InterruptedError() : caught;
@@ -258,7 +299,13 @@ async function dispatchHosted(
   hasLocalClientCommandHandlers = true,
   signal?: AbortSignal,
   onResolvedCommand?: (resolution: TrustedCommandResolution) => void,
-): Promise<void> {
+  externals?: {
+    list(): ExternalCliConfig[];
+    run(name: string, args: string[], configs: ExternalCliConfig[]): number;
+  },
+  installedLocalCommandRoots?: ReadonlySet<string>,
+  deferredExternalSession?: DeferredExternalSession,
+): Promise<number | undefined> {
   const rootHelp = getHostedRootHelp(hasLocalClientCommandHandlers);
   const normalized = parseHostedRootCommandSurface(argv);
   if (normalized.kind === 'help') {
@@ -503,7 +550,25 @@ async function dispatchHosted(
   const site = args[0]!;
   const commandName = args[1];
   const siteExists = manifest.commands.some(command => command.site === site);
+  if (siteExists && deferredExternalSession) throw deferredExternalSession.error;
   if (!siteExists) {
+    // Externals are local binaries, not adapters: registry lookup, PATH check,
+    // spawn. Nothing reaches Cloud. This runs before parseUnknownSiteRootOptions
+    // so `webcmd gh --version` forwards --version to gh, matching the local
+    // passThroughOptions() behavior instead of printing the webcmd version.
+    if (externals) {
+      const externalConfigs = deferredExternalSession?.configs ?? externals.list();
+      if (externalConfigs.some(config => config.name === site)) {
+        if (isWebcmdOwnedRoot(site, installedLocalCommandRoots)) {
+          throw new ConfigError(`${CLI_COMMAND} ${site} is local-only and is not available in hosted mode.`, LOCAL_ONLY_COMMAND_HELP);
+        }
+        return externals.run(
+          site,
+          deferredExternalSession?.args ?? args.slice(1),
+          externalConfigs,
+        );
+      }
+    }
     const unknownRoot = parseUnknownSiteRootOptions(args, normalized.literal);
     if (unknownRoot.version) {
       await writeToStream(stdout, `${PKG_VERSION}\n`);
@@ -1618,6 +1683,15 @@ function parseUnknownSiteRootOptions(
     if (token === '--help' || token === '-h') help = true;
   }
   return { help, version: false, ...(profile !== undefined ? { profile } : {}) };
+}
+
+function isWebcmdOwnedRoot(name: string, installedLocalCommandRoots?: ReadonlySet<string>): boolean {
+  return isUnconditionalWebcmdRoot(name) || installedLocalCommandRoots?.has(name) === true;
+}
+
+function isUnconditionalWebcmdRoot(name: string): boolean {
+  return WEBCMD_ROOT_COMMANDS.has(name)
+    || HOSTED_ROOT_HELP.commands.some(command => command.name.split(/\s/, 1)[0] === name);
 }
 
 function hasTerminalBeforeSeparator(

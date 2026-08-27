@@ -68,6 +68,7 @@ import { resolveAdapterSourcePath, splitAdapterCommandKey } from './adapter-sour
 
 const CLI_FILE = fileURLToPath(import.meta.url);
 const FOLLOW_POLL_MS = 1_000;
+const externalRootCommands = new WeakSet<Command>();
 
 function getBrowserCacheDir(): string {
   return process.env.WEBCMD_CACHE_DIR || path.join(os.homedir(), '.webcmd', 'cache');
@@ -2232,6 +2233,7 @@ cli({
         return;
       }
       const installed = installExternalCli(ext);
+      if (!installed) process.exitCode = EXIT_CODES.SERVICE_UNAVAIL;
       await emitActionResult(command, {
         ok: installed,
         action: 'install',
@@ -2287,7 +2289,7 @@ cli({
       return process.argv.slice(idx + 1);
     })();
     try {
-      executeExternalCli(name, args, externalClis);
+      process.exitCode = executeExternalCli(name, args, externalClis);
     } catch (err) {
       console.error(`Error: ${getErrorMessage(err)}`);
       process.exitCode = EXIT_CODES.GENERIC_ERROR;
@@ -2296,7 +2298,7 @@ cli({
 
   for (const ext of externalClis) {
     if (program.commands.some(c => c.name() === ext.name)) continue;
-    program
+    const command = program
       .command(ext.name)
       .description(`(External) ${ext.description || ext.name}`)
       .argument('[args...]')
@@ -2304,6 +2306,7 @@ cli({
       .passThroughOptions()
       .helpOption(false)
       .action((args: string[]) => passthroughExternal(ext.name, args));
+    externalRootCommands.add(command);
   }
 
   // ── Antigravity serve (long-running, special case) ────────────────────────
@@ -2459,8 +2462,12 @@ export async function loadAntigravityServe(pluginsDir: string = PLUGINS_DIR): Pr
  * surfaced as an unhandled rejection, and the `exitCode` the error carried was
  * lost. `parseAsync` lets the rejection reach this catch.
  */
-export async function runCli(BUILTIN_CLIS: string, USER_CLIS: string): Promise<void> {
-  const program = createProgram(BUILTIN_CLIS, USER_CLIS);
+export function isExternalRootCommand(program: Command, name: string | undefined): boolean {
+  const command = program.commands.find(candidate => candidate.name() === name);
+  return command !== undefined && externalRootCommands.has(command);
+}
+
+export async function runCli(BUILTIN_CLIS: string, USER_CLIS: string, program = createProgram(BUILTIN_CLIS, USER_CLIS)): Promise<void> {
   applyUnknownOptionContract(program);
   try {
     await program.parseAsync();

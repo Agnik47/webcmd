@@ -3,6 +3,10 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { createProgram, isExternalRootCommand } from './cli.js';
 import {
   onStartup,
   onBeforeExecute,
@@ -11,6 +15,7 @@ import {
   clearAllHooks,
   shouldEmitStartupHook,
   shouldRunStartupSideEffects,
+  WEBCMD_ROOT_COMMANDS,
   type HookContext,
 } from './hooks.js';
 
@@ -110,9 +115,24 @@ describe('no-op when no hooks registered', () => {
 });
 
 describe('startup hook gating', () => {
+  it('covers every unconditional createProgram root in the authoritative inventory', () => {
+    const pluginsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'webcmd-root-inventory-'));
+    try {
+      const program = createProgram('', '', pluginsDir);
+      const actual = new Set(program.commands
+        .filter(command => !isExternalRootCommand(program, command.name()))
+        .map(command => command.name()));
+      const missing = [...actual].filter(name => !WEBCMD_ROOT_COMMANDS.has(name)).sort();
+      const stale = [...WEBCMD_ROOT_COMMANDS].filter(name => !actual.has(name)).sort();
+
+      expect({ missing, stale }).toEqual({ missing: [], stale: [] });
+    } finally {
+      fs.rmSync(pluginsDir, { recursive: true, force: true });
+    }
+  });
+
   it.each([
     ['--help'],
-    ['agent-context', '--json'],
     ['list', '--format', 'json'],
     ['list', '--json'],
   ])('skips startup side effects for help or requested data output: %j', (...argv) => {
@@ -124,6 +144,7 @@ describe('startup hook gating', () => {
   });
 
   it.each([
+    ['agent-context', '--json'],
     ['demo', 'state', '--json'],
     ['demo', 'state', '-f', 'json'],
   ])('keeps startup side effects for real plugin command execution: %j', (...argv) => {
