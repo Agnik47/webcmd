@@ -53,6 +53,10 @@ export function hostedCommands(manifest: HostedManifest): HostedCommand[] {
     .sort((a, b) => a.command.localeCompare(b.command));
 }
 
+function hostedInventoryCommands(manifest: HostedManifest): HostedCommand[] {
+  return [...manifest.commands].sort((a, b) => a.command.localeCompare(b.command));
+}
+
 export function findHostedCommand(manifest: HostedManifest, site: string, name: string): HostedCommand | null {
   return manifest.commands.find((command) => {
     return command.site === site && (command.name === name || command.aliases?.includes(name));
@@ -63,21 +67,32 @@ export function presentHostedCommand(command: HostedCommand): PresentableCommand
   return toPresentableCommand(command);
 }
 
-export function hostedListRows(manifest: HostedManifest, structured: boolean): Record<string, unknown>[] {
-  return markClientOwned(commandListRows(hostedCommands(manifest).map(presentHostedCommand), structured), structured);
-}
-
-export function hostedListPresentation(manifest: HostedManifest, format: string): CommandListPresentation {
-  const presentation = commandListPresentation(hostedCommands(manifest).map(presentHostedCommand), format);
+function presentHostedListCommand(command: HostedCommand): PresentableCommand {
   return {
-    ...presentation,
-    rows: markClientOwned(presentation.rows, presentation.structured),
+    ...presentHostedCommand(command),
+    availability: isLocalOnlyHostedCommand(command) ? 'LOCAL' : 'HOSTED',
   };
 }
 
-function markClientOwned(rows: Record<string, unknown>[], structured: boolean): Record<string, unknown>[] {
-  if (!structured) return rows;
-  return rows.map(row => row.command === 'web/fetch' ? { ...row, clientOwned: true } : row);
+export function hostedListRows(manifest: HostedManifest, structured: boolean): Record<string, unknown>[] {
+  const commands = hostedInventoryCommands(manifest);
+  const commandsByName = new Map(commands.map((command) => [`${command.site}/${command.name}`, command]));
+  return commandListRows(commands.map(presentHostedCommand), structured).map((row) => {
+    const command = commandsByName.get(String(row.command))!;
+    return {
+      ...row,
+      availability: isLocalOnlyHostedCommand(command) ? 'LOCAL' : 'HOSTED',
+      ...(structured && command.clientOwned ? { clientOwned: true } : {}),
+    };
+  });
+}
+
+export function hostedListPresentation(manifest: HostedManifest, format: string): CommandListPresentation {
+  const presentation = commandListPresentation(hostedInventoryCommands(manifest).map(presentHostedListCommand), format);
+  return {
+    ...presentation,
+    rows: hostedListRows(manifest, presentation.structured),
+  };
 }
 
 export function siteNames(manifest: HostedManifest): string[] {

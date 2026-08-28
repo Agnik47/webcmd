@@ -13,10 +13,11 @@ import {
   configurePluginUpdateSurface,
 } from '../builtin-command-surface.js';
 import { BrowserSessionArgvError, rejectMisplacedSessionSelectorArgv, rejectPositionalBrowserSessionArgv } from '../cli-argv-preprocess.js';
-import { addOutputFormatOption, CommanderStructuralError, MissingRequiredPositionalError, outputFormatIsExplicit, parseOutputFormat, requestedOutputFormat, resolveCommandFromArgv, structuralErrorFromCommander } from '../command-surface.js';
+import { addOutputFormatOption, CommanderStructuralError, MissingRequiredPositionalError, outputFormatIsExplicit, requestedOutputFormat, resolveCommandFromArgv, structuralErrorFromCommander } from '../command-surface.js';
 import { filterCommandsByTag, formatRootHelp, getCommandCompletionCandidates } from '../command-presentation.js';
 import {
   getHostedBuiltinCommands,
+  getHostedBuiltinSubcommands,
   getHostedRootHelp,
   HOSTED_ROOT_HELP,
   isLocalClientRootCommand,
@@ -42,9 +43,12 @@ import type { ExternalCliConfig } from '../external.js';
 import { webFetchCommand } from '../fetch/command.js';
 import { runHostedArtifactDownload } from './artifact-download.js';
 import { HostedClient, HostedClientError, resolveWorkspace } from './client.js';
+import { hasHostedCoreCommand, type HostedCoreCommandId } from './core-commands.js';
+import { parseHostedCoreCommand, validateHostedFormat, type ParsedHostedCoreCommand } from './core-command-surface.js';
 import { createVirtualHostedFileIo, realHostedFileIo, type HostedFileIo } from './file-io.js';
 import { HOSTED_SESSION_PROTOCOL_VERSION } from './types.js';
 import { parseHostedInvocation } from './args.js';
+import { parseHostedAuthCommand, type ParsedHostedAuthCommand } from './auth-command-surface.js';
 import { HostedBrowserHelp, parseHostedBrowserStructure, validateRawBrowserSession } from './browser-args.js';
 import { materializeHostedOutputs, prepareHostedFiles, rewriteHostedOutputResultPaths } from './files.js';
 import {
@@ -58,7 +62,16 @@ import {
   renderHostedSiteHelp,
   withClientOwnedCommands,
 } from './manifest.js';
-import { isHostedConfig, loadWebcmdConfig, type WebcmdConfig } from './config.js';
+import {
+  isHostedConfig,
+  loadWebcmdConfig,
+  resolveHostedProfileSelection,
+  saveWebcmdConfig,
+  withHostedPreferredProfile,
+  type HostedProfileSelection,
+  type HostedWebcmdConfig,
+  type WebcmdConfig,
+} from './config.js';
 import { resolveHostedApiKey, type HostedCredentialStore } from './credentials.js';
 import { parseHostedRootCommandSurface } from '../root-command-surface.js';
 import { registerSiteCommands, type SiteMemoryBackend } from '../site-memory/commands.js';
@@ -110,6 +123,8 @@ export interface HostedRunnerOptions {
   };
   /** Optional local roots that are owned only when installed on this client. */
   installedLocalCommandRoots?: ReadonlySet<string>;
+  /** @internal Persists hosted profile preference in runner tests and embedders. */
+  saveConfig?: (config: HostedWebcmdConfig) => void;
 }
 
 interface HostedDispatchIo {
@@ -148,18 +163,6 @@ class CommanderCompatibleError extends Error {
   }
 }
 
-/** Normalize a hosted built-in's format, preserving Commander-style usage errors. */
-function validateHostedFormat(raw: string): string {
-  try {
-    return parseOutputFormat(raw);
-  } catch (err) {
-    if (err instanceof CliError) {
-      throw new CommanderStructuralError(`error: ${err.message}\n`, EXIT_CODES.USAGE_ERROR);
-    }
-    throw err;
-  }
-}
-
 const hostedBrowserCommandsByPath = new Map(browserCommandCatalog.map(command => [command.command, command]));
 
 export async function runHostedCli(argv: string[], opts: HostedRunnerOptions = {}): Promise<HostedRunResult> {
@@ -185,20 +188,40 @@ export async function runHostedCli(argv: string[], opts: HostedRunnerOptions = {
     }
     const rootSurface = parseHostedRootCommandSurface(argv);
     const rootName = rootSurface.kind === 'dispatch' ? rootSurface.argv[0] : undefined;
-    if (rootName === 'validate' || (rootName && opts.installedLocalCommandRoots?.has(rootName))) {
+    if (rootName && opts.installedLocalCommandRoots?.has(rootName)) {
       throw new ConfigError(`${CLI_COMMAND} ${rootName} is local-only and is not available in hosted mode.`, LOCAL_ONLY_COMMAND_HELP);
     }
     const externals = rootName && isWebcmdOwnedRoot(rootName, opts.installedLocalCommandRoots)
       ? undefined
       : opts.externals;
-    const credential = await resolveHostedApiKey(config, {
-      credentialStore: opts.credentialStore,
-      env: opts.env,
-      homeDir: opts.homeDir,
-      platform: opts.platform,
-      randomUUID: opts.randomUUID,
-      migrate: opts.config === undefined,
-    });
+    let credential: Awaited<ReturnType<typeof resolveHostedApiKey>>;
+    try {
+      credential = await resolveHostedApiKey(config, {
+        credentialStore: opts.credentialStore,
+        env: opts.env,
+        homeDir: opts.homeDir,
+        platform: opts.platform,
+        randomUUID: opts.randomUUID,
+        migrate: opts.config === undefined,
+      });
+    } catch (error) {
+      if (rootSurface.kind !== 'help') throw error;
+      const help = formatRootHelp(getHostedRootHelp(undefined, opts.hasLocalClientCommandHandlers !== false));
+      await writeToStream(rootSurface.exitCode === EXIT_CODES.SUCCESS ? stdout : stderr, help);
+      return { handled: true, exitCode: rootSurface.exitCode };
+    }
+    const currentConfig = credential.migrated
+      ? loadWebcmdConfig({ env: opts.env, homeDir: opts.homeDir })
+      : config;
+    if (!isHostedConfig(currentConfig)) throw new ConfigError('Webcmd hosted configuration could not be reloaded.');
+    const profileSelection = resolveHostedProfileSelection(
+      currentConfig,
+      rootSurface.kind === 'dispatch' ? rootSurface.profile : undefined,
+      opts.env ?? process.env,
+    );
+    const saveConfig = opts.saveConfig ?? (opts.config === undefined
+      ? (next: HostedWebcmdConfig) => saveWebcmdConfig(next, { env: opts.env, homeDir: opts.homeDir })
+      : undefined);
     if (opts.signal?.aborted) {
       throw opts.signal.reason ?? new Error('The operation was aborted.');
     }
@@ -236,6 +259,9 @@ export async function runHostedCli(argv: string[], opts: HostedRunnerOptions = {
       externals,
       opts.installedLocalCommandRoots,
       deferredExternalSession,
+      currentConfig,
+      profileSelection,
+      saveConfig,
     );
     return { handled: true, exitCode: exitCode ?? EXIT_CODES.SUCCESS };
   } catch (caught) {
@@ -246,6 +272,10 @@ export async function runHostedCli(argv: string[], opts: HostedRunnerOptions = {
       return { handled: true, exitCode: EXIT_CODES.USAGE_ERROR };
     }
     if (err instanceof CommanderStructuralError) {
+      if (err.exitCode === EXIT_CODES.SUCCESS) {
+        await writeToStream(stdout, err.output);
+        return { handled: true, exitCode: EXIT_CODES.SUCCESS };
+      }
       // Usage errors carry their own envelope; honour -f/--format and --json the
       // same way the local CLI does instead of falling back to UNKNOWN/exit 1.
       const usageFormat = requestedMachineFormat(argv);
@@ -305,11 +335,36 @@ async function dispatchHosted(
   },
   installedLocalCommandRoots?: ReadonlySet<string>,
   deferredExternalSession?: DeferredExternalSession,
+  config?: HostedWebcmdConfig,
+  profileSelection?: HostedProfileSelection,
+  saveConfig?: (config: HostedWebcmdConfig) => void,
 ): Promise<number | undefined> {
-  const rootHelp = getHostedRootHelp(hasLocalClientCommandHandlers);
   const normalized = parseHostedRootCommandSurface(argv);
+  let manifestPromise: Promise<HostedManifest> | undefined;
+  const getManifest = async (): Promise<HostedManifest> => {
+    const manifest = await (manifestPromise ??= client.getManifest());
+    validateManifestContractIdentity(manifest);
+    return manifest;
+  };
+  const getHelpCoreCommands = async (): Promise<readonly HostedCoreCommandId[] | undefined> => {
+    try {
+      return (await getManifest()).metadata.coreCommands;
+    } catch (error) {
+      if (signal?.aborted || error instanceof InterruptedError) throw error;
+      return undefined;
+    }
+  };
+  let validatedPreferredProfile: Promise<string | undefined> | undefined;
+  const profileForRequest = (override?: string): Promise<string | undefined> => {
+    if (override !== undefined) return Promise.resolve(override);
+    if (!profileSelection) return Promise.resolve(undefined);
+    if (profileSelection.source !== 'preferred') return Promise.resolve(profileSelection.name);
+    validatedPreferredProfile ??= requireListedHostedProfile(client, profileSelection.name);
+    return validatedPreferredProfile;
+  };
   if (normalized.kind === 'help') {
-    const help = formatRootHelp(rootHelp);
+    const coreCommands = await getHelpCoreCommands();
+    const help = formatRootHelp(getHostedRootHelp(coreCommands, hasLocalClientCommandHandlers));
     if (normalized.exitCode !== EXIT_CODES.SUCCESS) {
       throw new CommanderCompatibleError(help, normalized.exitCode);
     }
@@ -321,11 +376,27 @@ async function dispatchHosted(
     return;
   }
   if (normalized.kind === 'completion') {
-    const manifest = await getPresentationManifest(client, enableServerWebFetch);
+    const manifest = withClientOwnedCommands(await getManifest(), enableServerWebFetch);
     await writeToStream(stdout, hostedCompletions(manifest, normalized.argv, hasLocalClientCommandHandlers).join('\n') + '\n');
     return;
   }
   const args = normalized.argv;
+  const requestsHelp = !normalized.literal && (args.includes('--help') || args.includes('-h'));
+  const requestsNamespaceHelp = !normalized.literal && (args[1] === '--help' || args[1] === '-h');
+  const requireHostedCoreHelp = async (id: HostedCoreCommandId): Promise<readonly HostedCoreCommandId[] | undefined> => {
+    const coreCommands = await getHelpCoreCommands();
+    if (!hasHostedCoreCommand(coreCommands, id)) throw hostedCoreCommandUnavailableError(id);
+    return coreCommands;
+  };
+  let hostedAuth: Extract<ParsedHostedAuthCommand, { kind: 'run' }> | undefined;
+  if (args[0] === 'auth' && (!args[1] || args[1] === 'status' || args[1] === 'refresh' || args[1] === '--help' || args[1] === '-h')) {
+    const parsed = parseHostedAuthCommand(args, normalized.literal);
+    if (parsed.kind === 'help') {
+      await writeToStream(stdout, parsed.output);
+      return;
+    }
+    hostedAuth = parsed;
+  }
   if (!hasLocalClientCommandHandlers && isLocalClientRootCommand(args[0])) {
     throw new CommanderCompatibleError(`error: unknown command '${args[0]}'\n`, EXIT_CODES.USAGE_ERROR);
   }
@@ -348,11 +419,14 @@ async function dispatchHosted(
       LOCAL_ONLY_COMMAND_HELP,
     );
   }
-  if (args[0] === 'doctor') {
-    throw new ConfigError(
-      'webcmd doctor is local-only. Hosted mode has no local browser bridge.',
-      LOCAL_ONLY_COMMAND_HELP,
-    );
+  if (isHostedCoreRoot(args[0])) {
+    if (requestsHelp) await requireHostedCoreHelp(args[0]);
+    const parsed = parseHostedCoreCommand(args, normalized.literal);
+    await requireHostedCoreCommand(getManifest, parsed.command);
+    const profile = parsed.command === 'verify' || parsed.command === 'doctor'
+      ? await profileForRequest()
+      : undefined;
+    return dispatchHostedCoreCommand(parsed, client, stdout, profile);
   }
   if (args[0] === 'session') {
     const parsed = parseHostedSessionSurface(args.slice(1), normalized.literal);
@@ -360,16 +434,14 @@ async function dispatchHosted(
       await writeToStream(stdout, parsed.output);
       return;
     }
-    const manifest = await client.getManifest();
-    validateManifestContractIdentity(manifest);
-    await dispatchHostedSession(parsed, client, stdout, normalized.profile);
+    await getManifest();
+    await dispatchHostedSession(parsed, client, stdout, await profileForRequest());
     return;
   }
   if (args[0] === 'browser') {
-    const invocation = await parseHostedBrowserInvocation(args, normalized.profile, normalized.session, io);
-    const manifest = await client.getManifest();
-    validateManifestContractIdentity(manifest);
-    await dispatchHostedBrowser(invocation, client, stdout, io);
+    const invocation = await parseHostedBrowserInvocation(args, profileSelection?.name, normalized.session, io);
+    await getManifest();
+    await dispatchHostedBrowser({ ...invocation, profile: await profileForRequest() }, client, stdout, io);
     return;
   }
 
@@ -383,8 +455,16 @@ async function dispatchHosted(
     return;
   }
 
-  if (args[0] === 'adapter' && (args[1] === 'source' || args[1] === 'path' || args[1] === 'override' || args[1] === '--help' || args[1] === '-h')) {
-    await runHostedAdapterSourceSurface(args.slice(1), normalized.literal, client, stdout, homeDir, io);
+  if (args[0] === 'adapter' && (args[1] === 'source' || args[1] === 'path' || args[1] === 'override' || args[1] === 'status' || args[1] === 'reset' || args[1] === '--help' || args[1] === '-h')) {
+    const coreHelp = requestsHelp && (args[1] === 'status' || args[1] === 'reset')
+      ? `adapter/${args[1]}` as HostedCoreCommandId
+      : undefined;
+    const coreCommands = coreHelp
+      ? await requireHostedCoreHelp(coreHelp)
+      : requestsNamespaceHelp
+        ? await getHelpCoreCommands()
+        : undefined;
+    await runHostedAdapterSurface(args.slice(1), normalized.literal, client, stdout, homeDir, io, getManifest, coreCommands);
     return;
   }
 
@@ -400,31 +480,51 @@ async function dispatchHosted(
   }
 
   if (args[0] === 'profile') {
-    if (args[1] === 'rename' || args[1] === 'use' || args[1] === 'create') {
-      throw new ConfigError(
-        `webcmd profile ${args[1]} is not available in hosted mode.`,
-        'Hosted mode supports: webcmd profile list and delete.',
-      );
-    }
-    const parsed = parseHostedProfileSurface(args.slice(1), normalized.literal);
+    const coreHelp = requestsHelp && (args[1] === 'create' || args[1] === 'rename')
+      ? `profile/${args[1]}` as HostedCoreCommandId
+      : undefined;
+    const coreCommands = coreHelp
+      ? await requireHostedCoreHelp(coreHelp)
+      : requestsNamespaceHelp
+        ? await getHelpCoreCommands()
+        : undefined;
+    const parsed = parseHostedProfileSurface(args.slice(1), normalized.literal, coreCommands);
     if (parsed.kind === 'help') {
       await writeToStream(stdout, parsed.output);
       return;
     }
-    await dispatchHostedProfile(parsed, client, stdout);
+    if (parsed.command === 'create' || parsed.command === 'rename') {
+      await requireHostedCoreCommand(getManifest, `profile/${parsed.command}`);
+    }
+    if (!config) throw new Error('Internal invariant: hosted configuration is unavailable.');
+    await dispatchHostedProfile(parsed, client, stdout, config, saveConfig);
     return;
   }
 
   if (args[0] === 'plugin') {
     const subcommand = args[1];
-    const allowed = new Set(['search', 'install', 'list', 'uninstall', 'update', 'create', '--help', '-h']);
+    if (subcommand === 'catalog' && args[2] !== 'list') {
+      throw new ConfigError(
+        `webcmd plugin catalog${args[2] ? ` ${args[2]}` : ''} is not available in hosted mode.`,
+        'Hosted mode supports: webcmd plugin catalog list.',
+      );
+    }
+    const allowed = new Set(['search', 'install', 'list', 'uninstall', 'update', 'create', 'catalog', '--help', '-h']);
     if (!allowed.has(subcommand ?? '')) {
       throw new ConfigError(
         `webcmd plugin ${subcommand ?? ''}`.trimEnd() + ' is not available in hosted mode.',
         'Hosted mode supports: webcmd plugin search, install, list, uninstall, update, and create.',
       );
     }
-    const parsed = parseHostedPluginSurface(args.slice(1), normalized.literal);
+    const coreHelp = requestsHelp && args[1] === 'catalog' && args[2] === 'list'
+      ? 'plugin/catalog/list' as HostedCoreCommandId
+      : undefined;
+    const coreCommands = coreHelp
+      ? await requireHostedCoreHelp(coreHelp)
+      : requestsNamespaceHelp
+        ? await getHelpCoreCommands()
+        : undefined;
+    const parsed = parseHostedPluginSurface(args.slice(1), normalized.literal, coreCommands);
     if (parsed.kind === 'help') {
       await writeToStream(stdout, parsed.output);
       return;
@@ -473,6 +573,19 @@ async function dispatchHosted(
         columns: ['name', 'version', 'installSource', 'installedAt', 'updateAvailable'],
         title: `${CLI_COMMAND}/plugins`,
         source: `${CLI_COMMAND} plugin list`,
+        stdout,
+      });
+      return;
+    }
+    if (parsed.command === 'catalog-list') {
+      await requireHostedCoreCommand(getManifest, 'plugin/catalog/list');
+      const result = await client.listMarketplaceCatalog();
+      await renderOutput(parsed.format === 'table' ? result.sources : result, {
+        fmt: parsed.format,
+        fmtExplicit: parsed.formatExplicit,
+        columns: ['id', 'repository', 'commit', 'manifestPath', 'status'],
+        title: `${CLI_COMMAND}/plugin-catalog`,
+        source: `${CLI_COMMAND} plugin catalog list`,
         stdout,
       });
       return;
@@ -545,7 +658,7 @@ async function dispatchHosted(
 
   // The API manifest is tenant-scoped. Only the core client-owned presentation
   // entry is merged; package and local plugin commands stay out.
-  const manifest = await getPresentationManifest(client, enableServerWebFetch);
+  const manifest = withClientOwnedCommands(await getManifest(), enableServerWebFetch);
 
   const site = args[0]!;
   const commandName = args[1];
@@ -575,7 +688,7 @@ async function dispatchHosted(
       return;
     }
     if (unknownRoot.help) {
-      await writeToStream(stdout, formatRootHelp(rootHelp));
+      await writeToStream(stdout, formatRootHelp(getHostedRootHelp(manifest.metadata.coreCommands, hasLocalClientCommandHandlers)));
       return;
     }
     // No help on stdout: an error path that emits a well-formed document to
@@ -620,15 +733,19 @@ async function dispatchHosted(
   }
   onResolvedCommand?.(trustedCommandResolution(command));
   let parsed: ReturnType<typeof parseHostedInvocation>;
-  try {
-    parsed = parseHostedInvocation(command, args.slice(2));
-  } catch (error) {
-    if (error instanceof CommanderStructuralError) {
-      // A usage error carries its own envelope; only the legacy fallback needs
-      // the UNKNOWN envelope appended after the human bytes.
-      throw new CommanderStructuralError(error.output, error.exitCode, !error.envelope, error.envelope);
+  if (hostedAuth && hostedAuth.command === command.command) {
+    parsed = hostedAuth;
+  } else {
+    try {
+      parsed = parseHostedInvocation(command, args.slice(2));
+    } catch (error) {
+      if (error instanceof CommanderStructuralError) {
+        // A usage error carries its own envelope; only the legacy fallback needs
+        // the UNKNOWN envelope appended after the human bytes.
+        throw new CommanderStructuralError(error.output, error.exitCode, !error.envelope, error.envelope);
+      }
+      throw error;
     }
-    throw error;
   }
   if (parsed.help) {
     await writeHostedHelp(stdout, args, hostedCommandHelpData(command), renderHostedCommandHelp(command));
@@ -671,6 +788,7 @@ async function dispatchHosted(
   enableVerbose(parsed.verbose);
 
   const startTime = now();
+  const profile = await profileForRequest(parsed.profile);
   const response = command.browser || hasPresentFileArgument(command, parsed.args)
     ? await executeHostedPreparedCommand({
         client,
@@ -678,7 +796,7 @@ async function dispatchHosted(
         args: parsed.args,
         format: parsed.format,
         trace: parsed.trace,
-        profile: parsed.profile ?? normalized.profile,
+        profile,
         session: normalized.session,
         stderr,
         io,
@@ -688,7 +806,7 @@ async function dispatchHosted(
         args: parsed.args,
         format: parsed.format,
         trace: parsed.trace,
-        profile: parsed.profile ?? normalized.profile,
+        profile,
         session: normalized.session,
       });
   let format: string = parsed.format;
@@ -711,6 +829,83 @@ async function dispatchHosted(
   if (parsed.trace === 'on' && response.trace) {
     await writeToStream(stderr, `Webcmd trace artifact: ${response.trace.receipt}\n`);
   }
+}
+
+function isHostedCoreRoot(value: string | undefined): value is ParsedHostedCoreCommand['command'] {
+  return value === 'validate' || value === 'verify' || value === 'convention-audit' || value === 'doctor';
+}
+
+function hostedCoreCommandUnavailableError(id: HostedCoreCommandId): ConfigError {
+  return new ConfigError(
+    `${CLI_COMMAND} ${id.replaceAll('/', ' ')} is not available from this Webcmd Cloud endpoint.`,
+    'Upgrade Webcmd Cloud or use a compatible endpoint.',
+  );
+}
+
+async function requireHostedCoreCommand(
+  getManifest: () => Promise<HostedManifest>,
+  id: HostedCoreCommandId,
+): Promise<HostedManifest> {
+  const manifest = await getManifest();
+  if (!hasHostedCoreCommand(manifest.metadata.coreCommands, id)) {
+    throw hostedCoreCommandUnavailableError(id);
+  }
+  return manifest;
+}
+
+async function dispatchHostedCoreCommand(
+  parsed: ParsedHostedCoreCommand,
+  client: HostedClient,
+  stdout: NodeJS.WritableStream,
+  profile?: string,
+): Promise<number | undefined> {
+  if (parsed.command === 'validate') {
+    const report = await client.validateAdapters(parsed.target);
+    if (parsed.format === 'table') {
+      const { renderValidationReport } = await import('../validate.js');
+      await writeToStream(stdout, `${renderValidationReport(report)}\n`);
+    } else {
+      await renderOutput(report, { fmt: parsed.format, fmtExplicit: parsed.formatExplicit, stdout });
+    }
+    return report.ok ? EXIT_CODES.SUCCESS : EXIT_CODES.GENERIC_ERROR;
+  }
+  if (parsed.command === 'verify') {
+    const report = await client.verifyAdapters({
+      ...(parsed.target !== undefined ? { target: parsed.target } : {}),
+      smoke: parsed.smoke,
+      ...(profile !== undefined ? { profile } : {}),
+    });
+    if (parsed.format === 'table') {
+      const { renderVerifyReport } = await import('../verify.js');
+      await writeToStream(stdout, `${renderVerifyReport(report)}\n`);
+    } else {
+      await renderOutput(report, { fmt: parsed.format, fmtExplicit: parsed.formatExplicit, stdout });
+    }
+    return report.ok ? EXIT_CODES.SUCCESS : EXIT_CODES.GENERIC_ERROR;
+  }
+  if (parsed.command === 'convention-audit') {
+    const report = await client.auditAdapterConventions({
+      ...(parsed.target !== undefined ? { target: parsed.target } : {}),
+      ...(parsed.site !== undefined ? { site: parsed.site } : {}),
+    });
+    if (parsed.format === 'table') {
+      const { renderConventionAuditText } = await import('../convention-audit.js');
+      await writeToStream(stdout, `${renderConventionAuditText(report)}\n`);
+    } else {
+      await renderOutput(report, { fmt: parsed.format, fmtExplicit: parsed.formatExplicit, stdout });
+    }
+    return parsed.strict && !report.ok ? EXIT_CODES.GENERIC_ERROR : EXIT_CODES.SUCCESS;
+  }
+  enableVerbose(parsed.verbose);
+  const report = await client.getDoctor(profile);
+  if (parsed.format === 'table') {
+    await writeToStream(stdout, `${report.checks.map(check => `${check.ok ? 'PASS' : 'FAIL'}  ${check.id}  ${check.message}`).join('\n')}\n`);
+  } else {
+    await renderOutput(report, { fmt: parsed.format, fmtExplicit: parsed.formatExplicit, stdout });
+  }
+  return report.checks.some(check => check.required && !check.ok)
+    ? EXIT_CODES.CONFIG_ERROR
+    : EXIT_CODES.SUCCESS;
 }
 
 function virtualScaffoldConflicts(files: VirtualFileMap, target: string): boolean {
@@ -760,26 +955,30 @@ function hostedSiteMemoryBackend(client: HostedClient): SiteMemoryBackend {
   };
 }
 
-type HostedAdapterSourceCommand =
+type HostedAdapterCommand =
   | { kind: 'get'; commandKey: string; output?: string }
   | { kind: 'put'; commandKey: string; path: string }
   | { kind: 'path'; commandKey: string }
-  | { kind: 'override'; commandKey: string };
+  | { kind: 'override'; commandKey: string }
+  | { kind: 'status'; format: string; formatExplicit: boolean }
+  | { kind: 'reset'; site?: string; all: boolean; format: string; formatExplicit: boolean };
 
 function joinAdapterCommandKey(commandKey: string, commandName?: string): string {
   const key = splitAdapterCommandKey(commandKey, commandName);
   return key ? `${key.site}/${key.command}` : commandKey;
 }
 
-async function runHostedAdapterSourceSurface(
+async function runHostedAdapterSurface(
   argv: readonly string[],
   literal: boolean,
   client: HostedClient,
   stdout: NodeJS.WritableStream,
   homeDir: string,
   io: HostedDispatchIo,
+  getManifest: () => Promise<HostedManifest>,
+  coreCommands?: readonly HostedCoreCommandId[],
 ): Promise<void> {
-  let parsed: HostedAdapterSourceCommand | undefined;
+  let parsed: HostedAdapterCommand | undefined;
   let help = '';
   let stderr = '';
   const root = new Command('webcmd').exitOverride().configureOutput({
@@ -803,6 +1002,30 @@ async function runHostedAdapterSourceSurface(
     .description('Fork an installed adapter command into a private copy you can modify')
     .argument('<command>', 'Command to override, as <site>/<command>')
     .action(commandKey => { parsed = { kind: 'override', commandKey }; });
+  const status = addOutputFormatOption(adapter.command('status', {
+    hidden: !hasHostedCoreCommand(coreCommands, 'adapter/status'),
+  }));
+  status.action((options: { format: string }) => {
+    parsed = {
+      kind: 'status',
+      format: validateHostedFormat(String(requestedOutputFormat(status, options.format))),
+      formatExplicit: outputFormatIsExplicit(status),
+    };
+  });
+  const reset = addOutputFormatOption(adapter.command('reset', {
+    hidden: !hasHostedCoreCommand(coreCommands, 'adapter/reset'),
+  }).argument('[site]').option('--all', 'Reset all hosted overrides', false));
+  reset.action((site: string | undefined, options: { all?: boolean; format: string }) => {
+    const all = options.all === true;
+    if ((!site && !all) || (site !== undefined && all)) throw new ArgumentError('Specify one adapter site or --all.');
+    parsed = {
+      kind: 'reset',
+      ...(site !== undefined ? { site } : {}),
+      all,
+      format: validateHostedFormat(String(requestedOutputFormat(reset, options.format))),
+      formatExplicit: outputFormatIsExplicit(reset),
+    };
+  });
   try {
     await root.parseAsync(literal ? ['--', 'adapter', ...argv] : ['adapter', ...argv], { from: 'user' });
   } catch (error) {
@@ -814,6 +1037,28 @@ async function runHostedAdapterSourceSurface(
     throw error;
   }
   if (!parsed) throw new CommanderStructuralError("error: command 'adapter' did not run\n", EXIT_CODES.USAGE_ERROR);
+  if (parsed.kind === 'status') {
+    await requireHostedCoreCommand(getManifest, 'adapter/status');
+    await renderOutput(await client.listAdapters(), {
+      fmt: parsed.format,
+      fmtExplicit: parsed.formatExplicit,
+      columns: ['command', 'kind', 'package', 'reconciliationState', 'loadError'],
+      title: `${CLI_COMMAND}/adapter-status`,
+      source: `${CLI_COMMAND} adapter status`,
+      stdout,
+    });
+    return;
+  }
+  if (parsed.kind === 'reset') {
+    await requireHostedCoreCommand(getManifest, 'adapter/reset');
+    const removed = await client.resetAdapterOverrides(parsed.all ? { all: true } : { site: parsed.site });
+    if (parsed.format !== 'table') {
+      await renderOutput({ ok: true, removed }, { fmt: parsed.format, fmtExplicit: parsed.formatExplicit, stdout });
+      return;
+    }
+    for (const item of removed) await writeToStream(stdout, `${item.package}: ${item.commands.join(', ')}\n`);
+    return;
+  }
   const { site, command } = parseAdapterCommandKey(parsed.commandKey);
   const destination = hostedAdapterDestination(homeDir, site, command);
   if (parsed.kind === 'path') return writeToStream(stdout, `${destination}\n`);
@@ -1450,21 +1695,18 @@ function parseHostedListSurface(argv: readonly string[], literal: boolean): Pars
   return { kind: 'run', format: parsedFormat, formatExplicit, ...(parsedTag !== undefined ? { tag: parsedTag } : {}) };
 }
 
-type HostedProfileCommand = 'list' | 'delete';
-
 type ParsedHostedProfileSurface =
   | { kind: 'help'; output: string }
-  | {
-      kind: 'run';
-      command: HostedProfileCommand;
-      format: string;
-      formatExplicit: boolean;
-      value?: string;
-    };
+  | { kind: 'run'; command: 'list'; format: string; formatExplicit: boolean }
+  | { kind: 'run'; command: 'delete'; profile: string; format: string; formatExplicit: boolean }
+  | { kind: 'run'; command: 'create'; name: string }
+  | { kind: 'run'; command: 'rename'; profile: string; name: string }
+  | { kind: 'run'; command: 'use'; profile: string };
 
 function parseHostedProfileSurface(
   argv: readonly string[],
   literal: boolean,
+  coreCommands?: readonly HostedCoreCommandId[],
 ): ParsedHostedProfileSurface {
   let stdout = '';
   let stderr = '';
@@ -1479,18 +1721,21 @@ function parseHostedProfileSurface(
   profile.exitOverride().configureOutput(output);
 
   const configureFormat = (command: Command): Command => addOutputFormatOption(command);
-  const setParsed = (
-    command: HostedProfileCommand,
-    surface: Command,
-    value?: string,
-  ): void => {
+  const setParsed = (command: 'list' | 'delete', surface: Command, profileId?: string): void => {
     const options = surface.opts<{ format: string }>();
-    parsed = {
-      kind: 'run',
-      command,
+    const outputFormat = {
       format: validateHostedFormat(String(requestedOutputFormat(surface, options.format))),
       formatExplicit: outputFormatIsExplicit(surface),
-      ...(value !== undefined ? { value } : {}),
+    };
+    parsed = command === 'list' ? {
+      kind: 'run',
+      command: 'list',
+      ...outputFormat,
+    } : {
+      kind: 'run',
+      command: 'delete',
+      profile: profileId!,
+      ...outputFormat,
     };
   };
 
@@ -1498,6 +1743,19 @@ function parseHostedProfileSurface(
   list.exitOverride().configureOutput(output).action(() => setParsed('list', list));
   const remove = configureFormat(profile.command('delete').argument('<profile-id>'));
   remove.exitOverride().configureOutput(output).action((profileId: string) => setParsed('delete', remove, profileId));
+  profile.command('create', {
+    hidden: !hasHostedCoreCommand(coreCommands, 'profile/create'),
+  }).argument('<name>').exitOverride().configureOutput(output).action((name: string) => {
+    parsed = { kind: 'run', command: 'create', name };
+  });
+  profile.command('rename', {
+    hidden: !hasHostedCoreCommand(coreCommands, 'profile/rename'),
+  }).argument('<profile>').argument('<name>').exitOverride().configureOutput(output).action((profileValue: string, name: string) => {
+    parsed = { kind: 'run', command: 'rename', profile: profileValue, name };
+  });
+  profile.command('use').argument('<profile>').exitOverride().configureOutput(output).action((profileValue: string) => {
+    parsed = { kind: 'run', command: 'use', profile: profileValue };
+  });
 
   try {
     root.parse(literal ? ['--', 'profile', ...argv] : ['profile', ...argv], { from: 'user' });
@@ -1516,15 +1774,54 @@ async function dispatchHostedProfile(
   parsed: Exclude<ParsedHostedProfileSurface, { kind: 'help' }>,
   client: HostedClient,
   stdout: NodeJS.WritableStream,
+  config: HostedWebcmdConfig,
+  saveConfig?: (config: HostedWebcmdConfig) => void,
 ): Promise<void> {
+  if (parsed.command === 'create') {
+    await renderOutput(await client.createProfile(parsed.name), { fmt: 'yaml', stdout });
+    return;
+  }
+  if (parsed.command === 'rename') {
+    const profiles = (await client.listProfiles()).profiles;
+    const profile = profiles.find(candidate => candidate.id === parsed.profile || candidate.name === parsed.profile);
+    if (!profile) {
+      throw new ConfigError(
+        `Hosted profile "${parsed.profile}" was not found.`,
+        `Available profiles: ${profiles.map(candidate => candidate.name ?? candidate.id).join(', ') || '(none)'}`,
+      );
+    }
+    await renderOutput(await client.renameProfile(profile.id, parsed.name), { fmt: 'yaml', stdout });
+    return;
+  }
+  if (parsed.command === 'use') {
+    if (!saveConfig) {
+      throw new ConfigError(
+        'Injected hosted configuration cannot persist a hosted profile preference without saveConfig.',
+        'Pass saveConfig when invoking runHostedCli with an injected config.',
+      );
+    }
+    const profile = await requireListedHostedProfile(client, parsed.profile);
+    saveConfig(withHostedPreferredProfile(config, profile));
+    await renderOutput({ ok: true, action: 'use', profile }, { fmt: 'yaml', stdout });
+    return;
+  }
   const result = parsed.command === 'list'
     ? (await client.listProfiles()).profiles
-    : await client.deleteProfile(parsed.value!);
-  await renderOutput(result, {
-    fmt: parsed.format,
-    fmtExplicit: parsed.formatExplicit,
-    stdout,
-  });
+    : await client.deleteProfile(parsed.profile);
+  await renderOutput(result, { fmt: parsed.format, fmtExplicit: parsed.formatExplicit, stdout });
+}
+
+async function requireListedHostedProfile(client: HostedClient, name: string): Promise<string> {
+  const profiles = (await client.listProfiles()).profiles;
+  const profile = profiles.find(candidate => candidate.name !== null && (candidate.id === name || candidate.name === name));
+  if (profile?.name) return profile.name;
+  const validNames = profiles.flatMap(candidate => candidate.name ? [candidate.name] : []).sort();
+  throw new HostedClientError(
+    'PROFILE_NOT_FOUND',
+    `No hosted profile matches "${name}". Valid profiles: ${validNames.join(', ') || '(none)'}`,
+    `usage: ${CLI_COMMAND} profile use <profile>\nList profiles: ${CLI_COMMAND} profile list`,
+    EXIT_CODES.EMPTY_RESULT,
+  );
 }
 
 type ParsedHostedPluginSurface =
@@ -1534,11 +1831,13 @@ type ParsedHostedPluginSurface =
   | { kind: 'run'; command: 'list'; format: string; formatExplicit: boolean }
   | { kind: 'run'; command: 'uninstall'; name: string }
   | { kind: 'run'; command: 'update'; name?: string; all: boolean }
+  | { kind: 'run'; command: 'catalog-list'; format: string; formatExplicit: boolean }
   | { kind: 'run'; command: 'create'; name: string; dir?: string; description?: string; authorName?: string; authorHandle?: string };
 
 function parseHostedPluginSurface(
   argv: readonly string[],
   literal: boolean,
+  coreCommands?: readonly HostedCoreCommandId[],
 ): ParsedHostedPluginSurface {
   let stdout = '';
   let stderr = '';
@@ -1593,6 +1892,18 @@ function parseHostedPluginSurface(
       ...(options.description !== undefined ? { description: options.description } : {}),
       ...(options.authorName !== undefined ? { authorName: options.authorName } : {}),
       ...(options.authorHandle !== undefined ? { authorHandle: options.authorHandle } : {}),
+    };
+  });
+  const catalog = plugin.command('catalog', {
+    hidden: !hasHostedCoreCommand(coreCommands, 'plugin/catalog/list'),
+  });
+  const catalogList = addOutputFormatOption(catalog.command('list')).exitOverride().configureOutput(output);
+  catalogList.action((options: { format: string }) => {
+    parsed = {
+      kind: 'run',
+      command: 'catalog-list',
+      format: validateHostedFormat(String(requestedOutputFormat(catalogList, options.format))),
+      formatExplicit: outputFormatIsExplicit(catalogList),
     };
   });
 
@@ -1719,12 +2030,21 @@ function hostedCompletions(manifest: HostedManifest, argv: string[], hasLocalCli
   }
   const commands = hostedCommands(manifest)
     .filter(command => hasLocalClientCommandHandlers || !isLocalClientRootCommand(command.site));
-  return getCommandCompletionCandidates(
+  const coreCommands = manifest.metadata.coreCommands;
+  const root = words[0];
+  if (cursor === 2 && (root === 'adapter' || root === 'profile' || root === 'plugin')) {
+    return getHostedBuiltinSubcommands(root, coreCommands);
+  }
+  if (cursor === 3 && root === 'plugin' && words[1] === 'catalog') {
+    return hasHostedCoreCommand(coreCommands, 'plugin/catalog/list') ? ['list'] : [];
+  }
+  return [...new Set(getCommandCompletionCandidates(
     commands,
     words,
     Number.isFinite(cursor) ? cursor! : words.length,
-    getHostedBuiltinCommands(hasLocalClientCommandHandlers).filter(command => command !== 'web'),
-  );
+    getHostedBuiltinCommands(coreCommands, hasLocalClientCommandHandlers)
+      .filter(command => command !== 'web' && command !== root),
+  ))];
 }
 
 function errorExitCode(err: unknown): number {
