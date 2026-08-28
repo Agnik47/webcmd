@@ -17,19 +17,30 @@
 
 ## [0.7.9](https://github.com/agentrhq/webcmd/compare/webcmd-v0.7.8...webcmd-v0.7.9) (2026-08-28)
 
+### Highlights
+- Hosted mode can now negotiate and run Cloud-advertised core commands for validation, diagnostics, adapter and profile lifecycle management, and plugin catalog listings. Commands appear in help and completion only when supported by the authenticated Cloud manifest.
 
-### ⚠ BREAKING CHANGES
+### Improvements
+- Registered external CLIs such as `gh`, `docker`, and user-defined passthrough commands now run in hosted mode. Hosted site commands take precedence when names overlap, arguments such as `--version` are forwarded correctly, and child exit codes are preserved.
+- Hosted help and shell completion now include the locally handled `skills` and `update` commands.
+- Root-level options such as `--profile`, `--workspace`, and `--session` now route correctly when placed before `skills` or `update`.
+- `webcmd profile use` now saves a validated hosted profile preference locally.
+- Hosted auth commands now use the same grammar, flags, choices, and help as local auth commands.
+- Hosted command listings retain unavailable commands as `LOCAL` entries and return local-only guidance instead of suggesting plugin installation.
+- Added public package exports for platform-neutral adapter analysis and the `hosted-core-commands-v1` capability contract.
 
-* webcmd doctor now exits 78 on an unhealthy machine.
+### Fixes
+- `webcmd doctor` now exits with code 78 (`CONFIG_ERROR`) when the daemon, runtime connection, or a performed connectivity check fails. Its stdout report remains unchanged, and soft warnings do not cause failure.
+- Failed `webcmd external install` operations now return a nonzero service-unavailable exit code.
+- External CLI executable paths containing directory separators are now checked directly instead of using a `PATH` lookup.
 
-### doctor
+### Adapters
+- Hosted mode now supports Cloud-advertised adapter validation, verification, convention auditing, status, and reset workflows.
+- Adapter analysis can now validate trusted hosted command inventories and audit adapter source conventions without local registry discovery.
+- Convention auditing now prevents manifest source paths from escaping the project root and avoids treating unrelated object literals as emitted adapter rows.
 
-* exit CONFIG_ERROR when a required check fails ([#456](https://github.com/agentrhq/webcmd/issues/456)) ([34fcc14](https://github.com/agentrhq/webcmd/commit/34fcc14707e28e02881686975068ea189940c9d9))
-
-
-### Features
-
-* bridge core CLI commands to hosted mode ([#458](https://github.com/agentrhq/webcmd/issues/458)) ([5e2d3df](https://github.com/agentrhq/webcmd/commit/5e2d3dfb4caefe711a04180009d622235b322d5b))
+### Contributors
+[@ankitranjan7](https://github.com/ankitranjan7)
 
 ## [0.7.8](https://github.com/agentrhq/webcmd/compare/webcmd-v0.7.7...webcmd-v0.7.8) (2026-08-27)
 
