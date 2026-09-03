@@ -37,6 +37,6 @@ Ordinary ingestion is judgment, not automatic. Matching evidence must appear on 
 
 Direct live proof that active factual memory is stale uses `direct_correction` immediately. Inferred causal or risk claims remain candidates.
 
-Candidate files are never deleted. An `ingested` or `rejected` candidate is completed: do not reopen, re-litigate, or re-count it during ordinary work or a major rewrite. When the same thing happens again, capture a new pending candidate rather than adding to or restating an existing one.
+Candidate files are never deleted. An `ingested` or `rejected` candidate is completed: do not reopen, re-litigate, or re-count it during ordinary work or a major rewrite. When the same thing happens again and still qualifies on its own, capture a new pending candidate rather than adding to or restating an existing one. A recurrence of something active memory already states adequately is not a new candidate.
 
 Considered supporting and dissenting evidence that contributes to a published conclusion is ingested with `evidenceRole`. Reject only when publishing no conclusion because the candidate is wrong, transient, private, or useless. Unrelated candidates stay pending.
