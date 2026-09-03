@@ -226,6 +226,7 @@ describe('webcmd skills content', () => {
     expect(browser).toMatch(/learning never fails the task/i);
     expect(browser).toMatch(/readOnly[\s\S]{0,240}continue the browser task/i);
     expect(browser).toMatch(/do not roll back[\s\S]{0,120}recoverable state/i);
+    expect(browser).toMatch(/say nothing about it[\s\S]{0,120}high-consequence warning failed to persist/i);
     expect(bundledReference('sitemap-memory.md')).toMatch(/end that section with a pointer[\s\S]{0,160}does not duplicate/i);
     expect(sitemap).toMatch(/readOnly[\s\S]{0,200}skip candidate capture/i);
   });
