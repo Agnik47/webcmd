@@ -22,4 +22,6 @@ If `resolution.status` is `provisional-fallback`, classify the hostname as the s
 
 Edit files under the returned `draftPath`. Durable facts need `[verified YYYY-MM-DD]` with a real UTC date. Publish through checkpointing in [`git-lifecycle.md`](git-lifecycle.md); do not edit active memory in place.
 
+Keep the highest-value orientation in the section itself. Put secondary or specialized detail in a reference file and end that section with a pointer to it. A section says what kind of detail its reference holds; it does not duplicate or summarize it.
+
 When reality drifts, record expected vs actual vs next probe in the draft, then checkpoint. Leave unverified guesses out of `SITE.md`.
