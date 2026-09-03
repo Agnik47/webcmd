@@ -4,6 +4,8 @@
 
 Sitemap memory is **prior knowledge**, not ground truth. If the live page disagrees, trust the live browser.
 
+If `readOnly` is true, memory cannot be written this task. Read it, finish the browser task, and skip candidate capture and checkpoint. A learning failure is never a task failure.
+
 If `resolution.status` is `provisional-fallback`, classify the hostname as the same product or a distinct product **before any write**, including `candidate add`. Use `webcmd site memory classify` — do not write `~/.webcmd` and never use git. After classify, rerun context for that host before capturing or checkpointing. Visiting a provisional host does not make an exact draft already opened in this task read-only.
 
 - `old.reddit.com` is the same product: `webcmd site memory classify old.reddit.com --same-product reddit.com --expected-revision <revision> -f json`

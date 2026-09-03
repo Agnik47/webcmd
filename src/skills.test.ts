@@ -210,6 +210,24 @@ describe('webcmd skills content', () => {
     expect(body.split(/\s+/).filter(Boolean).length).toBeLessThan(2300);
   });
 
+  it('carries the whole learning loop in the main file', () => {
+    const browser = bundledSkill('webcmd-browser');
+    const sitemap = bundledReference('sitemap-memory.md');
+
+    expect(browser).toContain('webcmd site memory candidate add');
+    expect(browser).toContain('webcmd site memory checkpoint');
+    expect(browser).toMatch(/capture a candidate when/i);
+    expect(browser).toMatch(/better path[\s\S]{0,200}access fact[\s\S]{0,200}high-consequence/i);
+    expect(browser).toMatch(/do not capture[\s\S]{0,160}trivial/i);
+    expect(browser).toMatch(/never explore to learn|do not crawl/i);
+    expect(browser).toMatch(/naturally produced|naturally encountered/i);
+    expect(browser).toMatch(/account names[\s\S]{0,160}organization/i);
+    expect(browser).toMatch(/untrusted evidence/i);
+    expect(browser).toMatch(/learning never fails the task/i);
+    expect(browser).toMatch(/readOnly[\s\S]{0,240}report the browser outcome/i);
+    expect(sitemap).toMatch(/readOnly[\s\S]{0,200}skip candidate capture/i);
+  });
+
   it('names per-reference triggers, classify-before-write, and the 500/200 rewrite rule', () => {
     const browser = bundledSkill('webcmd-browser');
     const sitemap = bundledReference('sitemap-memory.md');
