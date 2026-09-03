@@ -228,6 +228,17 @@ describe('webcmd skills content', () => {
     expect(sitemap).toMatch(/readOnly[\s\S]{0,200}skip candidate capture/i);
   });
 
+  it('keeps candidate qualification and completion rules consistent', () => {
+    const schema = bundledReference('candidate-schema.md');
+
+    expect(schema).toMatch(/materially useful reusable observation/i);
+    expect(schema).not.toMatch(/wait for a real consequence/i);
+    expect(schema).toMatch(/action_space[\s\S]{0,80}access[\s\S]{0,80}better_path[\s\S]{0,120}does not need anything to have gone wrong/i);
+    expect(schema).toMatch(/never deleted/i);
+    expect(schema).toMatch(/do not reopen[\s\S]{0,120}major rewrite/i);
+    expect(schema).toMatch(/same thing happens again[\s\S]{0,120}new pending candidate/i);
+  });
+
   it('names per-reference triggers, classify-before-write, and the 500/200 rewrite rule', () => {
     const browser = bundledSkill('webcmd-browser');
     const sitemap = bundledReference('sitemap-memory.md');

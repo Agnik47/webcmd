@@ -10,7 +10,7 @@ The first reader of this CLI is an agent, not a human. Use browser output as str
 
 Run `webcmd site memory context <url> --task-id <id> -f json` before any live browser action. Then create the Session.
 
-Load [`references/sitemap-memory.md`](references/sitemap-memory.md) when `resolution.status` is `provisional-fallback`, when `readOnly` is true, or before editing `draftPath`.
+Load [`references/sitemap-memory.md`](references/sitemap-memory.md) after `context`, before relying on memory, editing `draftPath`, or acting on `provisional-fallback` or `readOnly`.
 Load [`references/candidate-schema.md`](references/candidate-schema.md) when a qualifying observation appears.
 Load [`references/git-lifecycle.md`](references/git-lifecycle.md) before checkpoint, or when SITE.md exceeds 500 lines.
 Load [`references/browser-run-playwright.md`](references/browser-run-playwright.md) before writing a `browser run` program.
