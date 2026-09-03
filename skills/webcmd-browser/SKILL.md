@@ -8,7 +8,7 @@ allowed-tools: Bash(webcmd:*), Read, Write, Edit
 
 The first reader of this CLI is an agent, not a human. Use browser output as structured evidence, not as prose to skim.
 
-Run `webcmd site memory context <url> --task-id <id> -f json` before any live browser action. Then create the Session.
+After preflight and Session creation, run `webcmd site memory context <url> --task-id <id> -f json` before any live browser action.
 
 Load [`references/sitemap-memory.md`](references/sitemap-memory.md) after `context`, before relying on memory, editing `draftPath`, or acting on `provisional-fallback` or `readOnly`.
 Load [`references/candidate-schema.md`](references/candidate-schema.md) when a qualifying observation appears.
@@ -74,10 +74,10 @@ Do not capture trivial successes, ordinary dead ends, isolated transient errors,
 Raw browser commands require an explicit readable selector. Local browser commands use Cloak; hosted browser commands use Webcmd Cloud and Browser Use.
 
 ```bash
-webcmd site memory context https://example.com/ --task-id task-1 -f json
 webcmd profile create work
 webcmd --profile work session create "Work Project"
 # id: work-project-k7
+webcmd site memory context https://example.com/ --task-id task-1 -f json
 webcmd --profile work --session work-project-k7 browser tabs
 
 webcmd --profile work \
