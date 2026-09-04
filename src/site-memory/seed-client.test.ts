@@ -78,7 +78,12 @@ describe('global seed client', () => {
 
     expect(result).toEqual({ status: 'lookup-failed' });
     expect(calls).toBe(1);
-    expect(Date.now() - started).toBeGreaterThanOrEqual(2000);
+    // Node can run the timer callback when Date.now() has advanced only 1999ms
+    // — libuv compares against a loop time it caches and truncates to whole
+    // milliseconds. This bound is here to prove the lookup waited for the
+    // timeout instead of returning early, so give it a millisecond of slack
+    // rather than asserting the budget to the exact millisecond.
+    expect(Date.now() - started).toBeGreaterThanOrEqual(1_990);
     expect(Date.now() - started).toBeLessThan(4000);
   });
 
